@@ -29,11 +29,11 @@ run smoke tests when updating either client. CI tests fake clients on Linux and
 macOS and validates npm packages and standalone executables. Release jobs test
 all four supported OS/CPU combinations. CI does not install real AI clients.
 The binary CI baseline is macOS 15 and Ubuntu 24.04 (glibc); Windows and musl
-are not distributed. Homebrew installation tests use Ubuntu 26.04 for Landlock
-network isolation; binary builds still target the Ubuntu 24.04 baseline.
-Intel macOS Homebrew may report an upstream support-policy warning; we retain
-its installation test coverage. No Apple Developer ID signing or notarization
-is provided.
+are not distributed. Hosted Linux kernels currently lack Landlock ABI 10, so
+Homebrew reports limited network isolation and applies the restrictions the
+kernel supports. We retain its sandbox and capability warning. Intel macOS
+may also report upstream support-policy notices; its tests remain enabled.
+No Apple Developer ID signing or notarization is provided.
 
 Package versions follow semantic versioning. Before 1.0, breaking behavior
 changes require a minor bump and migration notes. Local TOML, remote JSON, and

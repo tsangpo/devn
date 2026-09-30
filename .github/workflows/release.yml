@@ -144,9 +144,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Linux 26.04 supports the Landlock network isolation required by Homebrew.
-        # Keep Intel macOS coverage despite Homebrew's upstream support warning.
-        os: [ubuntu-26.04, ubuntu-26.04-arm, macos-15, macos-15-intel]
+        # Hosted Linux kernels lack Landlock ABI 10; keep Homebrew's sandbox
+        # enabled and its capability warning visible.
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15, macos-15-intel]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Download release inputs
