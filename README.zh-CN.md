@@ -1,0 +1,200 @@
+# devn
+
+[English](README.md) · [GitHub](https://github.com/tsangpo/devn)
+
+在项目目录运行 `devn codex` 或 `devn claude`，自动选择对应的 Bifrost profile。每个 profile 有独立的 Codex、Claude 配置、插件和会话数据。
+
+## bunx 使用（npm 发布后可用）
+
+npm 包名为 `devn`，命令入口为 `bin/devn`，由 Bun 直接运行 TypeScript。首次发布前，以下命令不能从 npm 下载本项目：
+
+```bash
+bunx devn --help
+bunx devn profile add
+bunx devn profile use customer-a
+bunx devn codex
+bunx devn claude
+```
+
+需要查看版本时运行 `devn --version`。需要固定版本时使用 `bunx devn@0.1.0`。Codex 和 Claude Code 仍需自行安装并放入 PATH。
+
+## Homebrew 安装（首次发布后可用）
+
+```bash
+brew install tsangpo/tap/devn
+devn --version
+```
+
+安装独立二进制，不需要 Bun。支持 macOS 和 Linux（glibc）的 arm64/x64。Codex 和 Claude Code 仍需另行安装。升级使用 `brew update && brew upgrade devn`；也可从 [GitHub Releases](https://github.com/tsangpo/devn/releases) 下载二进制与 SHA-256 校验文件。
+
+## 从源码运行
+
+支持 Linux/macOS，需要 [Bun](https://bun.com/) **1.4.2 或更新版本**。Codex 和 Claude Code 由用户自行安装，并放入 PATH。
+
+获取源码后，在仓库目录运行：
+
+```bash
+bun bin/devn --help
+```
+
+也可以将源码的 `bin` 目录加入 PATH，以便在项目目录使用 `devn`：
+
+```bash
+export PATH="/absolute/path/to/cli/bin:$PATH"
+```
+
+Bun 直接执行 TypeScript，无需安装项目依赖或构建。CLI 运行时不需要 Git checkout 或 GitHub 认证，也不会自行下载或更新代码。CLI 版本由包管理器管理。npm 与 Homebrew 自动发布流程已配置，首次发布完成后安装命令才可用。
+
+## 使用
+
+```bash
+devn --version
+devn profile list
+devn profile show customer-a      # 脱敏查看，本地读取
+devn profile add                 # 输入本地名称、Profile JSON URL、隐藏输入 key
+
+cd /path/to/project
+devn profile use customer-a     # 在当前目录写入 .devn.json
+
+devn codex
+devn claude
+```
+
+`profile add` 输入的 URL 是公开的 Profile JSON 地址，例如 `https://config.example.com/customer-a.json`，不是模型网关地址。请求不携带 key；key 只用于工具连接 JSON 中指定的网关。下载并校验后展示 Codex / Claude 网关 origin，明确确认后才保存注册信息。默认要求 HTTPS；HTTP 只允许 localhost、127.0.0.0/8 和 ::1 回环地址供本地测试。远程配置重定向最多 5 次，HTTPS 不允许降级到 HTTP。
+
+重复添加同名 profile 会询问是否更新 URL 和 key，保留工具数据。`profile use` 省略名称时列出已注册的 profiles。添加不会改变当前项目绑定，旧的 `profile init` 已由 `profile add` 替代。
+
+项目声明可以提交 Git，不包含 key：
+
+```json
+{"version":1,"profile":"customer-a"}
+```
+
+从子目录启动时向上查找最近的 `.devn.json`；嵌套项目可以覆盖父目录绑定。未知、损坏或未注册的 profile 会报错，不会回退到其他客户。
+
+原生参数直接传给对应工具：
+
+```bash
+devn codex exec --skip-git-repo-check "Explain this project"
+devn claude -p "Explain this project"
+devn codex --model your-model-id
+```
+
+替换 provider、配置目录或工作目录的冲突参数会被拒绝。需要换目录时先 `cd`；需要换 profile 时执行 `devn profile use`。非交互结果写入 stdout，devn 启动和 profile 刷新提示写入 stderr。
+
+## 模型由 Bifrost 管理
+
+CLI 不内置任何客户 profile。远程配置不提供 `models` 时，devn 保留工具原生默认模型、原生菜单以及用户保存的选择，不强制模型参数。
+
+工具仍会在请求中发送一个模型 ID。管理员需要在 Bifrost 配置对应的模型别名或路由，将这个 ID 映射到实际的供应商与模型。请以网关收到的请求为准；工具升级后默认 ID 可能改变。路由目标的工具调用、上下文长度、推理等能力应与客户端预期兼容。[Bifrost 路由说明](https://docs.getbifrost.ai/providers/provider-routing)
+
+没有下发模型列表不代表网关自动接受任何 ID，实际访问权限由 Bifrost virtual key 控制。
+
+## Profile 刷新与数据位置
+
+`devn codex` / `devn claude` 每次先拉取该 profile 的远程 JSON，再生成工具配置。下载上限 1 MiB（解压后），请求最长等待十秒；网络错误、超时或 HTTP 5xx 时提示并使用有效缓存，没有有效缓存则报错。HTTP 4xx、无效 JSON、超大响应、不安全重定向或非法配置会阻止启动并保留原缓存。若网关 origin（协议、主机或端口）变化，也会停止启动；重新执行 `profile add` 查看并接受新地址。同一 origin 内的路径和模型更新自动生效。每个 profile 独立刷新加锁，慢请求不会阻塞其他 profile。`profile list` 和 `profile use` 只读取本地注册信息。
+
+```text
+~/.config/devn/
+├── config.toml                  # 本地名称、远程 JSON URL、key
+└── profiles/
+    └── customer-a/
+        ├── profile.json         # 校验后的远程配置缓存
+        ├── codex/               # CODEX_HOME
+        │   └── config.toml
+        └── claude/              # CLAUDE_CONFIG_DIR
+            └── settings.json
+```
+
+本地注册文件：
+
+```toml
+version = 1
+
+[profiles.customer-a]
+url = "https://config.example.com/customer-a.json"
+key = "your-local-key"
+
+[profiles.customer-a.origins]
+codex = "https://gateway.example.com"
+claude = "https://gateway.example.com"
+```
+
+启动前更新对应工具的配置，生成文件和密钥文件权限为 `0600`，profile 目录为 `0700`。Codex key 写入 `model_providers.bifrost.experimental_bearer_token`，Claude key 写入 `env.ANTHROPIC_AUTH_TOKEN`。这些文件在仓库之外，不会随 CLI 更新提交或覆盖。Key 当前保存在本机文件中；不使用 Bun.secrets，以便在没有系统密钥服务的 Linux/SSH 环境使用。
+
+只合并 devn 管理的字段，保留个人设置、插件、MCP 和历史。`.devn-managed.json` 记录管理字段路径，不含 key，用于删除旧版本已停用的管理字段。不要手动编辑 devn 管理的连接字段；下一次启动会重新生成。损坏的配置文件会阻止启动，避免静默覆盖。
+
+同一 profile 下的多个项目共用工具目录；不同 profiles 独立注册。不会复制原有 `~/.codex`、`~/.claude`。这属于配置与本地状态分离，不是操作系统级隔离。
+
+## 管理 profile
+
+管理员在 HTTPS URL 发布无密钥的 JSON。仓库只保留 `profiles/example.json` 供参考，CLI 运行时不会扫描该目录或自动注册示例。最简远程配置：
+
+```json
+{
+  "version": 1,
+  "baseUrl": "https://gateway.example.com",
+  "codex": {},
+  "claude": {}
+}
+```
+
+远程网关同样默认要求 HTTPS，仅回环地址允许 HTTP。默认自动追加 `/openai/v1` 和 `/anthropic`；也可以分别在 `codex.baseUrl`、`claude.baseUrl` 提供完整接口路径。本地名称以字母或数字开头，只能包含字母、数字、连字符及下划线，长度不超过 64；保留名 __proto__、constructor、prototype 不可用。远程 `id`、`name` 是可选说明字段，不决定本地绑定或目录。请勿在 profile 定义中存储真实 key。
+
+连接配置由代码根据 profile 的 URL 和本机 key 生成，再用 Bun.TOML / JSON 序列化；不使用 shell 或文本拼接插入密钥。个人设置直接保存在各 profile 的工具配置文件中，后续启动时保留。
+
+默认无需维护模型列表。如果确实需要统一原生模型菜单，`profiles/example.json` 展示可选的 `models`、`defaultModel`、Claude `slots` 与 Codex 原生元数据格式。该示例标记为 `example`，不能添加或启动；发布前填写真实值并删除 `example: true`。Codex 能力字段必须与真实后端一致。Claude 通过 `modelPicker` 生成菜单；Codex 通过 `model_catalog_json` 加载目录。已保存模型仍在列表中时保留，否则采用管理员默认值。移除中央模型列表会恢复原生菜单并保留用户选择。
+
+参考：[Codex 配置](https://learn.chatgpt.com/docs/config-file/config-reference)、[Claude 配置目录](https://code.claude.com/docs/en/env-vars)、[Claude 模型菜单](https://code.claude.com/docs/en/settings-reference#modelpicker)。
+
+## 开发与验证
+
+```bash
+bun run check
+```
+
+Bun 直接执行 TypeScript 源文件，项目没有 dependencies / devDependencies，无需 install、build 或 dist 目录。CI 在 Linux 和 macOS 运行行为测试、example 校验及二进制测试。Bun 不执行静态类型检查；check 验证运行时行为。
+
+```bash
+bun run validate                 # 校验仓库 example，不读取本地 key
+bun run test:native              # 需要本机 codex / claude；仅连接本地模拟网关
+```
+
+原生测试位于 `test/native/native-smoke.test.ts`，使用 `bun:test`，分为 Codex 默认模型、Claude 默认模型和 Codex 中央模型目录三个独立用例，每个用例单独创建并清理网关与临时目录。
+
+`bun run test` / `bun run check` 只运行常规测试；`bun run test:native` 运行原生测试，直接执行 `bun test` 还包含二进制测试，需先运行 `bun run build:binary`。
+
+原生测试使用临时 profile 和虚拟 key，检查真实客户端的默认模型、认证头、接口和流式输出，不调用真实 Bifrost。常规测试使用 Bun 自带伪终端验证密码不回显，无需 Python。
+
+配置与工具数据使用 `${XDG_CONFIG_HOME:-~/.config}/devn`，测试通过 `XDG_CONFIG_HOME` 隔离数据。CLI 源码可以放在任意目录，移动或升级代码不会迁移用户数据。
+
+## 从旧版迁移
+
+旧开发版本的注册记录若没有已批准的 origins，需执行 `devn profile add` 重新添加并确认网关地址。搬迁配置或工具数据前先停止工具会话；复制历史和个人设置到 profile 目录时保留文件权限，key 以 `config.toml` 为准。不会自动迁移旧开发版本的数据目录。
+
+已验证基线：Bun 1.4.2、Codex 0.159.2、Claude Code 2.1.285。
+
+## 删除 profile
+
+`devn profile remove customer-a` 输入名称确认后删除本地注册、key 及 devn 写入工具配置的认证字段，保留历史和个人设置。先停止该 profile 的工具会话；运行中的进程、备份或历史中的敏感内容不会被自动清除。
+
+`devn profile remove customer-a --purge` 会额外删除整个 profile 目录及会话历史。已经移除注册后，仍可用这条命令清理保留的数据。项目中的 .devn.json 不会自动删除或切换到其他 profile。
+
+## 开源与发布
+
+MIT 许可证，Copyright (c) 2026 tsangpo。参见 [LICENSE](LICENSE)、[贡献与发布说明](CONTRIBUTING.md)、[安全政策](SECURITY.md) 和 [更新记录](CHANGELOG.md)。
+
+`bun run check:secrets` 检查工作区与可达 Git 历史中的已知 token/私钥特征，不输出匹配值。它无法识别全部自定义 key 或客户信息，发布前仍应检查实际 tarball 和文档。
+
+推送与 package.json 版本一致的正式 `vX.Y.Z` tag，会触发 Release 工作流：验证同一份 npm tarball 和四平台二进制，自动发布 npm 与 GitHub Release，验证 Homebrew 安装后更新 `tsangpo/homebrew-tap`。首次 npm 发布使用临时 `NPM_TOKEN`，之后配置 OIDC；tap 更新使用仅授权 tap 仓库 Contents 写入的 `GH_PAT`。配置步骤见 [贡献与发布说明](CONTRIBUTING.md#release-setup)。
+
+本地构建及验证当前平台二进制：
+
+```bash
+bun run build:binary
+bun run test:binary
+```
+
+产物放在忽略提交的 `release/`，不引入 dist 或项目依赖。正式发布工作流仅接受稳定版本，不发布预览版。
+
+此前注册记录若没有 origins，升级后需重新运行 `profile add` 接受网关地址；工具历史保留。配置格式 version 1 继续支持，未知版本报错，不会静默迁移。兼容范围和发布前测试要求见 CONTRIBUTING.md。

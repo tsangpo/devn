@@ -1,0 +1,10 @@
+name: Feature request
+description: Describe a problem devn could solve.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and proposed behavior
+      description: Explain your use case without private customer details.
+    validations:
+      required: true

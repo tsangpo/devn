@@ -1,0 +1,44 @@
+{
+  "name": "devn",
+  "version": "0.1.0",
+  "description": "Project-aware Codex and Claude Code launcher for Bifrost",
+  "bin": {
+    "devn": "bin/devn"
+  },
+  "engines": {
+    "bun": ">=1.4.2"
+  },
+  "scripts": {
+    "validate": "bun bin/devn --validate-example",
+    "test": "bun test ./test/*.test.ts --timeout 20000",
+    "test:native": "bun test ./test/native/native-smoke.test.ts",
+    "check": "bun run test && bun run validate",
+    "check:secrets": "bun scripts/check-secrets.ts",
+    "release:pack": "bun scripts/pack-release.ts",
+    "build:binary": "bun scripts/build-binary.ts",
+    "test:binary": "bun test ./test/binary",
+    "release:prepare": "bun scripts/prepare-release.ts"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "profiles/example.json",
+    "README.zh-CN.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tsangpo/devn.git"
+  },
+  "homepage": "https://github.com/tsangpo/devn#readme",
+  "bugs": {
+    "url": "https://github.com/tsangpo/devn/issues"
+  },
+  "license": "MIT",
+  "author": "tsangpo"
+}

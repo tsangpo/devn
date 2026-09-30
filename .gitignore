@@ -1,0 +1,12 @@
+node_modules/
+coverage/
+.DS_Store
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.tgz
+release/
+.aws/
+.codex/
+.agents/

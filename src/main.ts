@@ -1,0 +1,98 @@
+import { version } from '../package.json';
+import example from '../profiles/example.json';
+import { displayURL } from './urls';
+import { loadRegistry, addProfile, refreshProfile, removeProfile, cachedProfile, safeId } from './store';
+import { validateProfile, endpoint, type Registry } from './registry';
+import { bind, findBinding, getProfile, requireProfile } from './projects';
+import { choose, password, question } from './prompts';
+import { launch } from './launch';
+
+const HELP = `Usage:
+  devn profile list                 List locally registered profiles
+  devn profile add                  Enter a name, Profile JSON URL, and Bifrost key
+  devn profile show [profile-name]   Show redacted local profile details
+  devn profile remove <name> [--purge] Remove registration; --purge also deletes history
+  devn --version                    Print the CLI version
+  devn profile use [profile-name]    Save .devn.json in the current directory
+  devn codex [arguments...]         Refresh profile, update config, and start Codex
+  devn claude [arguments...]        Refresh profile, update config, and start Claude Code
+
+Keys and tool data stay local. Remote profiles refresh before launching a tool.
+`;
+
+async function dispatch(registry: Registry, args: string[]): Promise<number> {
+  if (args[0] === 'codex' || args[0] === 'claude') {
+    const entry = requireProfile(registry);
+    const { profile, key } = await refreshProfile(entry.id);
+    return launch(profile, args[0], args.slice(1), key);
+  }
+  if (args[0] !== 'profile') throw new Error('Unknown command. Run devn --help.');
+  const [, action, id, ...extra] = args;
+  if ((extra.length && !(action === 'remove' && extra.length === 1 && extra[0] === '--purge')) || (id !== undefined && !['use', 'show', 'remove'].includes(action))) throw new Error('Unexpected arguments. Run devn --help.');
+  if (action === 'list') {
+    const binding = findBinding();
+    for (const p of registry.profiles) console.log(`${binding?.id === p.id ? '*' : ' '} ${p.id}`);
+    if (!registry.profiles.length) console.log('No profiles registered. Run devn profile add.');
+    if (binding) console.log(`Binding: ${binding.file} → ${binding.id}`);
+    return 0;
+  }
+  if (action === 'add') {
+    const name = await question('Profile name: ');
+    if (!safeId(name)) throw new Error('Invalid profile name. Use letters, numbers, hyphens, or underscores (up to 64 characters).');
+    const existing = registry.profiles.find(p => p.id === name);
+    if (existing && !/^y(es)?$/i.test(await question(`Update profile ${name} URL and key? [y/N]: `))) {
+      console.log('Cancelled.'); return 0;
+    }
+    const url = await question('Profile JSON URL: ');
+    const key = await password();
+    await addProfile(name, url, key, existing, async profile => {
+      console.error(`Codex gateway: ${displayURL(endpoint(profile, 'codex'))}`);
+      console.error(`Claude gateway: ${displayURL(endpoint(profile, 'claude'))}`);
+      return /^y(es)?$/i.test(await question('Trust these gateways to receive your key? [y/N]: '));
+    });
+    console.log(`Added ${name}. Run devn profile use ${name} in your project.`);
+    return 0;
+  }
+  if (action === 'show') {
+    const entry = id ? getProfile(registry, id) : requireProfile(registry);
+    let cached = false;
+    try { await cachedProfile(entry.id); cached = true; } catch { /* Show missing/invalid cache without parsing details. */ }
+    console.log(JSON.stringify({
+      profile: entry.id, url: displayURL(entry.url), key: '[redacted]',
+      trustedOrigins: entry.origins || null, validCache: cached,
+    }, null, 2));
+    return 0;
+  }
+  if (action === 'remove') {
+    if (!safeId(id)) throw new Error('Specify a valid profile name to remove.');
+    const purge = extra[0] === '--purge';
+    if (!purge) getProfile(registry, id);
+    console.error(purge ? 'This deletes all tool data and history. Stop active sessions first.' : 'This removes registration and generated credentials, preserving history. Stop active sessions first.');
+    if (await question(`Type ${id} to confirm removal: `) !== id) { console.log('Cancelled.'); return 0; }
+    await removeProfile(id, purge);
+    console.log(`Removed ${id}${purge ? ' and all tool data' : '; tool history retained'}. Project bindings were not changed.`);
+    return 0;
+  }
+  if (action === 'use') {
+    const p = id ? getProfile(registry, id) : await choose(registry.profiles);
+    bind(p.id);
+    console.log(`Selected ${p.id} in ${process.cwd()}/.devn.json`);
+    return 0;
+  }
+  throw new Error('Unknown profile command. Run devn --help.');
+}
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  if (args.length === 1 && ['--version', '-v'].includes(args[0])) { console.log(version); return; }
+  if (!args.length || ['--help', '-h', 'help'].includes(args[0])) { console.log(HELP); return; }
+  if (args[0] === '--validate-example') {
+    validateProfile(example);
+    console.log('Validated example profile.'); return;
+  }
+  process.exitCode = await dispatch(await loadRegistry(), args);
+}
+main().catch(error => {
+  console.error(`devn: ${error.message}`);
+  process.exitCode ||= 1;
+});

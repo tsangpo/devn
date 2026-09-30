@@ -1,0 +1,27 @@
+name: Bug report
+description: Report a reproducible CLI problem using dummy data.
+body:
+  - type: markdown
+    attributes:
+      value: "For security vulnerabilities use the private reporting channel in SECURITY.md. Never attach real keys, config.toml, prompts, or customer data."
+  - type: input
+    id: version
+    attributes:
+      label: devn version
+      description: Output of devn --version
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, architecture, Bun version, and Codex/Claude versions if relevant
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Steps, expected behavior, actual behavior, and redacted output
+    validations:
+      required: true
