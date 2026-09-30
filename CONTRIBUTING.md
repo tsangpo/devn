@@ -88,6 +88,11 @@ and installs it without Bun. The CLI never updates itself.
 ## Failed releases and retries
 
 Re-run **failed jobs**, retaining the original artifacts (available for 30 days).
+If a publishing-script fix is needed, commit it to main and manually dispatch
+the Release workflow from main with the original `tag` and `artifact_run_id`.
+This recovery path skips builds, verifies the original run belongs to that tag
+and passed all four binary jobs, and reuses its artifacts. The main branch must
+still have the same package version. Never move the release tag.
 An identical already-published npm tarball is accepted; different contents for
 an existing npm version cause failure. Existing Release assets are verified and
 never overwritten; missing draft assets may be uploaded on retry. Rebuilding

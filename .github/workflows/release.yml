@@ -2,6 +2,16 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to resume
+        required: true
+        type: string
+      artifact_run_id:
+        description: Original tag-triggered Release run with successful builds
+        required: true
+        type: string
 permissions:
   contents: read
 # Serialize versions, including tap updates. Never cancel a partially published release.
@@ -9,10 +19,11 @@ concurrency:
   group: release
   cancel-in-progress: false
 env:
-  RELEASE_TAG: ${{ github.ref_name }}
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  ARTIFACT_RUN_ID: ${{ inputs.artifact_run_id || github.run_id }}
 jobs:
   pack:
-    if: github.repository == 'tsangpo/devn'
+    if: github.repository == 'tsangpo/devn' && github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -73,10 +84,14 @@ jobs:
           retention-days: 30
   publish:
     needs: binaries
+    if: >-
+      always() && !cancelled() && github.repository == 'tsangpo/devn' &&
+      (needs.binaries.result == 'success' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
       id-token: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -91,11 +106,16 @@ jobs:
           node-version: '24'
           registry-url: https://registry.npmjs.org
       - run: npm install --global npm@11.16.0
+      - run: bun scripts/check-release-source.ts
+        env:
+          GH_TOKEN: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
           pattern: '*'
           merge-multiple: true
           path: release
+          run-id: ${{ env.ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
       - run: bun run release:prepare
       - run: bun scripts/publish-github.ts stage
         env:
@@ -109,8 +129,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@v4
         with:
-          name: homebrew-formula
-          path: release/devn.rb
+          name: release-inputs
+          path: |
+            release/*.tgz*
+            release/*.tar.gz*
+            release/SHA256SUMS
+            release/devn.rb
           if-no-files-found: error
   verify-homebrew:
     needs: publish
@@ -122,7 +146,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: homebrew-formula
+          name: release-inputs
           path: formula
       - uses: Homebrew/actions/setup-homebrew@e99025eb970cfa124b8284a35463d87426917478
       - name: Install and test the released binary via a temporary tap
@@ -147,8 +171,7 @@ jobs:
           bun-version: 1.4.2
       - uses: actions/download-artifact@v4
         with:
-          pattern: '*'
-          merge-multiple: true
+          name: release-inputs
           path: release
       - uses: actions/checkout@v4
         with:

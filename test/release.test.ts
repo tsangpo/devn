@@ -42,3 +42,48 @@ test('tap updates compare numeric versions and refuse downgrade or unknown forma
   expect(() => assertNoDowngrade('  version "1.0.0"', '0.10.0')).toThrow('downgrade');
   expect(() => assertNoDowngrade('unrecognized')).toThrow();
 });
+
+test('GitHub staging finds draft releases and resumes without replacing assets', async () => {
+  const temp = (await $`mktemp -d`.text()).trim();
+  const root = Bun.fileURLToPath(new URL('../', import.meta.url));
+  try {
+    await $`mkdir -p ${temp + '/release'} ${temp + '/bin'} ${temp + '/remote'}`.quiet();
+    for (const name of assetNames()) {
+      await Bun.write(temp + '/release/' + name, 'dummy ' + name);
+      await Bun.write(temp + '/release/' + name + '.sha256', await digest(temp + '/release/' + name));
+    }
+    await Bun.write(temp + '/release/SHA256SUMS', 'test manifest');
+    await Bun.write(temp + '/bin/gh', `#!${process.execPath}
+import { readdirSync, copyFileSync } from 'node:fs';
+const args = process.argv.slice(2);
+const remote = process.env.MOCK_REMOTE;
+const value = flag => args[args.indexOf(flag) + 1];
+if (args[0] !== 'release') process.exit(99);
+if (args[1] === 'view') console.log(JSON.stringify({isDraft: true, assets: readdirSync(remote).map(name => ({name}))}));
+else if (args[1] === 'upload') copyFileSync(args[3], remote + '/' + args[3].split('/').at(-1));
+else if (args[1] === 'download') copyFileSync(remote + '/' + value('--pattern'), value('--dir') + '/' + value('--pattern'));
+else if (args[1] !== 'edit') process.exit(99);
+`);
+    await $`chmod +x ${temp + '/bin/gh'}`.quiet();
+    const env = { ...process.env, RELEASE_TAG: 'v' + version, MOCK_REMOTE: temp + '/remote', PATH: temp + '/bin:' + process.env.PATH };
+    const run = async (mode: string) => {
+      const child = Bun.spawn([process.execPath, root + '/scripts/publish-github.ts', mode], {
+        cwd: temp, env, stdout: 'pipe', stderr: 'pipe',
+      });
+      const timer = setTimeout(() => child.kill('SIGKILL'), 5000);
+      try {
+        const [code, , stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+        if (code !== 0) throw new Error(stderr || 'Publishing test process failed.');
+      } finally { clearTimeout(timer); }
+    };
+    await run('stage');
+    await run('stage');
+    await run('publish');
+    expect(await Bun.file(temp + '/remote/devn.tgz').text()).toBe('dummy devn.tgz');
+    await Bun.write(temp + '/remote/devn.tgz', 'different existing asset');
+    await expect(run('stage')).rejects.toThrow();
+    expect(await Bun.file(temp + '/remote/devn.tgz').text()).toBe('different existing asset');
+  } finally {
+    await $`rm -rf ${temp}`.quiet();
+  }
+}, 20000);
