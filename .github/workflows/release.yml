@@ -124,6 +124,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       # npm authenticates using GitHub OIDC; no long-lived npm token is injected.
       - run: bun scripts/publish-npm.ts
+        env:
+          # npm otherwise hides OIDC exchange failures behind a generic publish error.
+          NPM_CONFIG_LOGLEVEL: verbose
       - run: bun scripts/publish-github.ts publish
         env:
           GH_TOKEN: ${{ github.token }}
