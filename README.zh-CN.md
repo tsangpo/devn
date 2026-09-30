@@ -122,6 +122,8 @@ claude = "https://gateway.example.com"
 
 启动前更新对应工具的配置，生成文件和密钥文件权限为 `0600`，profile 目录为 `0700`。Codex key 写入 `model_providers.bifrost.experimental_bearer_token`，Claude key 写入 `env.ANTHROPIC_AUTH_TOKEN`。这些文件在仓库之外，不会随 CLI 更新提交或覆盖。Key 当前保存在本机文件中；不使用 Bun.secrets，以便在没有系统密钥服务的 Linux/SSH 环境使用。
 
+Codex 内置网页搜索默认设为 `disabled`，因为网关支持某个模型不代表支持 OpenAI 托管搜索。保留用户在 profile 的 `codex/config.toml` 中显式设置的 `web_search`。旧版本遇到搜索不支持错误时，可运行 `devn codex -c 'web_search="disabled"'`。
+
 只合并 devn 管理的字段，保留个人设置、插件、MCP 和历史。`.devn-managed.json` 记录管理字段路径，不含 key，用于删除旧版本已停用的管理字段。不要手动编辑 devn 管理的连接字段；下一次启动会重新生成。损坏的配置文件会阻止启动，避免静默覆盖。
 
 同一 profile 下的多个项目共用工具目录；不同 profiles 独立注册。不会复制原有 `~/.codex`、`~/.claude`。这属于配置与本地状态分离，不是操作系统级隔离。
@@ -143,7 +145,15 @@ claude = "https://gateway.example.com"
 
 连接配置由代码根据 profile 的 URL 和本机 key 生成，再用 Bun.TOML / JSON 序列化；不使用 shell 或文本拼接插入密钥。个人设置直接保存在各 profile 的工具配置文件中，后续启动时保留。
 
-默认无需维护模型列表。如果确实需要统一原生模型菜单，`profiles/example.json` 展示可选的 `models`、`defaultModel`、Claude `slots` 与 Codex 原生元数据格式。该示例标记为 `example`，不能添加或启动；发布前填写真实值并删除 `example: true`。Codex 能力字段必须与真实后端一致。Claude 通过 `modelPicker` 生成菜单；Codex 通过 `model_catalog_json` 加载目录。已保存模型仍在列表中时保留，否则采用管理员默认值。移除中央模型列表会恢复原生菜单并保留用户选择。
+默认无需维护模型列表。需要统一模型菜单时，参考 `profiles/example.json`，发布前填写真实值并删除 `example: true`。
+
+Codex 使用 `codex.model` 指定默认模型，`codex.models` 直接存放原生 catalog 对象：`slug`、`display_name`、`description` 和能力字段。devn 仅包一层 `{ "models": [...] }` 写入 `model_catalog_json` 指向的文件，不再补充或覆盖 `priority`、`visibility`、`supported_in_api` 等字段。能力字段必须与真实后端一致。
+
+Claude 使用 `claude.model` 和原生 `claude.modelPicker`：`replaceBuiltInOptions` 必须为 `true`，`options` 条目使用 `model`、`label`，可选 `description`、`behavesAs`。菜单原样写入 settings；可选 `slots` 仍将 `opus`、`sonnet`、`haiku` 转换成对应环境变量。远程配置不能传入任意 settings，例如 key、hooks 或权限。
+
+已保存模型仍在列表中时保留，否则采用管理员默认值。移除中央模型列表会恢复原生菜单并保留用户选择。
+
+旧格式迁移：将 `defaultModel` 改为 `model`；Codex 将 `metadata` 展开到模型顶层，将 `id`/`name` 改为 `slug`/`display_name` 并显式填写 catalog 展示字段；Claude 将 `models` 移到 `modelPicker.options`，将 `id`/`name` 改为 `model`/`label`。托管 manifest 与 CLI 需同步更新，旧模型格式会被拒绝。仅配置 URL 的 profile 不受影响。
 
 参考：[Codex 配置](https://learn.chatgpt.com/docs/config-file/config-reference)、[Claude 配置目录](https://code.claude.com/docs/en/env-vars)、[Claude 模型菜单](https://code.claude.com/docs/en/settings-reference#modelpicker)。
 

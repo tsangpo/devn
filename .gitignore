@@ -10,3 +10,4 @@ release/
 .aws/
 .codex/
 .agents/
+.devn.json

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 const { parse, stringify } = Bun.TOML;
 import { atomicWrite, privateDir, profileDir, readJson, writeJson } from './files';
-import { endpoint, type Profile, type Tool } from './registry';
+import { endpoint, modelIds, type Profile, type Tool } from './registry';
 
 type Data = Record<string, any>;
 type KeyPath = string[];
@@ -60,16 +60,20 @@ export async function generateConfig(profile: Profile, tool: Tool, apiKey: strin
     const file = path.join(dir, tool === 'codex' ? 'config.toml' : 'settings.json');
     const existing = readConfig(file, tool);
     const definitions = profile[tool];
-    const model = definitions.models
-      ? (definitions.models.some(m => m.id === existing.model) ? existing.model : definitions.defaultModel)
+    const ids = modelIds(profile, tool);
+    const model = ids
+      ? (ids.includes(existing.model) ? existing.model : definitions.model)
       : undefined;
-    if (definitions.models && existing.model && model !== existing.model) console.error(`devn: saved ${tool} model is no longer listed; using ${model}.`);
+    if (ids && existing.model && model !== existing.model) console.error(`devn: saved ${tool} model is no longer listed; using ${model}.`);
     const catalog = path.join(root, 'codex', 'models.json');
     const managed: Data = {};
     if (model) managed.model = model;
     if (tool === 'codex') {
       managed.model_provider = 'bifrost';
-      if (definitions.models) managed.model_catalog_json = catalog;
+      // Gateway model support does not imply support for OpenAI's hosted search.
+      // Preserve an explicit user choice for gateways that do support it.
+      managed.web_search = existing.web_search ?? 'disabled';
+      if (ids) managed.model_catalog_json = catalog;
       managed.model_providers = {};
       managed.model_providers.bifrost = {
         name: 'Bifrost', base_url: endpoint(profile, tool),
@@ -80,16 +84,13 @@ export async function generateConfig(profile: Profile, tool: Tool, apiKey: strin
         ANTHROPIC_BASE_URL: endpoint(profile, tool), ANTHROPIC_AUTH_TOKEN: apiKey,
         ANTHROPIC_API_KEY: '', CLAUDE_CODE_USE_BEDROCK: '0', CLAUDE_CODE_USE_VERTEX: '0', CLAUDE_CODE_USE_FOUNDRY: '0',
       };
-      if (definitions.models) {
+      if (ids) {
         Object.assign(managed.env, {
-          ANTHROPIC_DEFAULT_SONNET_MODEL: profile.claude.slots?.sonnet || definitions.defaultModel,
-          ANTHROPIC_DEFAULT_OPUS_MODEL: profile.claude.slots?.opus || definitions.defaultModel,
-          ANTHROPIC_DEFAULT_HAIKU_MODEL: profile.claude.slots?.haiku || definitions.defaultModel,
+          ANTHROPIC_DEFAULT_SONNET_MODEL: profile.claude.slots?.sonnet || definitions.model,
+          ANTHROPIC_DEFAULT_OPUS_MODEL: profile.claude.slots?.opus || definitions.model,
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: profile.claude.slots?.haiku || definitions.model,
         });
-        managed.modelPicker = {
-          replaceBuiltInOptions: true,
-          options: definitions.models.map(m => ({ model: m.id, label: m.name, ...(m.description ? { description: m.description } : {}), ...(m.behavesAs ? { behavesAs: m.behavesAs } : {}) })),
-        };
+        managed.modelPicker = profile.claude.modelPicker;
       }
     }
     const manifest = path.join(dir, '.devn-managed.json');
@@ -99,18 +100,15 @@ export async function generateConfig(profile: Profile, tool: Tool, apiKey: strin
     }
     const ownedPaths = paths(managed);
     for (const keyPath of [...prior.paths, ...ownedPaths]) {
-      if (!definitions.models && keyPath.length === 1 && keyPath[0] === 'model') continue;
+      if (!ids && keyPath.length === 1 && keyPath[0] === 'model') continue;
       deleteAt(existing, keyPath);
     }
     const output = merge(existing, managed);
     let serialized: string;
     try { serialized = tool === 'codex' ? stringify(output) + '\n' : JSON.stringify(output, null, 2) + '\n'; }
     catch { throw new Error(`Cannot serialize ${tool} configuration; no configuration was written.`); }
-    if (tool === 'codex' && definitions.models) {
-      writeJson(catalog, { models: definitions.models.map((m, i) => ({
-        ...m.metadata, slug: m.id, display_name: m.name, description: m.description || m.name,
-        visibility: 'list', supported_in_api: true, priority: i,
-      })) });
+    if (tool === 'codex' && ids) {
+      writeJson(catalog, { models: profile.codex.models });
     }
     atomicWrite(file, serialized);
     writeJson(manifest, { version: 1, paths: ownedPaths });

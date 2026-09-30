@@ -1,11 +1,20 @@
 import { secureURL } from './urls';
 
 export type Tool = 'codex' | 'claude';
-export type Model = { id: string; name: string; description?: string; behavesAs?: string; metadata?: Record<string, any> };
+export type CodexModel = {
+  slug: string;
+  display_name: string;
+  description: string;
+  context_window: number;
+  default_reasoning_level: string;
+  supported_reasoning_levels: { effort: string; description: string }[];
+  [key: string]: unknown;
+};
+export type ClaudeModel = { model: string; label: string; description?: string; behavesAs?: string };
 export type Profile = {
   version: 1; id: string; name: string; baseUrl: string; example?: boolean;
-  codex: { defaultModel?: string; baseUrl?: string; models?: Model[] };
-  claude: { defaultModel?: string; baseUrl?: string; models?: Model[]; slots?: Partial<Record<'sonnet' | 'opus' | 'haiku', string>> };
+  codex: { model?: string; baseUrl?: string; models?: CodexModel[] };
+  claude: { model?: string; baseUrl?: string; modelPicker?: { replaceBuiltInOptions: boolean; options: ClaudeModel[] }; slots?: Partial<Record<'sonnet' | 'opus' | 'haiku', string>> };
 };
 export type Origins = Record<Tool, string>;
 export type Registration = { id: string; name: string; url: string; key: string; origins?: Origins };
@@ -37,38 +46,49 @@ export function validateProfile(value: any, localId?: string): Profile {
   for (const tool of ['codex', 'claude'] as const) {
     const config = value[tool];
     requireValue(object(config), `${tool} configuration is required.`);
-    keys(config, tool === 'claude' ? ['defaultModel', 'baseUrl', 'models', 'slots'] : ['defaultModel', 'baseUrl', 'models'], tool);
+    requireValue(config.defaultModel === undefined && !(tool === 'claude' && config.models !== undefined),
+      'Legacy model format: use model, native codex.models entries, and claude.modelPicker (see profiles/example.json).');
+    keys(config, tool === 'claude' ? ['model', 'baseUrl', 'modelPicker', 'slots'] : ['model', 'baseUrl', 'models'], tool);
     if (config.baseUrl !== undefined) url(config.baseUrl);
-    if (config.models === undefined) {
-      requireValue(config.defaultModel === undefined && config.slots === undefined,
-        `${tool}: defaultModel and slots require an explicit models list.`);
+    if (tool === 'claude' && config.modelPicker !== undefined) {
+      requireValue(object(config.modelPicker), 'Claude modelPicker must be an object.');
+      keys(config.modelPicker, ['replaceBuiltInOptions', 'options'], 'claude.modelPicker');
+      requireValue(config.modelPicker.replaceBuiltInOptions === true,
+        'Claude modelPicker.replaceBuiltInOptions must be true for an explicit model list.');
+      requireValue(Array.isArray(config.modelPicker.options), 'Claude modelPicker.options must be an array.');
+    }
+    const models = tool === 'codex' ? config.models : config.modelPicker?.options;
+    if (models === undefined) {
+      requireValue(config.model === undefined && config.slots === undefined,
+        `${tool}: model and slots require an explicit model list.`);
       continue;
     }
-    requireValue(Array.isArray(config.models) && config.models.length > 0, `${tool}.models must not be empty.`);
+    requireValue(Array.isArray(models) && models.length > 0, `${tool} model list must not be empty.`);
     const ids = new Set<string>();
-    for (const model of config.models) {
+    for (const model of models) {
       requireValue(object(model), `${tool} model must be an object.`);
-      keys(model, tool === 'codex' ? ['id', 'name', 'description', 'metadata'] : ['id', 'name', 'description', 'behavesAs'], `${tool} model`);
-      requireValue(typeof model.id === 'string' && model.id.trim() && !/[\s\x00-\x1f]/.test(model.id), `${tool} model id is invalid.`);
-      requireValue(!ids.has(model.id), `Duplicate ${tool} model id.`);
-      ids.add(model.id);
-      requireValue(typeof model.name === 'string' && model.name.trim(), `${tool} model name is required.`);
+      const id = tool === 'codex' ? model.slug : model.model;
+      const name = tool === 'codex' ? model.display_name : model.label;
+      requireValue(typeof id === 'string' && id.trim() && !/[\s\x00-\x1f]/.test(id), `${tool} model id is invalid.`);
+      requireValue(!ids.has(id), `Duplicate ${tool} model id.`);
+      ids.add(id);
+      requireValue(typeof name === 'string' && name.trim(), `${tool} model name is required.`);
       requireValue(model.description === undefined || typeof model.description === 'string', 'Model description must be a string.');
       if (tool === 'codex') {
-        requireValue(object(model.metadata), 'Codex models require native metadata (see profiles/example.json).');
-        const meta = model.metadata;
-        requireValue(Number.isInteger(meta.context_window) && meta.context_window > 0, 'Codex context_window must be positive.');
-        requireValue(Array.isArray(meta.supported_reasoning_levels) && meta.supported_reasoning_levels.length > 0,
+        requireValue(typeof model.description === 'string', 'Codex description is required.');
+        requireValue(Number.isInteger(model.context_window) && model.context_window > 0, 'Codex context_window must be positive.');
+        requireValue(Array.isArray(model.supported_reasoning_levels) && model.supported_reasoning_levels.length > 0,
           'Codex supported_reasoning_levels is required.');
-        requireValue(meta.supported_reasoning_levels.every((r: any) => object(r) && typeof r.effort === 'string' && typeof r.description === 'string'),
+        requireValue(model.supported_reasoning_levels.every((r: any) => object(r) && typeof r.effort === 'string' && typeof r.description === 'string'),
           'Codex reasoning levels require effort and description.');
-        requireValue(meta.supported_reasoning_levels.some((r: any) => r.effort === meta.default_reasoning_level),
+        requireValue(model.supported_reasoning_levels.some((r: any) => r.effort === model.default_reasoning_level),
           'Codex default reasoning level must appear in supported_reasoning_levels.');
       } else {
+        keys(model, ['model', 'label', 'description', 'behavesAs'], 'claude model');
         requireValue(model.behavesAs === undefined || typeof model.behavesAs === 'string', 'behavesAs must be a model ID.');
       }
     }
-    requireValue(ids.has(config.defaultModel), `${tool}.defaultModel must appear in models.`);
+    requireValue(ids.has(config.model), `${tool}.model must appear in the model list.`);
     if (config.slots !== undefined) {
       requireValue(object(config.slots), 'Claude slots must be an object.');
       keys(config.slots, ['sonnet', 'opus', 'haiku'], 'claude.slots');
@@ -84,4 +104,8 @@ export function endpoint(profile: Profile, tool: Tool): string {
 
 export function gatewayOrigins(profile: Profile): Origins {
   return { codex: new URL(endpoint(profile, 'codex')).origin, claude: new URL(endpoint(profile, 'claude')).origin };
+}
+
+export function modelIds(profile: Profile, tool: Tool): string[] | undefined {
+  return tool === 'codex' ? profile.codex.models?.map(m => m.slug) : profile.claude.modelPicker?.options.map(m => m.model);
 }

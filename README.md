@@ -119,6 +119,24 @@ central model menus are documented by profiles/example.json; replace its values
 and remove example: true before hosting it. Repository examples are never
 automatically registered. Model metadata must match backend capabilities.
 
+For a central Codex menu, `codex.model` selects the default and `codex.models`
+contains native catalog objects (`slug`, `display_name`, `description`, and
+capability fields). devn writes `{ "models": [...] }` without adding or changing
+model fields, including `priority`, `visibility`, and `supported_in_api`.
+For Claude, use `claude.model` and native `claude.modelPicker` with
+`replaceBuiltInOptions: true` and `options` containing `model`, `label`, optional
+`description` and `behavesAs`. The picker is copied unchanged; optional `slots`
+still map `opus`, `sonnet`, and `haiku` to the corresponding environment variables.
+Saved model choices are retained while listed; otherwise the manifest default is used.
+
+Migration from the previous model format: rename `defaultModel` to `model`;
+flatten Codex `metadata` into each model, rename `id`/`name` to
+`slug`/`display_name`, and explicitly include catalog display fields. Move Claude
+`models` to `modelPicker.options`, renaming `id`/`name` to `model`/`label`.
+Update the hosted manifest and CLI together. Legacy model definitions are rejected;
+URL-only profiles are unchanged. Remote manifests cannot supply arbitrary Claude
+settings such as keys, hooks, or permissions.
+
 ## Local data
 
 Configuration uses ${XDG_CONFIG_HOME:-~/.config}/devn:
@@ -145,6 +163,11 @@ Registration is TOML:
 Keys are plaintext in config.toml and generated tool configuration. Files use
 0600 and profile directories 0700; permissions are not encryption. Codex uses
 experimental_bearer_token and Claude uses ANTHROPIC_AUTH_TOKEN.
+
+Codex built-in web search defaults to `disabled`: gateway model support does not
+imply support for OpenAI-hosted search. An explicit `web_search` setting in the
+profile's `codex/config.toml` is preserved. To troubleshoot an older installation,
+run `devn codex -c 'web_search="disabled"'`.
 
 Only devn-managed fields are regenerated; unrelated personal settings, MCP,
 plugins and history are preserved. Profiles do not copy global client settings.

@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { profileDir } from './files';
 import { generateConfig } from './config';
-import { endpoint, type Profile, type Tool } from './registry';
+import { endpoint, modelIds, type Profile, type Tool } from './registry';
 import { runAttached } from './process';
 
 function checkArgs(args: string[], profile: Profile, tool: Tool): { hasModel: boolean } {
@@ -9,8 +9,8 @@ function checkArgs(args: string[], profile: Profile, tool: Tool): { hasModel: bo
   const forbidden = new Set(tool === 'codex'
     ? ['--profile', '-p', '--cd', '-C', '--remote', '--oss', '--local-provider']
     : ['--settings', '--setting-sources', '--bare']);
-  const tools = profile[tool];
-  const models = new Set(tools.models?.map(m => m.id));
+  const ids = modelIds(profile, tool);
+  const models = new Set(ids);
   if (tool === 'claude') for (const alias of ['sonnet', 'opus', 'haiku']) models.add(alias);
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -21,7 +21,7 @@ function checkArgs(args: string[], profile: Profile, tool: Tool): { hasModel: bo
     }
     if (flag === '--model' || (tool === 'codex' && (flag === '-m' || /^-m.+/.test(arg)))) {
       const value = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : (arg.startsWith('-m') && arg.length > 2 ? arg.slice(2) : args[++i]);
-      if (!value || (tools.models && !models.has(value))) throw new Error(`Model must be one of the ${tool} models in profile ${profile.id}.`);
+      if (!value || (ids && !models.has(value))) throw new Error(`Model must be one of the ${tool} models in profile ${profile.id}.`);
       hasModel = true;
     }
     if (tool === 'codex' && (flag === '--config' || flag === '-c' || /^-c[^-].+/.test(arg))) {

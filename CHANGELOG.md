@@ -2,6 +2,11 @@
 
 Changes are recorded here before each npm release.
 
+## 0.2.0 — 2026-09-30
+
+- Change central model definitions to native Codex catalog entries and Claude `modelPicker`, with `model` as the default-model field. Legacy model manifests must be migrated; URL-only profiles are unchanged.
+- Disable Codex built-in web search by default for gateway profiles, preserving explicit user settings.
+
 ## 0.1.1 — 2026-09-30
 
 - Publish the `@tsangpo/devn` npm package with the `devn` command, with `.devn.json` project bindings and

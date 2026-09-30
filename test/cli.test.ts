@@ -53,12 +53,33 @@ test('configuration serialization escapes secrets, protects file permissions, an
   assert.equal(fs.statSync(path.join(f.home, 'devn/config.toml')).mode & 0o777, 0o600);
 });
 
+test('native model definitions are copied without injecting or rewriting fields', t => {
+  const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
+  const first = f.a.codex.models[0];
+  first.priority = 42;
+  first.visibility = 'hide';
+  first.future_capability = { enabled: true, values: ['one', 'two'] };
+  delete f.a.codex.models[1].priority;
+  const option = f.a.claude.modelPicker.options[0];
+  option.description = 'Gateway model'; option.behavesAs = 'claude-sonnet-5-5';
+  f.a.claude.slots = { opus: option.model, sonnet: option.model, haiku: option.model };
+  write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
+  assert.equal(f.run(['codex']).status, 0);
+  assert.deepEqual(read(path.join(f.home, 'devn/profiles/a/codex/models.json')), { models: f.a.codex.models });
+  assert.equal(f.run(['claude']).status, 0);
+  const settings = JSON.parse(read(f.capture).config);
+  assert.deepEqual(settings.modelPicker, f.a.claude.modelPicker);
+  assert.equal(settings.env.ANTHROPIC_DEFAULT_HAIKU_MODEL, option.model);
+});
+
 test('regeneration retains user settings and selected models, refreshes menus and credentials', t => {
   const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
   for (const tool of ['codex', 'claude']) assert.equal(f.run([tool]).status, 0);
   const codexFile = path.join(f.home, 'devn/profiles/a/codex/config.toml');
   const claudeFile = path.join(f.home, 'devn/profiles/a/claude/settings.json');
   const codex = parse(fs.readFileSync(codexFile, 'utf8'));
+  assert.equal(codex.web_search, 'disabled');
+  codex.web_search = 'live';
   codex.model = 'a/codex-two'; codex.mcp_servers = { custom: { command: 'test-mcp' } };
   fs.writeFileSync(codexFile, stringify(codex));
   const claude = read(claudeFile); claude.model = 'a/claude-two'; claude.theme = 'dark';
@@ -67,13 +88,14 @@ test('regeneration retains user settings and selected models, refreshes menus an
   f.init('a', 'rotated-key');
   for (const tool of ['codex', 'claude']) assert.equal(f.run([tool]).status, 0);
   assert.equal(parse(fs.readFileSync(codexFile, 'utf8')).model, 'a/codex-two');
+  assert.equal(parse(fs.readFileSync(codexFile, 'utf8')).web_search, 'live');
   assert.equal(parse(fs.readFileSync(codexFile, 'utf8')).mcp_servers.custom.command, 'test-mcp');
   assert.equal(read(claudeFile).model, 'a/claude-two');
   assert.equal(read(claudeFile).theme, 'dark');
   assert.deepEqual(read(claudeFile).permissions, { allow: ['Read'] });
   assert.equal(read(claudeFile).env.MY_SETTING, 'preserve');
   assert.equal(read(claudeFile).env.ANTHROPIC_AUTH_TOKEN, 'rotated-key');
-  for (const tool of ['codex', 'claude']) f.a[tool].models.pop();
+  f.a.codex.models.pop(); f.a.claude.modelPicker.options.pop();
   f.a.baseUrl = 'https://a.example.test/new';
   write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
   for (const tool of ['codex', 'claude']) {
@@ -120,8 +142,18 @@ test('invalid user configurations do not overwrite files or expose keys', t => {
 test('profile validation rejects unsafe IDs, mismatched defaults, slots, and duplicate models', t => {
   const f = fixture(t); const file = path.join(f.home, 'devn/profiles/a/profile.json');
   for (const modify of [
-    p => { p.id = '../escape'; }, p => { p.codex.defaultModel = 'missing'; },
+    p => { p.id = '../escape'; }, p => { p.codex.model = 'missing'; },
     p => { p.claude.slots = { haiku: 'missing' }; }, p => { p.codex.models.push(p.codex.models[0]); },
+    p => { p.claude.modelPicker.options.push(p.claude.modelPicker.options[0]); },
+    p => { p.claude.modelPicker.replaceBuiltInOptions = false; },
+    p => { p.claude.modelPicker.options = []; },
+    p => { p.claude.modelPicker.options[0].hooks = {}; },
+    p => { p.claude.env = { ANTHROPIC_AUTH_TOKEN: 'remote-key' }; },
+    p => { p.codex.defaultModel = p.codex.model; },
+    p => { p.claude.models = []; },
+    p => { delete p.codex.models[0].slug; },
+    p => { p.codex.models[0].context_window = 0; },
+    p => { p.codex.models[0].default_reasoning_level = 'missing'; },
     p => { p.baseUrl = 'https://secret:secret@example.test'; }, p => { p.apiKey = 'not-allowed'; },
   ]) {
     const candidate = structuredClone(f.a); modify(candidate); write(file, candidate);

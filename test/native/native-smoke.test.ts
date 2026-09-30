@@ -143,6 +143,16 @@ describe('native clients through the local Bifrost gateway', () => {
     await Bun.write(profilePath, JSON.stringify(profile));
     await client('codex', codexArgs);
     expect(requests.find(request => request.url.startsWith('/openai/v1/responses'))!.body.model)
-      .toBe(profile.codex.defaultModel);
+      .toBe(profile.codex.model);
+  }, 50000);
+
+  test.serial('Claude loads centrally configured native model settings', async () => {
+    const profilePath = `${repo}/profiles/smoke.json`;
+    const profile = await Bun.file(profilePath).json();
+    profile.claude = (await Bun.file(`${root}/profiles/example.json`).json()).claude;
+    await Bun.write(profilePath, JSON.stringify(profile));
+    await client('claude', ['-p', 'Reply with DEVN_NATIVE_OK. Do not use tools.']);
+    expect(requests.find(request => request.url.startsWith('/anthropic/v1/messages'))!.body.model)
+      .toBe(profile.claude.model);
   }, 50000);
 });
