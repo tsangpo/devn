@@ -196,7 +196,7 @@ MIT 许可证，Copyright (c) 2026 tsangpo。参见 [LICENSE](LICENSE)、[贡献
 
 `bun run check:secrets` 检查工作区与可达 Git 历史中的已知 token/私钥特征，不输出匹配值。它无法识别全部自定义 key 或客户信息，发布前仍应检查实际 tarball 和文档。
 
-推送与 package.json 版本一致的正式 `vX.Y.Z` tag，会触发 Release 工作流：验证同一份 npm tarball 和四平台二进制，自动发布 npm 与 GitHub Release，验证 Homebrew 安装后更新 `tsangpo/homebrew-tap`。首次 npm 发布使用临时 `NPM_TOKEN`，之后配置 OIDC；tap 更新使用仅授权 tap 仓库 Contents 写入的 `GH_PAT`。配置步骤见 [贡献与发布说明](CONTRIBUTING.md#release-setup)。
+推送与 package.json 版本一致的正式 `vX.Y.Z` tag，会触发 Release 工作流：验证同一份 npm tarball 和四平台二进制，自动发布 npm 与 GitHub Release，验证 Homebrew 安装后更新 `tsangpo/homebrew-tap`。npm 发布使用 Trusted Publishing（OIDC），不再注入 `NPM_TOKEN`；tap 更新使用仅授权 tap 仓库 Contents 写入的 `GH_PAT`。首次无 token 新版本发布成功后，可删除旧 GitHub secret 并撤销 npm token。配置步骤见 [贡献与发布说明](CONTRIBUTING.md#release-setup)。
 
 本地构建及验证当前平台二进制：
 

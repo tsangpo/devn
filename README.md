@@ -195,7 +195,7 @@ schema compatibility.
 Pushing a stable `vX.Y.Z` tag matching package.json triggers the Release workflow.
 It validates the npm package and four native binaries, publishes npm and GitHub
 Release assets, tests Homebrew installation, then updates `tsangpo/homebrew-tap`.
-The first release requires credentials; subsequent npm releases use OIDC. See
+npm publishing uses Trusted Publishing (OIDC), without an npm token. See
 [release setup](CONTRIBUTING.md#release-setup) before pushing a tag.
 
 To build and test the current platform locally:

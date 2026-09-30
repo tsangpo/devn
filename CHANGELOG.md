@@ -2,6 +2,10 @@
 
 Changes are recorded here before each npm release.
 
+## Unreleased
+
+- Switch npm publishing to GitHub OIDC only; remove the legacy npm token injection.
+
 ## 0.2.0 — 2026-09-30
 
 - Change central model definitions to native Codex catalog entries and Claude `modelPicker`, with `model` as the default-model field. Legacy model manifests must be migrated; URL-only profiles are unchanged.

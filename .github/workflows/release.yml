@@ -122,10 +122,8 @@ jobs:
       - run: bun scripts/publish-github.ts stage
         env:
           GH_TOKEN: ${{ github.token }}
+      # npm authenticates using GitHub OIDC; no long-lived npm token is injected.
       - run: bun scripts/publish-npm.ts
-        env:
-          # Only needed for the first release. Remove after configuring OIDC.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - run: bun scripts/publish-github.ts publish
         env:
           GH_TOKEN: ${{ github.token }}

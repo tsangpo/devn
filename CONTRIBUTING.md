@@ -46,18 +46,19 @@ The source must be pushed to the public `tsangpo/devn` repository. Confirm that
 your npm account can publish the `@tsangpo/devn` package before the first tag. Runtime
 users need neither GitHub credentials nor access to the tap repository.
 
-1. For the first npm release, create a short-lived granular npm token with package
-   creation/publish rights and the required CI/2FA bypass. Store it as the GitHub
-   Actions secret `NPM_TOKEN` in `tsangpo/devn`. Never commit it.
+1. Configure a GitHub Actions Trusted Publisher for the existing `@tsangpo/devn`
+   npm package: owner `tsangpo`, repository `devn`, workflow `release.yml`, no
+   environment name. Explicitly allow `npm publish` (stage-only permission is
+   insufficient). The workflow uses OIDC and does not inject `NPM_TOKEN` or
+   `NODE_AUTH_TOKEN`.
 2. Create a fine-grained GitHub token restricted to `tsangpo/homebrew-tap`, with
    Contents read/write. Store it in the source repository as `GH_PAT`.
    The tap's main branch must permit that identity to commit `Formula/devn.rb`.
    No Workflow or other-repository write permissions are needed.
-3. After the first successful npm publication, configure a GitHub Actions Trusted
-   Publisher in the npm package settings: owner `tsangpo`, repository `devn`,
-   workflow `release.yml`, no environment name. Explicitly allow `npm publish`
-   (stage-only permission is insufficient). Delete `NPM_TOKEN` from GitHub and
-   revoke the token. Later releases use OIDC with provenance.
+3. After a new version is successfully published without token injection, delete
+   the legacy `NPM_TOKEN` GitHub secret and revoke the corresponding npm token.
+   Re-running an already published version does not verify OIDC: the publisher
+   checks its integrity and skips `npm publish`.
 
 Only the publisher uses Node 24/npm 11.16.0; development, tests and builds use
 Bun 1.4.2. No npm dependencies are installed into the project. See the
