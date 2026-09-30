@@ -1,7 +1,7 @@
 import { $ } from 'bun';
 import { version, releaseTag, verifyArchive } from './release-lib';
 releaseTag();
-const archive = 'release/devn.tgz';
+const archive = './release/devn.tgz';
 await verifyArchive(archive);
 const response = await fetch('https://registry.npmjs.org/devn/' + version);
 if (response.status === 404) {
