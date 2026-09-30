@@ -2,8 +2,9 @@
 
 Changes are recorded here before each npm release.
 
-## Unreleased
+## 0.2.1 — 2026-09-30
 
+- Allow Codex reasoning and verbosity config overrides while still blocking connection and model selection overrides.
 - Switch npm publishing to GitHub OIDC only; remove the legacy npm token injection.
 
 ## 0.2.0 — 2026-09-30
