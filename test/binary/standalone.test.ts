@@ -10,7 +10,8 @@ test('release archive runs outside the source tree with no Bun on PATH', async (
   await verifyArchive(archive);
   const contents = (await $`tar -tzf ${archive}`.text()).trim().split('\n').sort();
   expect(contents).toEqual(['LICENSE', 'devn']);
-  const temp = (await $`mktemp -d`.text()).trim();
+  const created = (await $`mktemp -d`.text()).trim();
+  const temp = (await $`pwd -P`.cwd(created).text()).trim();
   try {
     const bin = temp + '/bin';
     const project = temp + '/project with spaces';

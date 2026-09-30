@@ -5,7 +5,7 @@ const { spawnSync, spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 
 function fixture(t) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'devn-test-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'devn-test-')));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const repo = path.join(dir, 'cli');
   const home = path.join(dir, 'home');
