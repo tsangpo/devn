@@ -139,6 +139,7 @@ jobs:
           if-no-files-found: error
   verify-homebrew:
     needs: publish
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -165,6 +166,7 @@ jobs:
           HOMEBREW_DEVELOPER: '1'
   update-tap:
     needs: verify-homebrew
+    if: ${{ !cancelled() && needs.verify-homebrew.result == 'success' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
