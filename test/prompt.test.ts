@@ -92,3 +92,22 @@ test('declining gateway approval does not register or replace a profile', async 
   assert.equal(await Bun.file(path.join(f.home, 'devn/config.toml')).exists(), false);
   assert.match(result.output, /gateway.example.test/);
 });
+
+test('password prompt is written only after raw mode and key handler are ready', async t => {
+  const f = fixture(t);
+  await Bun.write(path.join(f.repo, 'bin/devn'), `
+import { password } from '../src/prompts.ts';
+const write = process.stderr.write.bind(process.stderr);
+process.stderr.write = (chunk, ...args) => {
+  if (chunk === 'Bifrost key (hidden): ' &&
+      (!process.stdin.isRaw || process.stdin.listenerCount('keypress') === 0)) process.exit(91);
+  return write(chunk, ...args);
+};
+const key = await password();
+if (key !== 'readiness-test-key' || process.stdin.isRaw) process.exit(92);
+`);
+  const result = await add(f, [['Bifrost key (hidden): ', 'readiness-test-key']], []);
+  assert.equal(result.code, 0);
+  assert.equal(result.stage, 1);
+  assert.ok(!result.output.includes('readiness-test-key'));
+});

@@ -20,11 +20,9 @@ export async function choose(profiles: Registration[]): Promise<Registration> {
 
 export async function password(): Promise<string> {
   requireTTY();
-  process.stderr.write('Bifrost key (hidden): ');
   readline.emitKeypressEvents(process.stdin);
   const wasRaw = process.stdin.isRaw;
   process.stdin.setRawMode(true);
-  process.stdin.resume();
   return new Promise((resolve, reject) => {
     let value = '';
     const finish = (error?: Error) => {
@@ -45,6 +43,9 @@ export async function password(): Promise<string> {
       else if (text && !key.ctrl && !key.meta && !/[\x00-\x1f\x7f]/.test(text)) value += text;
     };
     process.stdin.on('keypress', onKey);
+    process.stdin.resume();
+    // Advertise readiness only after echo is disabled and the handler is attached.
+    process.stderr.write('Bifrost key (hidden): ');
   });
 }
 

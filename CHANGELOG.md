@@ -11,6 +11,7 @@ Changes are recorded here before each npm release.
 - Require HTTPS except for loopback; explicitly approve gateway origins.
 - Refresh profiles with bounded downloads, safe redirects, per-profile locks and offline cache fallback.
 - Show redacted profile details, remove credentials, and optionally purge tool history.
+- Disable terminal echo before displaying the password prompt to prevent fast-input key exposure.
 - Provide version reporting and a zero-dependency Bun executable entry.
 - Automatically publish verified npm tarballs on stable version tags; support npm OIDC after the first release.
 - Build standalone macOS/Linux arm64/x64 binaries with checksums and update the Homebrew tap after installation tests.
