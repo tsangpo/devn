@@ -171,9 +171,15 @@ test('arguments, exit codes and stale environment are handled without shell eval
   const captured = read(f.capture); assert.ok(captured.args.includes(prompt));
   assert.equal(captured.oldOpenai, undefined); assert.equal(captured.oldAnthropic, undefined); assert.equal(captured.oldBedrock, undefined);
   assert.equal(fs.existsSync(path.join(f.project, 'SHOULD_NOT_EXIST')), false);
-  for (const args of [['codex', '--profile', 'x'], ['codex', '-C/tmp'], ['codex', '-c', 'model_provider="other"'], ['claude', '--settings=/tmp/other'], ['codex', '--model', 'missing']]) {
+  for (const args of [['codex', '--profile', 'x'], ['codex', '-C/tmp'], ['codex', '-c', 'model_provider="other"'], ['claude', '--settings=/tmp/other'], ['codex', '--model', 'missing'],
+    ['codex', '-c', 'model=x'], ['codex', '-c', 'model_providers.bifrost.base_url=x'], ['codex', '-c', 'model_catalog_json=x']]) {
     assert.notEqual(f.run(args).status, 0);
   }
+});
+
+test('unrelated model_* config overrides are allowed', t => {
+  const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
+  assert.equal(f.run(['codex', '-c', 'model_reasoning_effort=high']).status, 0);
 });
 
 test('missing tool produces an actionable error after rendering config', t => {

@@ -27,7 +27,7 @@ function checkArgs(args: string[], profile: Profile, tool: Tool): { hasModel: bo
     if (tool === 'codex' && (flag === '--config' || flag === '-c' || /^-c[^-].+/.test(arg))) {
       const value = arg.startsWith('--config=') ? arg.slice(9) : (arg.startsWith('-c') && arg.length > 2 ? arg.slice(2) : args[++i]);
       const key = value?.split('=')[0].trim().replaceAll('"', '').replaceAll("'", '');
-      if (!key || /^(model(?:$|_)|models(?:\.|$)|profiles?(?:\.|$)|openai_base_url|chatgpt_base_url|forced_login_method|forced_chatgpt_workspace_id)/.test(key)) {
+      if (!key || /^(model$|model_provider$|model_providers(?:\.|$)|model_catalog_json$|models(?:\.|$)|profiles?(?:\.|$)|openai_base_url$|chatgpt_base_url$|forced_login_method$|forced_chatgpt_workspace_id$)/.test(key)) {
         throw new Error('Connection/model config overrides conflict with the project profile. Use --model for a listed model.');
       }
     }
