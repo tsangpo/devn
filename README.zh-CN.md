@@ -4,21 +4,21 @@
 
 在项目目录运行 `devn codex` 或 `devn claude`，自动选择对应的 Bifrost profile。每个 profile 有独立的 Codex、Claude 配置、插件和会话数据。
 
-## bunx 使用（npm 发布后可用）
+## bunx 使用
 
-npm 包名为 `devn`，命令入口为 `bin/devn`，由 Bun 直接运行 TypeScript。首次发布前，以下命令不能从 npm 下载本项目：
+npm 包名为 `@tsangpo/devn`，命令入口为 `bin/devn`，由 Bun 直接运行 TypeScript。使用以下命令运行：
 
 ```bash
-bunx devn --help
-bunx devn profile add
-bunx devn profile use customer-a
-bunx devn codex
-bunx devn claude
+bunx @tsangpo/devn --help
+bunx @tsangpo/devn profile add
+bunx @tsangpo/devn profile use customer-a
+bunx @tsangpo/devn codex
+bunx @tsangpo/devn claude
 ```
 
-需要查看版本时运行 `devn --version`。需要固定版本时使用 `bunx devn@0.1.0`。Codex 和 Claude Code 仍需自行安装并放入 PATH。
+需要查看版本时运行 `devn --version`。需要固定版本时使用 `bunx @tsangpo/devn@0.1.1`。Codex 和 Claude Code 仍需自行安装并放入 PATH。
 
-## Homebrew 安装（首次发布后可用）
+## Homebrew 安装
 
 ```bash
 brew install tsangpo/tap/devn
@@ -43,7 +43,7 @@ bun bin/devn --help
 export PATH="/absolute/path/to/cli/bin:$PATH"
 ```
 
-Bun 直接执行 TypeScript，无需安装项目依赖或构建。CLI 运行时不需要 Git checkout 或 GitHub 认证，也不会自行下载或更新代码。CLI 版本由包管理器管理。npm 与 Homebrew 自动发布流程已配置，首次发布完成后安装命令才可用。
+Bun 直接执行 TypeScript，无需安装项目依赖或构建。CLI 运行时不需要 Git checkout 或 GitHub 认证，也不会自行下载或更新代码。CLI 版本由包管理器管理。npm 与 Homebrew 通过 GitHub Actions 自动发布。
 
 ## 使用
 

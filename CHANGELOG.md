@@ -2,9 +2,9 @@
 
 Changes are recorded here before each npm release.
 
-## 0.1.0 — Unreleased
+## 0.1.1 — 2026-09-30
 
-- Provide the devn CLI and npm package, with `.devn.json` project bindings and
+- Publish the `@tsangpo/devn` npm package with the `devn` command, with `.devn.json` project bindings and
   configuration under `${XDG_CONFIG_HOME:-~/.config}/devn`.
 - Run Codex and Claude Code with project-selected Bifrost profiles.
 - Add local registrations from remote JSON, with private configuration permissions.
@@ -21,3 +21,7 @@ Before upgrading an earlier development checkout, run "devn profile add" again
 to approve gateway origins. Registrations without trusted origins cannot launch
 tools. Existing tool history is retained. Non-loopback HTTP services must move
 to HTTPS. Version-1 profile JSON and project binding formats remain supported.
+
+The initial 0.1.0 release attempt was not published: npm rejected the unscoped
+package name. Version 0.1.1 uses the scoped package without changing CLI or
+configuration names.

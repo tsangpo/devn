@@ -39,7 +39,7 @@ silently interpreted. New required schema changes need migration documentation.
 ## Release setup
 
 The source must be pushed to the public `tsangpo/devn` repository. Confirm that
-your npm account can publish the `devn` package before the first tag. Runtime
+your npm account can publish the `@tsangpo/devn` package before the first tag. Runtime
 users need neither GitHub credentials nor access to the tap repository.
 
 1. For the first npm release, create a short-lived granular npm token with package
@@ -66,8 +66,8 @@ Bun 1.4.2. No npm dependencies are installed into the project. See the
 2. Review the package contents and sensitive information, then commit and push.
 3. Create and push the matching tag, for example:
 
-       git tag v0.1.0
-       git push origin v0.1.0
+       git tag v0.1.1
+       git push origin v0.1.1
 
 The Release workflow validates the version before building. It packs npm once,
 installs that same tarball on four runners, builds and tests macOS/Linux arm64/x64

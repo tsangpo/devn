@@ -1,9 +1,10 @@
 import { $ } from 'bun';
+import { name } from '../package.json';
 import { version, releaseTag, verifyArchive } from './release-lib';
 releaseTag();
 const archive = './release/devn.tgz';
 await verifyArchive(archive);
-const response = await fetch('https://registry.npmjs.org/devn/' + version);
+const response = await fetch('https://registry.npmjs.org/' + encodeURIComponent(name) + '/' + version);
 if (response.status === 404) {
   await $`npm publish ${archive} --access public --provenance --ignore-scripts`;
 } else if (response.ok) {

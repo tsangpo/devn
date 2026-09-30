@@ -14,7 +14,7 @@ Linux or macOS. Install Codex and Claude Code separately and put them on PATH.
 The npm/source distribution requires Bun >=1.4.2 and runs TypeScript directly.
 There are no runtime or development npm dependencies or dist files.
 
-After the first release, Homebrew installs a standalone binary with no Bun dependency:
+Homebrew installs a standalone binary with no Bun dependency:
 
     brew install tsangpo/tap/devn
     devn --version
@@ -23,21 +23,20 @@ Binary releases cover macOS and Linux (glibc), on arm64 and x64. To upgrade, use
 `brew update && brew upgrade devn`. Binaries and SHA-256 checksums are also
 available from [GitHub Releases](https://github.com/tsangpo/devn/releases).
 
-After the first npm publication:
+Run the npm package with Bun:
 
-    bunx devn --version
-    bunx devn profile add
-    bunx devn profile use customer-a
-    bunx devn codex
-    bunx devn claude
+    bunx @tsangpo/devn --version
+    bunx @tsangpo/devn profile add
+    bunx @tsangpo/devn profile use customer-a
+    bunx @tsangpo/devn codex
+    bunx @tsangpo/devn claude
 
-The package is prepared but has not been published yet. Until publication, get
-the source from https://github.com/tsangpo/devn and run:
+To run from source, get https://github.com/tsangpo/devn and run:
 
     bun bin/devn --help
 
 Or add /absolute/path/to/devn/bin to PATH. Commands run in the caller's project
-directory. Use a version-qualified package (for example bunx devn@0.1.0) when
+directory. Use a version-qualified package (for example bunx @tsangpo/devn@0.1.1) when
 you need to pin the CLI version.
 
 ## Profiles
