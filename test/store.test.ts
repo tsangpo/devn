@@ -19,7 +19,7 @@ const addProfile = (id, url, key, expected?) => registerProfile(id, url, key, ex
 const source = () => `http://127.0.0.1:${server.port}/profile.json`;
 
 beforeEach(async () => {
-  temp = tempFS.realpathSync(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
+  temp = tempFS.realpathSync.native(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
   oldConfigHome = process.env.XDG_CONFIG_HOME;
   process.env.XDG_CONFIG_HOME = temp;
   respond = undefined;

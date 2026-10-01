@@ -108,7 +108,7 @@ const codexArgs = ['exec', '--skip-git-repo-check', '--sandbox', 'read-only', '-
 describe('native clients through the local Bifrost gateway', () => {
   beforeEach(async () => {
     temp = '';
-    temp = tempFS.realpathSync(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
+    temp = tempFS.realpathSync.native(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
     repo = `${temp}/cli`;
     home = `${temp}/home`;
     project = `${temp}/project`;
@@ -119,7 +119,7 @@ describe('native clients through the local Bifrost gateway', () => {
     await Bun.write(`${repo}/profiles/example.json`, Bun.file(`${root}/profiles/example.json`));
     await Bun.write(`${repo}/package.json`, Bun.file(`${root}/package.json`));
     await Bun.write(`${repo}/profiles/smoke.json`, JSON.stringify({ version: 1, id: 'smoke', name: 'Smoke', baseUrl: `http://127.0.0.1:${server.port}`, codex: {}, claude: {} }));
-    await Bun.write(`${home}/devn/config.toml`, Bun.TOML.stringify({ version: 1, profiles: { smoke: { url: `http://127.0.0.1:${server.port}/profile.json`, key, origins: { codex: `http://127.0.0.1:${server.port}`, claude: `http://127.0.0.1:${server.port}` } } }, projects: { [realpathSync(project)]: 'smoke' } }));
+    await Bun.write(`${home}/devn/config.toml`, Bun.TOML.stringify({ version: 1, profiles: { smoke: { url: `http://127.0.0.1:${server.port}/profile.json`, key, origins: { codex: `http://127.0.0.1:${server.port}`, claude: `http://127.0.0.1:${server.port}` } } }, projects: { [realpathSync.native(project)]: 'smoke' } }));
     const { platform } = await import('../../src/platform');
     platform.privateFile(home + '/devn/config.toml');
   });

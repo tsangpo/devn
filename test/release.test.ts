@@ -14,7 +14,7 @@ test('release tags must match the stable package version', () => {
 });
 
 test('release preparation rejects missing and tampered artifacts', async () => {
-  const temp = tempFS.realpathSync(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
+  const temp = tempFS.realpathSync.native(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
   try {
     await expect(checkedAssets(temp)).rejects.toThrow();
     for (const name of assetNames()) {
@@ -48,7 +48,7 @@ test('tap updates compare numeric versions and refuse downgrade or unknown forma
 });
 
 test('GitHub staging finds draft releases and resumes without replacing assets', async () => {
-  const temp = tempFS.realpathSync(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
+  const temp = tempFS.realpathSync.native(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
   const root = Bun.fileURLToPath(new URL('../', import.meta.url));
   try {
     await $`mkdir -p ${temp + '/release'} ${temp + '/bin'} ${temp + '/remote'}`.quiet();

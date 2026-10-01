@@ -7,7 +7,7 @@ import { expect, test } from 'bun:test';
 const root = Bun.fileURLToPath(new URL('../', import.meta.url));
 
 test('published tarball installs locally and exposes devn through bunx', async () => {
-  const temp = tempFS.realpathSync(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
+  const temp = tempFS.realpathSync.native(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
   try {
     const archive = process.env.DEVN_PACKAGE_TARBALL || `${temp}/devn.tgz`;
     const project = `${temp}/consumer`;

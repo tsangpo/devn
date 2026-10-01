@@ -15,7 +15,7 @@ test('release archive runs outside the source tree with no Bun on PATH', async (
   await verifyArchive(archive);
   const contents = (await target.archive.entries(archive)).sort();
   expect(contents).toEqual(['LICENSE', target.executable]);
-  const temp = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'devn-binary-')));
+  const temp = realpathSync.native(mkdtempSync(path.join(os.tmpdir(), 'devn-binary-')));
   try {
     const bin = path.join(temp, 'bin');
     const project = path.join(temp, 'project with spaces');
@@ -49,7 +49,7 @@ test('release archive runs outside the source tree with no Bun on PATH', async (
       version: 1, id: 'smoke', baseUrl: 'http://127.0.0.1:1', codex: {}, claude: {},
     }));
     expect(run(['profile', 'use', 'smoke']).exitCode).toBe(0);
-    expect(Bun.TOML.parse(await Bun.file(home + '/devn/config.toml').text()).projects[realpathSync(project)]).toBe('smoke');
+    expect(Bun.TOML.parse(await Bun.file(home + '/devn/config.toml').text()).projects[realpathSync.native(project)]).toBe('smoke');
     for (const tool of ['codex', 'claude']) {
       await writeStandalone(path.join(bin, tool), `
 console.log(process.cwd());
