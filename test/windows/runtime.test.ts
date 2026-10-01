@@ -2,6 +2,8 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { acquireLock } from '../../src/files';
 import { fixture } from '../helpers';
 import { testPlatform, prependPath } from '../platform';
 import { windows } from '../../src/platform/windows';
@@ -76,6 +78,23 @@ finally { $f.Dispose() }
         }
       } finally { await child.exited; }
     }
+  });
+
+  test('live locks serialize writers and dead-owner locks can be recovered', async t => {
+    const f = fixture(t);
+    const dir = path.join(f.dir, 'locks', 'profile.lock');
+    const release = await acquireLock(dir);
+    let entered = false;
+    const next = acquireLock(dir).then(unlock => { entered = true; return unlock; });
+    await Bun.sleep(100);
+    assert.equal(entered, false);
+    release();
+    (await next)();
+    fs.mkdirSync(dir);
+    fs.writeFileSync(path.join(dir, 'owner.json'), JSON.stringify({ pid: 2147483647, host: os.hostname(), token: 'dead-owner' }));
+    const recovered = await acquireLock(dir, 5000);
+    recovered();
+    assert.equal(fs.existsSync(dir), false);
   });
 
   test('official npm JS and EXE entries preserve arguments without executing wrappers', async t => {

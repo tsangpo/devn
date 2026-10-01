@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { atomicWrite, profileDir } from './files';
+import { atomicWrite, privateFile, profileDir } from './files';
 
 // Only scrub the credentials devn writes. Histories and personal settings stay intact.
 export async function scrubCredentials(id: string): Promise<void> {
@@ -7,6 +7,7 @@ export async function scrubCredentials(id: string): Promise<void> {
   for (const tool of ['codex', 'claude']) {
     const file = `${profileDir(id)}/${tool}/${tool === 'codex' ? 'config.toml' : 'settings.json'}`;
     if (!await Bun.file(file).exists()) continue;
+    privateFile(file);
     try {
       const text = await Bun.file(file).text();
       const config: any = tool === 'codex' ? Bun.TOML.parse(text) : JSON.parse(text);

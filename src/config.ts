@@ -2,7 +2,7 @@ import { assertTrusted, loadRegistry, lockProfile } from './store';
 import fs from 'node:fs';
 import path from 'node:path';
 const { parse, stringify } = Bun.TOML;
-import { atomicWrite, privateDir, profileDir, readJson, writeJson } from './files';
+import { atomicWrite, privateDir, privateFile, profileDir, readJson, writeJson } from './files';
 import { endpoint, modelIds, type Profile, type Tool } from './registry';
 
 type Data = Record<string, any>;
@@ -37,6 +37,7 @@ function merge(existing: Data, managed: Data): Data {
 
 function readConfig(file: string, tool: Tool): Data {
   if (!fs.existsSync(file)) return {};
+  privateFile(file);
   try {
     const value = tool === 'codex' ? parse(fs.readFileSync(file, 'utf8')) : JSON.parse(fs.readFileSync(file, 'utf8'));
     if (!isObject(value)) throw new Error();
