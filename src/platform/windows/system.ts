@@ -5,16 +5,20 @@ export function environmentValue(env: Environment, name: string): string | undef
   return Object.entries(env).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1];
 }
 
-export function powershell(script: string, data: unknown): string {
+export function powershellCommand(script: string): string[] {
   const root = environmentValue(process.env, 'SystemRoot');
   if (!root || !path.win32.isAbsolute(root)) throw new Error('Windows SystemRoot is unavailable.');
   const executable = path.win32.join(root, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
   const source = "$ErrorActionPreference = 'Stop';\n" + script;
-  const result = Bun.spawnSync([executable, '-NoLogo', '-NoProfile', '-NonInteractive',
-    '-EncodedCommand', Buffer.from(source, 'utf16le').toString('base64')], {
+  return [executable, '-NoLogo', '-NoProfile', '-NonInteractive',
+    '-EncodedCommand', Buffer.from(source, 'utf16le').toString('base64')];
+}
+
+export function powershell(script: string, data: unknown): string {
+  const result = Bun.spawnSync(powershellCommand(script), {
     stdin: Buffer.from(JSON.stringify(data)), stdout: 'pipe', stderr: 'pipe', windowsHide: true,
   });
   // Do not expose path, script diagnostics, or environment values in failures.
-  if (result.exitCode !== 0) throw new Error('Windows system operation failed; check filesystem permissions and PowerShell availability.');
+  if (result.exitCode !== 0) throw new Error('Windows system operation failed; check filesystem permissions and PowerShell availability.', { cause: result.stderr.toString() });
   return result.stdout.toString().trim();
 }

@@ -4,6 +4,9 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+- Add Windows x64 npm/Bun and standalone EXE support, with local configuration under LOCALAPPDATA and explicit private ACLs.
+- Isolate Windows runtime, build helpers, and integration tests behind platform adapters.
+
 ## 0.3.1 — 2026-09-30
 
 - Ask for the URL before the local name in `profile add`, offering a valid name derived from the JSON filename as the default.

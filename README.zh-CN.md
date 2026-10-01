@@ -27,9 +27,17 @@ devn --version
 
 安装独立二进制，不需要 Bun。支持 macOS 和 Linux（glibc）的 arm64/x64。Codex 和 Claude Code 仍需另行安装。升级使用 `brew update && brew upgrade devn`；也可从 [GitHub Releases](https://github.com/tsangpo/devn/releases) 下载二进制与 SHA-256 校验文件。
 
+## Windows 安装
+
+从 [GitHub Releases](https://github.com/tsangpo/devn/releases) 下载 `devn-vX.Y.Z-windows-x64.zip`，核对 SHA-256 后解压，将 `devn.exe` 所在目录加入 PATH。独立 EXE 不需要 Bun。也可以安装 Bun 后使用 `bunx`，或运行 `npm install -g @tsangpo/devn` 在 PowerShell/cmd 中使用 `devn`。
+
+客户端支持原生 EXE 和 Codex/Claude 的官方 npm 安装；JavaScript 客户端入口需要 Node.js，原生入口不需要。不执行自定义 cmd/bat/ps1 包装脚本。不支持 Windows ARM64、Scoop 或 winget。
+
+默认配置和工具历史保存在 `%LOCALAPPDATA%\devn`，缺失该变量时使用用户目录下的 `AppData\Local\devn`。`XDG_CONFIG_HOME` 在所有平台上优先，不自动迁移旧目录。Windows 使用只允许当前用户和 SYSTEM 的 ACL，设置失败即停止操作。Windows 设备保留名不能用作 profile 名称，也不能注册仅大小写不同的名称。
+
 ## 从源码运行
 
-支持 Linux/macOS，需要 [Bun](https://bun.com/) **1.4.2 或更新版本**。Codex 和 Claude Code 由用户自行安装，并放入 PATH。
+支持 Linux、macOS 和 Windows 11 x64，需要 [Bun](https://bun.com/) **1.4.2 或更新版本**。Codex 和 Claude Code 由用户自行安装，并放入 PATH。
 
 获取源码后，在仓库目录运行：
 
@@ -37,7 +45,7 @@ devn --version
 bun bin/devn --help
 ```
 
-也可以将源码的 `bin` 目录加入 PATH，以便在项目目录使用 `devn`：
+Linux/macOS 也可以将源码的 `bin` 目录加入 PATH，以便在项目目录使用 `devn`：
 
 ```bash
 export PATH="/absolute/path/to/cli/bin:$PATH"
@@ -200,7 +208,7 @@ MIT 许可证，Copyright (c) 2026 tsangpo。参见 [LICENSE](LICENSE)、[贡献
 
 `bun run check:secrets` 检查工作区与可达 Git 历史中的已知 token/私钥特征，不输出匹配值。它无法识别全部自定义 key 或客户信息，发布前仍应检查实际 tarball 和文档。
 
-推送与 package.json 版本一致的正式 `vX.Y.Z` tag，会触发 Release 工作流：验证同一份 npm tarball 和四平台二进制，自动发布 npm 与 GitHub Release，验证 Homebrew 安装后更新 `tsangpo/homebrew-tap`。npm 发布使用 Trusted Publishing（OIDC），不再注入 `NPM_TOKEN`；tap 更新使用仅授权 tap 仓库 Contents 写入的 `GH_PAT`。首次无 token 新版本发布成功后，可删除旧 GitHub secret 并撤销 npm token。配置步骤见 [贡献与发布说明](CONTRIBUTING.md#release-setup)。
+推送与 package.json 版本一致的正式 `vX.Y.Z` tag，会触发 Release 工作流：验证同一份 npm tarball 和五个平台的二进制，自动发布 npm 与 GitHub Release，验证 Homebrew 安装后更新 `tsangpo/homebrew-tap`。npm 发布使用 Trusted Publishing（OIDC），不再注入 `NPM_TOKEN`；tap 更新使用仅授权 tap 仓库 Contents 写入的 `GH_PAT`。首次无 token 新版本发布成功后，可删除旧 GitHub secret 并撤销 npm token。配置步骤见 [贡献与发布说明](CONTRIBUTING.md#release-setup)。
 
 本地构建及验证当前平台二进制：
 

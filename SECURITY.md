@@ -30,7 +30,12 @@ a promised backport policy.
 - Trusting a profile also trusts its administrator's model and routing updates.
   Origin pinning cannot protect a compromised gateway at the same origin.
 - Keys are plaintext in local config.toml and generated tool configuration, with
-  mode 0600; directories use 0700. This is access control, not encryption.
+  mode 0600 and directories 0700 on POSIX. Windows applies a protected DACL
+  granting only the current user and SYSTEM, removing inherited and unrelated
+  explicit grants. Managed directories and temporary files are protected before
+  writing secrets; ACL failures stop the operation. Windows PowerShell must be
+  available and the filesystem must support ACLs. This is access control, not
+  encryption, and does not protect against privileged administrators.
   devn does not send analytics, but the launched clients have their own behavior.
 - Profile separation is not OS isolation. Agents run as your user and can access
   files available to that user. This is not a sandbox for untrusted projects.

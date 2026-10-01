@@ -38,8 +38,8 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - run: bun run check
       - run: bun run test:windows
+      - run: bun run check
       - run: bun run check:secrets
       - run: bun run build:binary
       - run: bun run test:binary

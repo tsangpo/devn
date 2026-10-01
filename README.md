@@ -10,7 +10,7 @@ from a remote JSON document. The CLI does not ship customer profiles or update i
 
 ## Requirements and use
 
-Linux or macOS. Install Codex and Claude Code separately and put them on PATH.
+Linux, macOS, or Windows 11 x64. Install Codex and Claude Code separately and put them on PATH.
 The npm/source distribution requires Bun >=1.4.2 and runs TypeScript directly.
 There are no runtime or development npm dependencies or dist files.
 
@@ -19,9 +19,19 @@ Homebrew installs a standalone binary with no Bun dependency:
     brew install tsangpo/tap/devn
     devn --version
 
-Binary releases cover macOS and Linux (glibc), on arm64 and x64. To upgrade, use
+Binary releases cover macOS and Linux (glibc) on arm64/x64, plus Windows x64. To upgrade, use
 `brew update && brew upgrade devn`. Binaries and SHA-256 checksums are also
 available from [GitHub Releases](https://github.com/tsangpo/devn/releases).
+
+On Windows, download `devn-vX.Y.Z-windows-x64.zip` from GitHub Releases,
+verify its SHA-256 checksum, extract it, and add the directory containing `devn.exe`
+to PATH. The EXE does not require Bun. npm/Bun installations still require Bun;
+`npm install -g @tsangpo/devn` installs the `devn` command for PowerShell and cmd.
+
+Windows supports native client EXEs and official npm installations of Codex/Claude.
+JavaScript client entries require Node.js; native entries do not. Custom cmd/bat/ps1
+wrappers are not executed. Use an official installation when an entry cannot be resolved.
+Scoop, winget and Windows ARM64 are not supported.
 
 Run the npm package with Bun:
 
@@ -35,9 +45,16 @@ To run from source, get https://github.com/tsangpo/devn and run:
 
     bun bin/devn --help
 
-Or add /absolute/path/to/devn/bin to PATH. Commands run in the caller's project
+On Linux/macOS, you can also add /absolute/path/to/devn/bin to PATH. Commands run in the caller's project
 directory. Use a version-qualified package (for example bunx @tsangpo/devn@0.1.1) when
 you need to pin the CLI version.
+
+Windows stores configuration and tool data in `%LOCALAPPDATA%\devn` (falling back
+to `AppData\Local\devn` under the user directory). `XDG_CONFIG_HOME` overrides
+this root on all platforms. Existing directories are not migrated automatically.
+Windows protects managed files and directories with ACLs granting only the current
+user and SYSTEM; failure to apply permissions stops the operation. Windows device
+names and profile names differing only in case cannot be registered together.
 
 ## Profiles
 
@@ -205,7 +222,7 @@ with a local fake gateway and dummy keys. See CONTRIBUTING.md for versions and
 schema compatibility.
 
 Pushing a stable `vX.Y.Z` tag matching package.json triggers the Release workflow.
-It validates the npm package and four native binaries, publishes npm and GitHub
+It validates the npm package and five native binaries, publishes npm and GitHub
 Release assets, tests Homebrew installation, then updates `tsangpo/homebrew-tap`.
 npm publishing uses Trusted Publishing (OIDC), without an npm token. See
 [release setup](CONTRIBUTING.md#release-setup) before pushing a tag.

@@ -6,7 +6,8 @@ import { fixture } from '../helpers';
 import { testPlatform, prependPath } from '../platform';
 import { windows } from '../../src/platform/windows';
 import { resolveCommand } from '../../src/platform/windows/process';
-import { powershell } from '../../src/platform/windows/system';
+import { powershell, powershellCommand } from '../../src/platform/windows/system';
+import { replaceFile } from '../../src/platform/windows/files';
 import { acl } from './fixtures';
 
 describe('Windows runtime', { skip: testPlatform.posix }, () => {
@@ -45,6 +46,35 @@ Set-Acl -LiteralPath $p.path -AclObject $a
     const link = path.join(f.dir, 'junction');
     fs.symlinkSync(path.dirname(file), link, 'junction');
     assert.throws(() => windows.atomicWrite(path.join(link, 'key.txt'), 'bad'), /junction/);
+  });
+
+  test('rename retries transient sharing violations and preserves old data on exhaustion', async t => {
+    const f = fixture(t);
+    const target = path.join(f.dir, 'target.txt');
+    const temp = path.join(f.dir, 'replacement.tmp');
+    for (const holdMs of [100, 2000]) {
+      fs.writeFileSync(target, 'original'); fs.writeFileSync(temp, 'replacement');
+      const ready = path.join(f.dir, 'ready'); fs.rmSync(ready, { force: true });
+      const child = Bun.spawn(powershellCommand(`
+$p = [Console]::In.ReadToEnd() | ConvertFrom-Json
+$f = [IO.File]::Open($p.path, 'Open', 'Read', 'Read')
+try { [IO.File]::WriteAllText($p.ready, 'ready'); Start-Sleep -Milliseconds $p.hold }
+finally { $f.Dispose() }
+`), { stdin: Buffer.from(JSON.stringify({ path: target, ready, hold: holdMs })), stdout: 'pipe', stderr: 'pipe' });
+      try {
+        const deadline = Date.now() + 10000;
+        while (!fs.existsSync(ready) && Date.now() < deadline) await Bun.sleep(10);
+        assert.ok(fs.existsSync(ready), 'holder did not acquire the file');
+        if (holdMs === 100) {
+          replaceFile(temp, target);
+          assert.equal(fs.readFileSync(target, 'utf8'), 'replacement');
+        } else {
+          assert.throws(() => replaceFile(temp, target));
+          assert.equal(fs.readFileSync(target, 'utf8'), 'original');
+          assert.equal(fs.readFileSync(temp, 'utf8'), 'replacement');
+        }
+      } finally { await child.exited; }
+    }
   });
 
   test('official npm JS and EXE entries preserve arguments without executing wrappers', async t => {
