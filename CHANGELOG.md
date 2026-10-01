@@ -4,6 +4,8 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+- Add a Windows PowerShell installer for standalone devn installation and upgrades, with SHA-256 verification, user PATH setup, failure rollback, and versioned GitHub Release assets.
+
 ## 0.4.1 — 2026-10-01
 
 - Add Windows x64 npm/Bun and standalone EXE support, with local configuration under LOCALAPPDATA and explicit private ACLs.

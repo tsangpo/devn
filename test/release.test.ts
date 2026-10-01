@@ -5,6 +5,42 @@ import { testPlatform, prependPath } from './platform';
 import { $ } from 'bun';
 import { expect, test } from 'bun:test';
 import { archiveName, assertNoDowngrade, assetNames, checkedAssets, digest, formula, platforms, releaseTag, shouldPromoteRelease, version } from '../scripts/release-lib';
+import { renderInstaller } from '../scripts/build-installer';
+
+test('installer generation pins the release archive and rejects invalid checksums', async () => {
+  const hash = 'a'.repeat(64);
+  const installer = await renderInstaller(hash);
+  expect(installer).toContain("$version = '" + version + "'");
+  expect(installer).toContain("$archiveName = '" + archiveName('windows-x64') + "'");
+  expect(installer).toContain("$expectedHash = '" + hash + "'");
+  expect(installer).not.toContain('@@');
+  expect(await renderInstaller(hash)).toBe(installer);
+  await expect(renderInstaller('bad hash')).rejects.toThrow('Invalid Windows archive');
+});
+
+test('installer build verifies its input and writes a reproducible checksummed asset', async () => {
+  const temp = tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-installer-build-'));
+  try {
+    const archive = tempPath.join(temp, 'release', archiveName('windows-x64'));
+    await Bun.write(archive, 'fixture archive');
+    const hash = await digest(archive);
+    await Bun.write(archive + '.sha256', hash + '\n');
+    const build = () => Bun.spawnSync([process.execPath, tempPath.resolve(import.meta.dir, '../scripts/build-installer.ts')], {
+      cwd: temp, stdout: 'pipe', stderr: 'pipe',
+    });
+    const result = build();
+    expect(result.exitCode, result.stderr.toString()).toBe(0);
+    const output = tempPath.join(temp, 'release/install.ps1');
+    const original = await Bun.file(output).text();
+    expect(original).toBe(await renderInstaller(hash));
+    expect((await Bun.file(output + '.sha256').text()).trim()).toBe(await digest(output));
+    expect(build().exitCode).toBe(0);
+    expect(await Bun.file(output).text()).toBe(original);
+    await Bun.write(archive, 'tampered archive');
+    expect(build().exitCode).not.toBe(0);
+    expect(await Bun.file(output).text()).toBe(original);
+  } finally { tempFS.rmSync(temp, { recursive: true, force: true }); }
+});
 
 test('release tags must match the stable package version', () => {
   expect(releaseTag('v' + version)).toBe('v' + version);
@@ -41,6 +77,11 @@ test('release preparation rejects missing and tampered artifacts', async () => {
     }
     delete hashes[archiveName('linux-arm64')];
     expect(() => formula(hashes)).toThrow();
+    tempFS.unlinkSync(temp + '/install.ps1');
+    await expect(checkedAssets(temp)).rejects.toThrow();
+    await Bun.write(temp + '/install.ps1', 'tampered installer');
+    await expect(checkedAssets(temp)).rejects.toThrow('checksum mismatch');
+    await Bun.write(temp + '/install.ps1', 'test archive install.ps1');
     await Bun.write(temp + '/devn.tgz', 'tampered');
     await expect(checkedAssets(temp)).rejects.toThrow('checksum mismatch');
   } finally {
@@ -106,6 +147,11 @@ else process.exit(99);
     const edits = (await Bun.file(temp + '/edits').text()).trim().split('\n').map(line => JSON.parse(line));
     expect(edits.map(args => args.at(-1))).toEqual(['--latest=true', '--latest=true', '--latest=true', '--latest=false']);
     expect(await Bun.file(temp + '/remote/devn.tgz').text()).toBe('dummy devn.tgz');
+    expect(await Bun.file(temp + '/remote/install.ps1').text()).toBe('dummy install.ps1');
+    await Bun.write(temp + '/remote/install.ps1', 'different existing installer');
+    await expect(run('stage')).rejects.toThrow('Existing release asset differs: install.ps1');
+    expect(await Bun.file(temp + '/remote/install.ps1').text()).toBe('different existing installer');
+    await Bun.write(temp + '/remote/install.ps1', 'dummy install.ps1');
     await Bun.write(temp + '/remote/devn.tgz', 'different existing asset');
     await expect(run('stage')).rejects.toThrow();
     expect(await Bun.file(temp + '/remote/devn.tgz').text()).toBe('different existing asset');

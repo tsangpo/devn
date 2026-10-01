@@ -17,6 +17,8 @@
     "check:secrets": "bun scripts/check-secrets.ts",
     "release:pack": "bun scripts/pack-release.ts",
     "build:binary": "bun scripts/build-binary.ts",
+    "build:installer": "bun scripts/build-installer.ts",
+    "test:installer": "bun test ./test/installer --timeout 180000",
     "test:binary": "bun test ./test/binary",
     "release:prepare": "bun scripts/prepare-release.ts"
   },

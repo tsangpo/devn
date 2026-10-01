@@ -103,10 +103,14 @@ export async function cachedProfile(id: string): Promise<Profile> {
   return profile;
 }
 
-export async function addProfile(id: string, url: string, key: string, expected?: Registration,
+export async function addProfile(id: string, url: string, keyInput: string | ((profile: Profile) => Promise<string>), expected?: Registration,
   approve: (profile: Profile) => Promise<boolean> = async () => false): Promise<void> {
-  validateRegistration(id, { url, key });
+  if (!safeId(id)) throw new Error('Invalid profile name.');
+  secureURL(url);
+  if (typeof keyInput === 'string') validateRegistration(id, { url, key: keyInput });
   const profile = await downloadProfile(url, id);
+  const key = typeof keyInput === 'function' ? await keyInput(profile) : keyInput;
+  validateRegistration(id, { url, key });
   if (!await approve(profile)) throw new Error('Gateway approval cancelled; profile was not changed.');
   const release = await lockProfile(id);
   try {

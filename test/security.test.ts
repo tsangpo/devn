@@ -1,6 +1,20 @@
 import { expect, test } from 'bun:test';
 import { downloadProfile } from '../src/download';
 import { secureURL } from '../src/urls';
+import { validateProfile } from '../src/registry';
+
+test('optional authUrl accepts secure key pages and rejects unsafe values', () => {
+  const profile = { version: 1, baseUrl: 'https://gateway.test', codex: {}, claude: {} };
+  expect(validateProfile(profile).authUrl).toBeUndefined();
+  for (const authUrl of ['https://auth.test/keys?application=devn', 'http://localhost:8080/keys']) {
+    expect(validateProfile({ ...profile, authUrl }).authUrl).toBe(authUrl);
+  }
+  for (const authUrl of [null, 42, {}, '', 'not-a-url', '/keys', 'http://auth.test/keys',
+    'javascript:alert(1)', 'https://user:secret@auth.test/keys', 'https://auth.test/keys#fragment',
+    'https://auth.test/\nkeys', 'https://auth.test/\tkeys', 'https://auth.test/\x1b[31m', 'https://auth.test/\x7f']) {
+    expect(() => validateProfile({ ...profile, authUrl })).toThrow();
+  }
+});
 
 test('URL policy accepts HTTPS and literal loopback, rejects credentials and non-loopback HTTP', () => {
   for (const url of ['https://gateway.test', 'http://127.0.0.1:8080', 'http://localhost:8080', 'http://[::1]:8080']) {

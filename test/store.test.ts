@@ -51,6 +51,20 @@ test('registration is local, uses its alias, and refreshes remote routing', asyn
   expect((await Bun.file(`${profileDir('local')}/profile.json`).json()).baseUrl).toBe(payload.baseUrl);
 });
 
+test('cancelled or invalid deferred key input does not save registration or cache', async () => {
+  payload.authUrl = 'https://auth.example.test/keys';
+  for (const getKey of [
+    async profile => { expect(profile.authUrl).toBe(payload.authUrl); throw new Error('Cancelled.'); },
+    async () => '',
+  ]) {
+    let approved = false;
+    await expect(registerProfile('a', source(), getKey, undefined, async () => { approved = true; return true; })).rejects.toThrow();
+    expect(approved).toBe(false);
+    expect((await loadRegistry()).profiles).toEqual([]);
+    expect(await Bun.file(`${profileDir('a')}/profile.json`).exists()).toBe(false);
+  }
+});
+
 test('server and network failures use cache; missing or invalid cache stops launch', async () => {
   await addProfile('a', source(), 'secret');
   status = 503;

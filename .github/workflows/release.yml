@@ -80,12 +80,17 @@ jobs:
           DEVN_PACKAGE_TARBALL: ${{ github.workspace }}/release/devn.tgz
       - run: bun run build:binary
       - run: bun run test:binary
+      - if: matrix.platform == 'windows-x64'
+        run: bun run build:installer
+      - if: matrix.platform == 'windows-x64'
+        run: bun run test:installer
       - uses: actions/upload-artifact@v7.0.1
         with:
           name: binary-${{ matrix.platform }}
           path: |
             release/*.tar.gz*
             release/*.zip*
+            release/install.ps1*
           if-no-files-found: error
           retention-days: 30
   publish:
@@ -142,9 +147,34 @@ jobs:
             release/*.tgz*
             release/*.tar.gz*
             release/*.zip*
+            release/install.ps1*
             release/SHA256SUMS
             release/devn.rb
           if-no-files-found: error
+  verify-windows-installer:
+    needs: publish
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    runs-on: windows-2025
+    steps:
+      - name: Install from the public release endpoint
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $latest = gh api repos/tsangpo/devn/releases/latest --jq .tag_name
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect latest release' }
+          $url = 'https://github.com/tsangpo/devn/releases/latest/download/install.ps1'
+          if ($latest -ne $env:RELEASE_TAG) {
+            # Recovering an older release must not demote or install a newer Latest.
+            $url = 'https://github.com/tsangpo/devn/releases/download/' + $env:RELEASE_TAG + '/install.ps1'
+          }
+          irm $url | iex
+          if ((devn --version) -ne $env:RELEASE_TAG.Substring(1)) { throw 'Installed version differs from the release' }
+          # A new PowerShell process inherits the refreshed PATH from this installer session.
+          if ((& powershell.exe -NoProfile -Command 'devn --version') -ne $env:RELEASE_TAG.Substring(1)) {
+            throw 'New terminal could not find the released devn'
+          }
   verify-homebrew:
     needs: publish
     if: ${{ !cancelled() && needs.publish.result == 'success' }}

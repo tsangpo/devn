@@ -23,9 +23,33 @@ Binary releases cover macOS and Linux (glibc) on arm64/x64, plus Windows x64. To
 `brew update && brew upgrade devn`. Binaries and SHA-256 checksums are also
 available from [GitHub Releases](https://github.com/tsangpo/devn/releases).
 
-On Windows, download `devn-vX.Y.Z-windows-x64.zip` from GitHub Releases,
-verify its SHA-256 checksum, extract it, and add the directory containing `devn.exe`
-to PATH. The EXE does not require Bun. npm/Bun installations still require Bun;
+On Windows x64, install or upgrade the latest stable release from 64-bit PowerShell
+(Windows PowerShell 5.1 or PowerShell 7):
+
+```powershell
+irm https://github.com/tsangpo/devn/releases/latest/download/install.ps1 | iex
+```
+
+From either cmd or PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -c "irm https://github.com/tsangpo/devn/releases/latest/download/install.ps1 | iex"
+```
+
+The installer checks SHA-256, installs `devn.exe` and its license into
+`%LOCALAPPDATA%\Programs\devn` (falling back to `AppData\Local\Programs\devn`
+under your user directory), and adds that directory to your user PATH. No administrator
+rights, Bun or Node.js are needed. Re-run the same command to upgrade; profiles and
+tool history are preserved. Codex and Claude Code must still be installed separately.
+When using the outer `powershell -c` command, close and reopen your terminal application,
+then run `devn --version`. If another devn installation takes precedence, adjust PATH
+or use the installed EXE's full path. Close running devn processes before upgrading.
+
+The installer endpoint becomes available with the first stable release containing this
+feature. For earlier releases or a specific version, download
+`devn-vX.Y.Z-windows-x64.zip` from GitHub Releases, verify its SHA-256 checksum,
+extract it, and add the directory containing `devn.exe` to PATH.
+npm/Bun installations still require Bun;
 `npm install -g @tsangpo/devn` installs the `devn` command for PowerShell and cmd.
 
 Windows supports native client EXEs and official npm installations of Codex/Claude.
@@ -71,6 +95,11 @@ The name prompt always appears. A valid JSON filename supplies the default:
 or type another name. Query parameters are ignored; the filename is URL-decoded
 and its `.json` suffix is removed (case-insensitively). If it cannot supply a valid
 local name, no default is shown and you must enter one.
+After the name and any update confirmation, devn downloads and validates the
+profile before asking for the key. If the profile includes `authUrl`, it displays
+the full URL so you can open it to obtain a key. Terminals that recognize URLs
+can make it clickable; otherwise copy it into your browser. Then paste the key
+into the hidden prompt. devn does not open the browser or fetch the key for you.
 The URL points to a configuration document, not a model API. The download does not
 send your key. You must explicitly approve the displayed Codex / Claude gateway
 origins before registration is saved. Adding the same name asks before replacing
@@ -123,6 +152,11 @@ An administrator hosts a JSON document at an HTTPS URL. Minimal example:
 The default endpoints append /openai/v1 and /anthropic. Override either with
 codex.baseUrl or claude.baseUrl. Optional id/name fields are descriptive; the
 local name controls the binding and directory. Never publish real keys in JSON.
+
+Optional top-level `authUrl` (for example, `"authUrl": "https://gateway.example.com/keys"`)
+points to a page for obtaining a key. Paths and query parameters are allowed.
+It requires HTTPS (loopback HTTP is allowed), without credentials, fragments,
+or control characters. Omit it to keep the usual key prompt without a link.
 
 Download and gateway URLs require HTTPS, except loopback HTTP for local testing
 (localhost, 127.0.0.0/8, ::1). Redirects are limited to five and HTTPS cannot

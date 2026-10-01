@@ -3,6 +3,7 @@
   "name": "Example remote profile — configure before publishing",
   "example": true,
   "baseUrl": "https://bifrost.example.invalid",
+  "authUrl": "https://bifrost.example.invalid/keys",
   "codex": {
     "models": [
       {

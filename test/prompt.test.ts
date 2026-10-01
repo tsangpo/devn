@@ -43,6 +43,7 @@ test('profile add hides keys, fetches without authentication, confirms updates a
     assert.equal(result.code, 0, result.output);
     assert.equal(result.stage, answers.length);
     assert.ok(!result.output.includes(key));
+    assert.ok(!result.output.includes('Open this URL'));
     const file = path.join(f.home, 'devn/config.toml');
     assert.equal(Bun.TOML.parse(await Bun.file(file).text()).profiles.a.key, key);
     testPlatform.assertPrivate(file, 0o600);
@@ -60,6 +61,53 @@ test('profile add hides keys, fetches without authentication, confirms updates a
   assert.equal(await Bun.file(file).text(), before);
   assert.equal(f.run(['profile', 'use', 'a']).status, 0);
   assert.deepEqual(fs.readdirSync(f.project), []);
+});
+
+test('profile add displays authUrl before the hidden key prompt and downloads only once', async t => {
+  const f = fixture(t);
+  const requests: string[] = [];
+  const server = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch(req) {
+    requests.push(new URL(req.url).pathname);
+    assert.equal(req.headers.get('authorization'), null);
+    return Response.json({ version: 1, baseUrl: 'https://gateway.example.test', authUrl, codex: {}, claude: {} });
+  } });
+  t.after(() => server.stop(true));
+  const authUrl = `http://127.0.0.1:${server.port}/keys?application=devn`;
+  const result = await add(f, [
+    ['Profile JSON URL: ', `http://127.0.0.1:${server.port}/profile.json`], ['Profile name [profile]: ', 'linked'],
+    ['Bifrost key (hidden): ', 'private-linked-key'],
+    ['Trust these gateways to receive your key? [y/N]: ', 'yes'],
+  ]);
+  assert.equal(result.code, 0, result.output);
+  assert.equal(result.stage, 4);
+  const linkIndex = result.output.indexOf(`Open this URL to get your Bifrost key: ${authUrl}`);
+  assert.ok(linkIndex >= 0 && linkIndex < result.output.indexOf('Bifrost key (hidden):'));
+  assert.ok(!result.output.includes('private-linked-key'));
+  assert.deepEqual(requests, ['/profile.json']);
+  assert.equal((await Bun.file(path.join(f.home, 'devn/profiles/linked/profile.json')).json()).authUrl, authUrl);
+});
+
+test('profile download or validation failure stops before key input and writes nothing', async t => {
+  const f = fixture(t);
+  let invalid = false;
+  const server = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch() {
+    return invalid
+      ? Response.json({ version: 1, baseUrl: 'https://gateway.example.test', authUrl: 'javascript:alert(1)', codex: {}, claude: {} })
+      : new Response('Unavailable', { status: 503 });
+  } });
+  t.after(() => server.stop(true));
+  for (const invalidProfile of [false, true]) {
+    invalid = invalidProfile;
+    const result = await add(f, [
+      ['Profile JSON URL: ', `http://127.0.0.1:${server.port}/profile.json`], ['Profile name [profile]: ', 'failed'],
+    ]);
+    assert.equal(result.code, 1, result.output);
+    assert.match(result.output, invalid ? /invalid profile/ : /HTTP 503/);
+    assert.ok(!result.output.includes('Bifrost key (hidden):'));
+    assert.ok(!result.output.includes('Open this URL'));
+    assert.equal(await Bun.file(path.join(f.home, 'devn/config.toml')).exists(), false);
+    assert.equal(await Bun.file(path.join(f.home, 'devn/profiles/failed/profile.json')).exists(), false);
+  }
 });
 
 test('profile add always prompts for a name second and accepts filename defaults', async t => {

@@ -12,7 +12,7 @@ export type CodexModel = {
 };
 export type ClaudeModel = { model: string; label: string; description?: string; behavesAs?: string };
 export type Profile = {
-  version: 1; id: string; name: string; baseUrl: string; example?: boolean;
+  version: 1; id: string; name: string; baseUrl: string; authUrl?: string; example?: boolean;
   codex: { model?: string; baseUrl?: string; models?: CodexModel[] };
   claude: { model?: string; baseUrl?: string; modelPicker?: { replaceBuiltInOptions: boolean; options: ClaudeModel[] }; slots?: Partial<Record<'sonnet' | 'opus' | 'haiku', string>> };
 };
@@ -38,11 +38,16 @@ function keys(value: Record<string, any>, allowed: string[], label: string): voi
 
 export function validateProfile(value: any, localId?: string): Profile {
   requireValue(object(value), 'Profile must be an object.');
-  keys(value, ['version', 'id', 'name', 'baseUrl', 'example', 'codex', 'claude'], 'profile');
+  keys(value, ['version', 'id', 'name', 'baseUrl', 'authUrl', 'example', 'codex', 'claude'], 'profile');
   requireValue(value.version === 1 && (value.id === undefined || validId(value.id)), 'Profile requires version 1 and an optional safe id.');
   requireValue(value.name === undefined || (typeof value.name === 'string' && value.name.trim()), 'Profile name must be nonempty.');
   requireValue(value.example === undefined || typeof value.example === 'boolean', 'example must be Boolean.');
   url(value.baseUrl);
+  if (value.authUrl !== undefined) {
+    requireValue(typeof value.authUrl === 'string' && !/[\x00-\x1f\x7f-\x9f]/.test(value.authUrl),
+      'authUrl must be a URL string without control characters.');
+    secureURL(value.authUrl);
+  }
   for (const tool of ['codex', 'claude'] as const) {
     const config = value[tool];
     requireValue(object(config), `${tool} configuration is required.`);

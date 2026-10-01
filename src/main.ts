@@ -8,14 +8,16 @@ import { findBinding, getProfile, requireProfile } from './projects';
 import { choose, password, question } from './prompts';
 import { launch } from './launch';
 
-const HELP = `Usage:
-  devn profile list                 List locally registered profiles
+const PROFILE_COMMANDS = `  devn profile list                 List locally registered profiles
   devn profile add                  Enter a Profile JSON URL, name, and Bifrost key
   devn profile show [profile-name]   Show redacted local profile details
   devn profile remove <name> [--purge] Remove registration; --purge also deletes history
-  devn --version                    Print the CLI version
   devn profile use [profile-name]    Bind the current directory to a profile
-  devn profile unbind               Remove the current directory's binding
+  devn profile unbind               Remove the current directory's binding`;
+
+const HELP = `Usage:
+${PROFILE_COMMANDS}
+  devn --version                    Print the CLI version
   devn codex [arguments...]         Refresh profile, update config, and start Codex
   devn claude [arguments...]        Refresh profile, update config, and start Claude Code
 
@@ -53,8 +55,10 @@ async function dispatch(registry: Registry, args: string[]): Promise<number> {
     if (existing && !/^y(es)?$/i.test(await question(`Update profile ${name} URL and key? [y/N]: `))) {
       console.log('Cancelled.'); return 0;
     }
-    const key = await password();
-    await addProfile(name, url, key, existing, async profile => {
+    await addProfile(name, url, async profile => {
+      if (profile.authUrl) console.error(`Open this URL to get your Bifrost key: ${profile.authUrl}`);
+      return password();
+    }, existing, async profile => {
       console.error(`Codex gateway: ${displayURL(endpoint(profile, 'codex'))}`);
       console.error(`Claude gateway: ${displayURL(endpoint(profile, 'claude'))}`);
       return /^y(es)?$/i.test(await question('Trust these gateways to receive your key? [y/N]: '));
@@ -104,6 +108,9 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.length === 1 && ['--version', '-v'].includes(args[0])) { console.log(version); return; }
   if (!args.length || ['--help', '-h', 'help'].includes(args[0])) { console.log(HELP); return; }
+  if (args[0] === 'profile' && (args.length === 1 || (args.length === 2 && ['--help', '-h', 'help'].includes(args[1])))) {
+    console.log(`Usage:\n${PROFILE_COMMANDS}`); return;
+  }
   if (args[0] === '--validate-example') {
     validateProfile(example);
     console.log('Validated example profile.'); return;

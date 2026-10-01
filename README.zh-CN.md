@@ -29,7 +29,23 @@ devn --version
 
 ## Windows 安装
 
-从 [GitHub Releases](https://github.com/tsangpo/devn/releases) 下载 `devn-vX.Y.Z-windows-x64.zip`，核对 SHA-256 后解压，将 `devn.exe` 所在目录加入 PATH。独立 EXE 不需要 Bun。也可以安装 Bun 后使用 `bunx`，或运行 `npm install -g @tsangpo/devn` 在 PowerShell/cmd 中使用 `devn`。
+Windows x64 可在 64 位 PowerShell（Windows PowerShell 5.1 或 PowerShell 7）中安装或升级最新稳定版：
+
+```powershell
+irm https://github.com/tsangpo/devn/releases/latest/download/install.ps1 | iex
+```
+
+也可在 cmd 或 PowerShell 中使用：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -c "irm https://github.com/tsangpo/devn/releases/latest/download/install.ps1 | iex"
+```
+
+安装脚本校验 SHA-256，将 `devn.exe` 和许可证安装到 `%LOCALAPPDATA%\Programs\devn`，并加入用户 PATH；缺失 `LOCALAPPDATA` 时使用用户目录下的 `AppData\Local\Programs\devn`。无需管理员权限、Bun 或 Node.js。重复执行同一命令即可升级，保留 profile 和工具历史；Codex 和 Claude Code 仍需自行安装。
+
+使用外层 `powershell -c` 命令安装后，关闭并重新打开终端应用，再运行 `devn --version`。如果提示另一份 devn 优先执行，请调整 PATH 或使用安装目录下 EXE 的完整路径。升级前请关闭正在运行的 devn。
+
+安装入口将在包含此功能的首个稳定版本发布后可用。较早版本或指定版本仍可从 [GitHub Releases](https://github.com/tsangpo/devn/releases) 下载 `devn-vX.Y.Z-windows-x64.zip`，核对 SHA-256 后解压，将 `devn.exe` 所在目录加入 PATH。也可以安装 Bun 后使用 `bunx`，或运行 `npm install -g @tsangpo/devn` 在 PowerShell/cmd 中使用 `devn`。
 
 客户端支持原生 EXE 和 Codex/Claude 的官方 npm 安装；JavaScript 客户端入口需要 Node.js，原生入口不需要。不执行自定义 cmd/bat/ps1 包装脚本。不支持 Windows ARM64、Scoop 或 winget。
 
@@ -70,6 +86,8 @@ devn claude
 ```
 
 `profile add` 输入的 URL 是公开的 Profile JSON 地址，例如 `https://config.example.com/customer-a.json`，不是模型网关地址。请求不携带 key；key 只用于工具连接 JSON 中指定的网关。下载并校验后展示 Codex / Claude 网关 origin，明确确认后才保存注册信息。默认要求 HTTPS；HTTP 只允许 localhost、127.0.0.0/8 和 ::1 回环地址供本地测试。远程配置重定向最多 5 次，HTTPS 不允许降级到 HTTP。
+
+输入本地名称并确认更新（若有）后，devn 会先下载并校验 profile，再提示输入 key。若配置了 `authUrl`，会先显示完整链接，方便打开页面获取 key；支持 URL 识别的终端可直接点击，否则可复制到浏览器。随后将 key 粘贴到隐藏输入提示中。devn 不会自动打开浏览器或获取 key。
 
 第二步始终提示输入本地名称。URL 中的 `customer-a.json` 会显示 `Profile name [customer-a]: `，直接回车采用默认值，也可输入其他名称。推导时忽略查询参数，对文件名进行 URL 解码，再去掉 `.json` 后缀（不区分大小写）；无法推导合法名称时不显示默认值，必须手动输入。
 
@@ -156,6 +174,8 @@ Codex 内置网页搜索默认设为 `disabled`，因为网关支持某个模型
 远程网关同样默认要求 HTTPS，仅回环地址允许 HTTP。默认自动追加 `/openai/v1` 和 `/anthropic`；也可以分别在 `codex.baseUrl`、`claude.baseUrl` 提供完整接口路径。本地名称以字母或数字开头，只能包含字母、数字、连字符及下划线，长度不超过 64；保留名 __proto__、constructor、prototype 不可用。远程 `id`、`name` 是可选说明字段，不决定本地绑定或目录。请勿在 profile 定义中存储真实 key。
 
 连接配置由代码根据 profile 的 URL 和本机 key 生成，再用 Bun.TOML / JSON 序列化；不使用 shell 或文本拼接插入密钥。个人设置直接保存在各 profile 的工具配置文件中，后续启动时保留。
+
+可选顶层字段 `authUrl` 指向获取 key 的页面，例如 `"authUrl": "https://gateway.example.com/keys"`。允许路径和查询参数；要求 HTTPS（仅回环地址允许 HTTP），不允许 URL 用户凭据、fragment 或控制字符。不填写时保持普通 key 输入提示，不显示链接。
 
 默认无需维护模型列表。需要统一模型菜单时，参考 `profiles/example.json`，发布前填写真实值并删除 `example: true`。
 

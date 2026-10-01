@@ -93,6 +93,23 @@ are `arm64` and `x64`. These archives contain `devn` and `LICENSE`. Windows adds
 `devn-vX.Y.Z-windows-x64.zip` containing `devn.exe` and `LICENSE`, with the same
 checksum and publishing verification.
 
+Windows also publishes `install.ps1` and `install.ps1.sha256`; the script is included
+in `SHA256SUMS`. After building the Windows ZIP, `bun run build:installer` renders
+the PowerShell template with this release's version, archive name and ZIP checksum.
+`bun run test:installer` then exercises the generated installer using the real ZIP
+in Windows PowerShell 5.1 and PowerShell 7, including the cmd invocation, upgrades,
+rollback and PATH handling. These integration tests temporarily modify and restore
+the current user's PATH; run them serially on a disposable Windows runner. They
+use isolated installation directories, mock download transport, and simulate
+unsupported architectures and mismatched release metadata.
+
+Check and Release both run these tests before uploading the Windows artifact,
+which contains the ZIP and generated installer with their checksum files. A separate
+post-publication Windows job installs through the public latest endpoint and verifies
+`devn --version` in a new shell. When recovering an older release, it tests that tag's
+endpoint instead of changing Latest. The installer endpoint is available starting
+with the first stable release containing this feature; do not retrofit old releases.
+
 Generated files stay in release/; they are not committed. npm continues to ship
 TypeScript with its Bun shebang and no install scripts or downloaded binaries.
 Homebrew downloads a binary from the source repository's Release, checks SHA-256,
@@ -110,6 +127,9 @@ An identical already-published npm tarball is accepted; different contents for
 an existing npm version cause failure. Existing Release assets are verified and
 never overwritten; missing draft assets may be uploaded on retry. Rebuilding
 all jobs can produce different archive bytes and is not a safe retry strategy.
+Recovery reuses the original verified `install.ps1` artifact as well; never regenerate
+it from main. Missing installer artifacts or different uploaded script bytes fail
+publication. Recover releases predating the installer with their original workflow.
 
 Publishing to npm, GitHub and the tap is not atomic. If npm succeeds but another
 step fails, fix the failure and re-run failed jobs; do not unpublish npm or move

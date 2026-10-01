@@ -59,10 +59,16 @@ jobs:
       - if: matrix.suite == 'distribution'
         run: bun run test:binary
       - if: matrix.suite == 'distribution'
+        run: bun run build:installer
+      - if: matrix.suite == 'distribution'
+        run: bun run test:installer
+      - if: matrix.suite == 'distribution'
         uses: actions/upload-artifact@v7.0.1
         with:
           name: windows-x64-verified
-          path: release/*.zip*
+          path: |
+            release/*.zip*
+            release/install.ps1*
           if-no-files-found: error
       - name: Install pinned clients for local-gateway smoke tests
         if: matrix.suite == 'distribution'
