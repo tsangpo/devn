@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { platform } from './platform';
 import { acquireLock, atomicWrite, configHome, privateDir, privateFile, profileDir } from './files';
 import { gatewayOrigins, validId, validateProfile, type Profile, type Registry, type Registration } from './registry';
 import { downloadProfile, Unavailable } from './download';
@@ -7,7 +8,7 @@ import { secureURL } from './urls';
 
 const configFile = () => `${configHome()}/config.toml`;
 const cacheFile = (id: string) => `${profileDir(id)}/profile.json`;
-export const safeId = (id: unknown): id is string => validId(id) && !['__proto__', 'constructor', 'prototype'].includes(id as string);
+export const safeId = (id: unknown): id is string => validId(id) && !['__proto__', 'constructor', 'prototype'].includes(id as string) && platform.validProfileName(id as string);
 
 export function lockProfile(id: string): Promise<() => void> {
   if (!safeId(id)) throw new Error('Invalid profile name.');
@@ -49,7 +50,18 @@ export async function loadRegistry(): Promise<Registry> {
     validateRegistration(id, value);
     return { id, name: id, url: value.url, key: value.key, ...(value.origins ? { origins: value.origins } : {}) };
   });
-  return { profiles, projects: projects as Record<string, string> };
+  const identities = profiles.map(p => platform.profileIdentity(p.id));
+  if (new Set(identities).size !== identities.length) throw new Error('Profile names refer to the same directory. Rename conflicting registrations.');
+  const canonical: Record<string, string> = {};
+  for (const [dir, id] of Object.entries(projects) as [string, string][]) {
+    let key = dir;
+    try { key = platform.projectPath(dir); } catch (error: any) {
+      if (!['ENOENT', 'ENOTDIR'].includes(error.code)) throw error;
+    }
+    if (Object.hasOwn(canonical, key) && canonical[key] !== id) throw new Error('Conflicting project bindings refer to the same directory.');
+    canonical[key] = id;
+  }
+  return { profiles, projects: canonical };
 }
 
 function saveRegistry(registry: Registry): void {
@@ -69,12 +81,13 @@ async function updateRegistry(change: (registry: Registry) => void): Promise<voi
 export function bindProject(dir: string, id: string): Promise<void> {
   return updateRegistry(registry => {
     if (!registry.profiles.some(p => p.id === id)) throw new Error(`Unknown profile ${id}. Run devn profile list.`);
-    registry.projects[dir] = id;
+    registry.projects[platform.projectPath(dir)] = id;
   });
 }
 
 export function unbindProject(dir: string): Promise<void> {
   return updateRegistry(registry => {
+    dir = platform.projectPath(dir);
     if (!(dir in registry.projects)) throw new Error(`No project binding for ${dir}.`);
     delete registry.projects[dir];
   });
@@ -103,6 +116,9 @@ export async function addProfile(id: string, url: string, key: string, expected?
     const releaseRegistry = await acquireLock(`${configHome()}/.registry.lock`);
     try {
       const registry = await loadRegistry();
+      if (registry.profiles.some(p => p.id !== id && platform.profileIdentity(p.id) === platform.profileIdentity(id))) {
+        throw new Error('Profile name conflicts with an existing directory. Use its exact registered name.');
+      }
       const current = registry.profiles.find(p => p.id === id);
       if (JSON.stringify(current) !== JSON.stringify(expected)) throw new Error('Profile changed while adding it. Run devn profile add again.');
       privateDir(`${configHome()}/profiles`);
@@ -152,6 +168,7 @@ export async function removeProfile(id: string, purge = false): Promise<void> {
     const releaseRegistry = await acquireLock(`${configHome()}/.registry.lock`);
     try {
       const registry = await loadRegistry();
+      if (registry.profiles.some(p => p.id !== id && platform.profileIdentity(p.id) === platform.profileIdentity(id))) throw new Error('Use the exact registered profile name.');
       if (!purge && !registry.profiles.some(p => p.id === id)) throw new Error(`Unknown profile ${id}.`);
       if (purge) purgeProfileData(id);
       else await scrubCredentials(id);

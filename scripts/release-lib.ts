@@ -2,9 +2,9 @@ import { version } from '../package.json';
 
 export { version };
 export const repository = 'tsangpo/devn';
-export const platforms = ['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64'] as const;
-export type Platform = typeof platforms[number];
-export const archiveName = (platform: Platform) => 'devn-v' + version + '-' + platform + '.tar.gz';
+import { targets, platforms, type Platform } from './platform';
+export { platforms, type Platform } from './platform';
+export const archiveName = (platform: Platform) => 'devn-v' + version + '-' + platform + targets[platform].extension;
 export const assetNames = () => ['devn.tgz', ...platforms.map(archiveName)];
 
 export function releaseTag(tag = process.env.RELEASE_TAG): string {

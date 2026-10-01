@@ -1,10 +1,13 @@
+import * as tempFS from 'node:fs';
+import * as tempOS from 'node:os';
+import * as tempPath from 'node:path';
 import { $ } from 'bun';
 import { expect, test } from 'bun:test';
 
 const root = Bun.fileURLToPath(new URL('../', import.meta.url));
 
 test('published tarball installs locally and exposes devn through bunx', async () => {
-  const temp = (await $`mktemp -d`.text()).trim();
+  const temp = tempFS.realpathSync(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
   try {
     const archive = process.env.DEVN_PACKAGE_TARBALL || `${temp}/devn.tgz`;
     const project = `${temp}/consumer`;
@@ -14,7 +17,7 @@ test('published tarball installs locally and exposes devn through bunx', async (
     expect(files).toContain('package/src/main.ts');
     expect(files).toContain('package/profiles/example.json');
     for (const file of files) {
-      expect(file).toMatch(/^package\/(?:bin\/devn|src\/[^/]+\.ts|profiles\/example\.json|README(?:\.zh-CN)?\.md|CHANGELOG\.md|CONTRIBUTING\.md|SECURITY\.md|LICENSE|package\.json)$/);
+      expect(file).toMatch(/^package\/(?:bin\/devn|src\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.ts|profiles\/example\.json|README(?:\.zh-CN)?\.md|CHANGELOG\.md|CONTRIBUTING\.md|SECURITY\.md|LICENSE|package\.json)$/);
     }
     await $`mkdir -p ${project}`.quiet();
     await Bun.write(`${project}/package.json`, JSON.stringify({
@@ -37,6 +40,6 @@ test('published tarball installs locally and exposes devn through bunx', async (
     const list = await $`${process.execPath} x --no-install @tsangpo/devn profile list`.cwd(project).env(env).text();
     expect(list).toContain('No profiles registered');
   } finally {
-    await $`rm -rf ${temp}`.quiet();
+    tempFS.rmSync(temp, { recursive: true, force: true });
   }
 }, 20000);

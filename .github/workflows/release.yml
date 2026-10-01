@@ -59,7 +59,12 @@ jobs:
             platform: darwin-arm64
           - os: macos-15-intel
             platform: darwin-x64
+          - os: windows-2025
+            platform: windows-x64
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -80,7 +85,9 @@ jobs:
       - uses: actions/upload-artifact@v7.0.1
         with:
           name: binary-${{ matrix.platform }}
-          path: release/*.tar.gz*
+          path: |
+            release/*.tar.gz*
+            release/*.zip*
           if-no-files-found: error
           retention-days: 30
   publish:
@@ -113,7 +120,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Download verified release archives
         run: |
-          for artifact in npm-package binary-linux-x64 binary-linux-arm64 binary-darwin-x64 binary-darwin-arm64; do
+          for artifact in npm-package binary-linux-x64 binary-linux-arm64 binary-darwin-x64 binary-darwin-arm64 binary-windows-x64; do
             gh run download "$ARTIFACT_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir release
           done
         env:
@@ -136,6 +143,7 @@ jobs:
           path: |
             release/*.tgz*
             release/*.tar.gz*
+            release/*.zip*
             release/SHA256SUMS
             release/devn.rb
           if-no-files-found: error

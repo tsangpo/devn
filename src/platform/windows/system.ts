@@ -1,0 +1,20 @@
+import path from 'node:path';
+import type { Environment } from '../types';
+
+export function environmentValue(env: Environment, name: string): string | undefined {
+  return Object.entries(env).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1];
+}
+
+export function powershell(script: string, data: unknown): string {
+  const root = environmentValue(process.env, 'SystemRoot');
+  if (!root || !path.win32.isAbsolute(root)) throw new Error('Windows SystemRoot is unavailable.');
+  const executable = path.win32.join(root, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+  const source = "$ErrorActionPreference = 'Stop';\n" + script;
+  const result = Bun.spawnSync([executable, '-NoLogo', '-NoProfile', '-NonInteractive',
+    '-EncodedCommand', Buffer.from(source, 'utf16le').toString('base64')], {
+    stdin: Buffer.from(JSON.stringify(data)), stdout: 'pipe', stderr: 'pipe', windowsHide: true,
+  });
+  // Do not expose path, script diagnostics, or environment values in failures.
+  if (result.exitCode !== 0) throw new Error('Windows system operation failed; check filesystem permissions and PowerShell availability.');
+  return result.stdout.toString().trim();
+}

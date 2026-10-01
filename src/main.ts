@@ -1,7 +1,7 @@
 import { version } from '../package.json';
 import example from '../profiles/example.json';
 import { displayURL, secureURL } from './urls';
-import fs from 'node:fs';
+import { platform } from './platform';
 import { loadRegistry, addProfile, refreshProfile, removeProfile, cachedProfile, safeId, bindProject, unbindProject } from './store';
 import { validateProfile, endpoint, type Registry } from './registry';
 import { findBinding, getProfile, requireProfile } from './projects';
@@ -84,13 +84,13 @@ async function dispatch(registry: Registry, args: string[]): Promise<number> {
   }
   if (action === 'use') {
     const p = id ? getProfile(registry, id) : await choose(registry.profiles);
-    const dir = fs.realpathSync.native(process.cwd());
+    const dir = platform.projectPath(process.cwd());
     await bindProject(dir, p.id);
     console.log(`Selected ${p.id} for ${dir}`);
     return 0;
   }
   if (action === 'unbind') {
-    const dir = fs.realpathSync.native(process.cwd());
+    const dir = platform.projectPath(process.cwd());
     const binding = findBinding(registry, dir);
     if (binding && binding.dir !== dir) throw new Error(`${dir} has no binding of its own; it inherits ${binding.dir}. Run devn profile unbind there.`);
     await unbindProject(dir);

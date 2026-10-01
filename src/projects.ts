@@ -1,9 +1,9 @@
-import fs from 'node:fs';
+import { platform } from './platform';
 import path from 'node:path';
 import type { Registration, Registry } from './registry';
 
 export function findBinding(registry: Registry, cwd = process.cwd()): { id: string; dir: string } | undefined {
-  let dir = fs.realpathSync.native(cwd);
+  let dir = platform.projectPath(cwd);
   while (true) {
     if (Object.hasOwn(registry.projects, dir)) return { id: registry.projects[dir], dir };
     const parent = path.dirname(dir);

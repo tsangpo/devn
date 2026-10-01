@@ -1,3 +1,4 @@
+import { testPlatform } from './platform';
 import { validateProfile } from '../src/registry';
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -5,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { once } = require('node:events');
 const { parse, stringify } = Bun.TOML;
-const { fixture, write, read } = require('./helpers.ts');
+import { fixture, write, read } from './helpers';
 
 const projects = f => Bun.TOML.parse(fs.readFileSync(path.join(f.home, 'devn/config.toml'), 'utf8')).projects;
 
@@ -17,7 +18,7 @@ test('binding, ancestor inheritance, nested override, and paths with spaces', t 
   assert.equal(f.run(['profile', 'use', 'a']).status, 0);
   assert.deepEqual(projects(f), { [f.project]: 'a' });
   assert.deepEqual(fs.readdirSync(f.project), []);
-  assert.equal(fs.statSync(path.join(f.home, 'devn/config.toml')).mode & 0o777, 0o600);
+  testPlatform.assertPrivate(path.join(f.home, 'devn/config.toml'), 0o600);
   const sub = path.join(f.project, 'packages', 'app'); fs.mkdirSync(sub, { recursive: true });
   assert.equal(f.run(['codex', 'exec', 'a prompt with spaces'], { cwd: sub }).status, 0);
   assert.equal(read(f.capture).cwd, sub);
@@ -39,7 +40,7 @@ test('unbind removes only the exact directory, and symlinks resolve to the real 
   assert.notEqual(inherited.status, 0);
   assert.match(inherited.stderr, /inherits/);
   assert.deepEqual(projects(f), { [f.project]: 'a' });
-  const link = path.join(f.dir, 'link'); fs.symlinkSync(f.project, link);
+  const link = path.join(f.dir, 'link'); testPlatform.linkDirectory(f.project, link);
   assert.equal(f.run(['codex'], { cwd: link }).status, 0);
   assert.equal(f.run(['profile', 'unbind'], { cwd: link }).status, 0);
   assert.deepEqual(projects(f), {});
@@ -69,10 +70,10 @@ test('configuration serialization escapes secrets, protects file permissions, an
     const config = tool === 'codex' ? parse(captured.config) : JSON.parse(captured.config);
     assert.equal(tool === 'codex' ? config.model_providers.bifrost.experimental_bearer_token : config.env.ANTHROPIC_AUTH_TOKEN, secret);
     const file = path.join(f.home, 'devn/profiles/a', tool, tool === 'codex' ? 'config.toml' : 'settings.json');
-    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
-    assert.equal(fs.statSync(path.dirname(file)).mode & 0o777, 0o700);
+    testPlatform.assertPrivate(file, 0o600);
+    testPlatform.assertPrivate(path.dirname(file), 0o700);
   }
-  assert.equal(fs.statSync(path.join(f.home, 'devn/config.toml')).mode & 0o777, 0o600);
+  testPlatform.assertPrivate(path.join(f.home, 'devn/config.toml'), 0o600);
 });
 
 test('native model definitions are copied without injecting or rewriting fields', t => {
@@ -206,7 +207,7 @@ test('unrelated model_* config overrides are allowed', t => {
 
 test('missing tool produces an actionable error after rendering config', t => {
   const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
-  fs.unlinkSync(path.join(f.bin, 'claude'));
+  fs.unlinkSync(path.join(f.bin, testPlatform.executableName('claude')));
   const result = f.run(['claude'], { env: { ...f.env, PATH: f.bin } });
   assert.match(result.stderr, /claude is not installed/);
 });
@@ -225,7 +226,7 @@ test('parallel clients use separate configuration directories and secrets', asyn
   assert.notEqual(read(capA).codex, read(capB).codex);
 });
 
-test('SIGINT reaches a running tool and returns 130', async t => {
+test('SIGINT reaches a running tool and returns 130', { skip: !testPlatform.posix }, async t => {
   const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
   const child = f.start(['claude'], { env: { ...f.env, TEST_WAIT: '1' } });
   t.after(() => child.kill('SIGKILL'));

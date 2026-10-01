@@ -1,3 +1,6 @@
+import * as tempFS from 'node:fs';
+import * as tempOS from 'node:os';
+import * as tempPath from 'node:path';
 import { $ } from 'bun';
 import { checkedAssets, releaseTag, repository, digest } from './release-lib';
 
@@ -17,7 +20,7 @@ if (!release) {
   await $`gh release create ${tag} --repo ${repository} --verify-tag --draft --title ${tag} --generate-notes`;
   release = JSON.parse(await $`gh release view ${tag} --repo ${repository} --json isDraft,assets`.text());
 }
-const temp = (await $`mktemp -d`.text()).trim();
+const temp = tempFS.realpathSync(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
 try {
   for (const name of files) {
     if (release.assets.some((asset: { name: string }) => asset.name === name)) {
@@ -32,5 +35,5 @@ try {
   }
   if (mode === 'publish' && release.isDraft) await $`gh release edit ${tag} --repo ${repository} --draft=false --latest=false`;
 } finally {
-  await $`rm -rf ${temp}`.quiet();
+  tempFS.rmSync(temp, { recursive: true, force: true });
 }

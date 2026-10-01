@@ -1,3 +1,6 @@
+import * as tempFS from 'node:fs';
+import * as tempOS from 'node:os';
+import * as tempPath from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { $ } from 'bun';
 import { addProfile as registerProfile, removeProfile, loadRegistry, refreshProfile } from '../src/store';
@@ -16,7 +19,7 @@ const addProfile = (id, url, key, expected?) => registerProfile(id, url, key, ex
 const source = () => `http://127.0.0.1:${server.port}/profile.json`;
 
 beforeEach(async () => {
-  temp = (await $`mktemp -d`.text()).trim();
+  temp = tempFS.realpathSync(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
   oldConfigHome = process.env.XDG_CONFIG_HOME;
   process.env.XDG_CONFIG_HOME = temp;
   respond = undefined;
@@ -32,7 +35,7 @@ afterEach(async () => {
   await server.stop(true);
   if (oldConfigHome === undefined) delete process.env.XDG_CONFIG_HOME;
   else process.env.XDG_CONFIG_HOME = oldConfigHome;
-  await $`rm -rf ${temp}`.quiet();
+  tempFS.rmSync(temp, { recursive: true, force: true });
 });
 
 test('registration is local, uses its alias, and refreshes remote routing', async () => {

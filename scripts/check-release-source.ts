@@ -11,6 +11,6 @@ if (run.event !== 'push' || run.headBranch !== tag || run.headSha !== revision |
 const successful = run.jobs.filter((job: { conclusion: string }) => job.conclusion === 'success');
 if (!successful.some((job: { name: string }) => job.name === 'pack') ||
     !platforms.every(platform => successful.some((job: { name: string }) => job.name.startsWith('binaries (') && job.name.endsWith(', ' + platform + ')')))) {
-  throw new Error('The source run must have passed npm packing and all four native binary jobs.');
+  throw new Error('The source run must have passed npm packing and all configured native binary jobs.');
 }
 console.log('Verified release artifacts source: ' + revision);

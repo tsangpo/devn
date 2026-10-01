@@ -1,3 +1,7 @@
+import * as tempFS from 'node:fs';
+import * as tempOS from 'node:os';
+import * as tempPath from 'node:path';
+import { testPlatform, prependPath } from './platform';
 import { $ } from 'bun';
 import { expect, test } from 'bun:test';
 import { archiveName, assertNoDowngrade, assetNames, checkedAssets, digest, formula, platforms, releaseTag, version } from '../scripts/release-lib';
@@ -10,7 +14,7 @@ test('release tags must match the stable package version', () => {
 });
 
 test('release preparation rejects missing and tampered artifacts', async () => {
-  const temp = (await $`mktemp -d`.text()).trim();
+  const temp = tempFS.realpathSync(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
   try {
     await expect(checkedAssets(temp)).rejects.toThrow();
     for (const name of assetNames()) {
@@ -18,11 +22,11 @@ test('release preparation rejects missing and tampered artifacts', async () => {
       await Bun.write(temp + '/' + name + '.sha256', await digest(temp + '/' + name));
     }
     const hashes = await checkedAssets(temp);
-    expect(Object.keys(hashes).length).toBe(5);
+    expect(Object.keys(hashes).length).toBe(assetNames().length);
     const output = formula(hashes);
     expect(output).toContain('bin.install "devn"');
     expect(output).not.toContain('depends_on "bun"');
-    for (const platform of platforms) {
+    for (const platform of platforms.filter(p => p.startsWith('darwin-') || p.startsWith('linux-'))) {
       const name = archiveName(platform);
       expect(output).toContain('/releases/download/v' + version + '/' + name);
       expect(output).toContain('sha256 "' + hashes[name] + '"');
@@ -32,7 +36,7 @@ test('release preparation rejects missing and tampered artifacts', async () => {
     await Bun.write(temp + '/devn.tgz', 'tampered');
     await expect(checkedAssets(temp)).rejects.toThrow('checksum mismatch');
   } finally {
-    await $`rm -rf ${temp}`.quiet();
+    tempFS.rmSync(temp, { recursive: true, force: true });
   }
 });
 
@@ -44,7 +48,7 @@ test('tap updates compare numeric versions and refuse downgrade or unknown forma
 });
 
 test('GitHub staging finds draft releases and resumes without replacing assets', async () => {
-  const temp = (await $`mktemp -d`.text()).trim();
+  const temp = tempFS.realpathSync(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
   const root = Bun.fileURLToPath(new URL('../', import.meta.url));
   try {
     await $`mkdir -p ${temp + '/release'} ${temp + '/bin'} ${temp + '/remote'}`.quiet();
@@ -53,8 +57,7 @@ test('GitHub staging finds draft releases and resumes without replacing assets',
       await Bun.write(temp + '/release/' + name + '.sha256', await digest(temp + '/release/' + name));
     }
     await Bun.write(temp + '/release/SHA256SUMS', 'test manifest');
-    await Bun.write(temp + '/bin/gh', `#!${process.execPath}
-import { readdirSync, copyFileSync } from 'node:fs';
+    testPlatform.writeExecutable(temp + '/bin/gh', `import { readdirSync, copyFileSync } from 'node:fs';
 const args = process.argv.slice(2);
 const remote = process.env.MOCK_REMOTE;
 const value = flag => args[args.indexOf(flag) + 1];
@@ -64,8 +67,7 @@ else if (args[1] === 'upload') copyFileSync(args[3], remote + '/' + args[3].spli
 else if (args[1] === 'download') copyFileSync(remote + '/' + value('--pattern'), value('--dir') + '/' + value('--pattern'));
 else if (args[1] !== 'edit') process.exit(99);
 `);
-    await $`chmod +x ${temp + '/bin/gh'}`.quiet();
-    const env = { ...process.env, RELEASE_TAG: 'v' + version, MOCK_REMOTE: temp + '/remote', PATH: temp + '/bin:' + process.env.PATH };
+    const env = { ...prependPath(temp + '/bin'), RELEASE_TAG: 'v' + version, MOCK_REMOTE: temp + '/remote' };
     const run = async (mode: string) => {
       const child = Bun.spawn([process.execPath, root + '/scripts/publish-github.ts', mode], {
         cwd: temp, env, stdout: 'pipe', stderr: 'pipe',
@@ -84,6 +86,6 @@ else if (args[1] !== 'edit') process.exit(99);
     await expect(run('stage')).rejects.toThrow();
     expect(await Bun.file(temp + '/remote/devn.tgz').text()).toBe('different existing asset');
   } finally {
-    await $`rm -rf ${temp}`.quiet();
+    tempFS.rmSync(temp, { recursive: true, force: true });
   }
-}, 20000);
+}, testPlatform.timeout);

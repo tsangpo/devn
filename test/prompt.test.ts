@@ -1,3 +1,4 @@
+import { testPlatform } from './platform';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -43,9 +44,9 @@ test('profile add hides keys, fetches without authentication, confirms updates a
     assert.ok(!result.output.includes(key));
     const file = path.join(f.home, 'devn/config.toml');
     assert.equal(Bun.TOML.parse(await Bun.file(file).text()).profiles.a.key, key);
-    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
-    assert.equal(fs.statSync(path.join(f.home, 'devn/profiles/a/profile.json')).mode & 0o777, 0o600);
-    assert.equal(fs.statSync(path.join(f.home, 'devn/profiles/a')).mode & 0o777, 0o700);
+    testPlatform.assertPrivate(file, 0o600);
+    testPlatform.assertPrivate(path.join(f.home, 'devn/profiles/a/profile.json'), 0o600);
+    testPlatform.assertPrivate(path.join(f.home, 'devn/profiles/a'), 0o700);
     // Re-adding a profile must keep the project bindings stored in the same file.
     if (!i) assert.equal(f.run(['profile', 'use', 'a']).status, 0);
     else assert.equal(Bun.TOML.parse(await Bun.file(file).text()).projects[f.project], 'a');

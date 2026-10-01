@@ -1,7 +1,8 @@
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { spawnSync, spawn } = require('node:child_process');
+import { testPlatform, prependPath } from './platform';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync, spawn } from 'node:child_process';
 const root = path.resolve(__dirname, '..');
 
 function fixture(t) {
@@ -31,14 +32,13 @@ function fixture(t) {
   const a = addProfile('a');
   const b = addProfile('b');
   const capture = path.join(dir, 'capture.json');
-  const env = { ...process.env, XDG_CONFIG_HOME: home, PATH: `${bin}:${process.env.PATH}`, TEST_CAPTURE: capture };
+  const env = { ...prependPath(bin), XDG_CONFIG_HOME: home, TEST_CAPTURE: capture };
   // Spawn actual standalone CLIs, not nested node:test/npm lifecycle workers.
   for (const name of Object.keys(env)) {
     if (name.startsWith('npm_') || name.startsWith('NODE_TEST_') || name.startsWith('NODE_CHANNEL_')) delete env[name];
   }
   for (const tool of ['codex', 'claude']) {
-    fs.writeFileSync(path.join(bin, tool), `#!${process.execPath}
-const fs=require('node:fs'), path=require('node:path');
+    testPlatform.writeExecutable(path.join(bin, tool), `const fs=require('node:fs'), path=require('node:path');
 fs.writeFileSync(process.env.TEST_CAPTURE, JSON.stringify({
   tool:${JSON.stringify(tool)}, args:process.argv.slice(2), cwd:process.cwd(),
   codex:process.env.CODEX_HOME, claude:process.env.CLAUDE_CONFIG_DIR,
@@ -48,7 +48,7 @@ fs.writeFileSync(process.env.TEST_CAPTURE, JSON.stringify({
 }));
 if(process.env.TEST_WAIT){process.on('SIGINT',()=>process.exit(130));console.log('READY');setInterval(()=>{},1000);}
 else {console.log('TOOL OUTPUT');process.exit(Number(process.env.TEST_EXIT||0));}
-`, { mode: 0o755 });
+`);
   }
   function init(id, key = `secret-${id}`) {
     const file = path.join(home, 'devn/config.toml');
@@ -62,7 +62,7 @@ else {console.log('TOOL OUTPUT');process.exit(Number(process.env.TEST_EXIT||0));
   }
   function run(args, options = {}) {
     return spawnSync(process.execPath, [path.join(repo, 'bin/devn'), ...args], {
-      cwd: project, env, encoding: 'utf8', timeout: 15000, ...options,
+      cwd: project, env, encoding: 'utf8', timeout: testPlatform.timeout, ...options,
     });
   }
   function start(args, options = {}) {
@@ -75,4 +75,4 @@ function write(file, value) {
   fs.writeFileSync(file, JSON.stringify(value, null, 2));
 }
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
-module.exports = { fixture, write, read, root };
+export { fixture, write, read, root };

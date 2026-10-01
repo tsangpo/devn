@@ -1,32 +1,36 @@
 import { $ } from 'bun';
-import { realpathSync } from 'node:fs';
+import { realpathSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { targets, hostPlatform } from '../../scripts/platform';
+import { testPlatform, writeStandalone } from '../platform';
 import { expect, test } from 'bun:test';
 import { archiveName, type Platform, verifyArchive, version } from '../../scripts/release-lib';
 
 const root = Bun.fileURLToPath(new URL('../../', import.meta.url));
-const platform = (process.platform + '-' + process.arch) as Platform;
+const platform = hostPlatform();
+const target = targets[platform];
 
 test('release archive runs outside the source tree with no Bun on PATH', async () => {
   const archive = root + '/release/' + archiveName(platform);
   await verifyArchive(archive);
-  const contents = (await $`tar -tzf ${archive}`.text()).trim().split('\n').sort();
-  expect(contents).toEqual(['LICENSE', 'devn']);
-  const created = (await $`mktemp -d`.text()).trim();
-  const temp = (await $`/bin/pwd -P`.cwd(created).text()).trim();
+  const contents = (await target.archive.entries(archive)).sort();
+  expect(contents).toEqual(['LICENSE', target.executable]);
+  const temp = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'devn-binary-')));
   try {
-    const bin = temp + '/bin';
-    const project = temp + '/project with spaces';
-    const home = temp + '/config';
-    await $`mkdir -p ${bin} ${project}`.quiet();
-    await $`tar -xzf ${archive} -C ${bin}`.quiet();
+    const bin = path.join(temp, 'bin');
+    const project = path.join(temp, 'project with spaces');
+    const home = path.join(temp, 'config');
+    mkdirSync(bin); mkdirSync(project);
+    await target.archive.extract(archive, bin);
     // Caller-owned files must not be parsed or executed by the embedded runtime.
     await Bun.write(project + '/.env', 'DEVN_DOTENV_TEST=unexpected\n');
     await Bun.write(project + '/bunfig.toml', 'invalid = [');
     await Bun.write(project + '/tsconfig.json', '{invalid');
     await Bun.write(project + '/package.json', '{invalid');
-    const env = { HOME: temp, PATH: bin, XDG_CONFIG_HOME: home };
+    const env = { ...testPlatform.environment(), HOME: temp, PATH: bin, XDG_CONFIG_HOME: home };
     function run(args: string[]) {
-      return Bun.spawnSync([bin + '/devn', ...args], { cwd: project, env, stdout: 'pipe', stderr: 'pipe' });
+      return Bun.spawnSync([path.join(bin, target.executable), ...args], { cwd: project, env, stdout: 'pipe', stderr: 'pipe' });
     }
     for (const [args, expected] of [
       [['--version'], version], [['--help'], 'devn profile add'],
@@ -48,13 +52,19 @@ test('release archive runs outside the source tree with no Bun on PATH', async (
     expect(run(['profile', 'use', 'smoke']).exitCode).toBe(0);
     expect(Bun.TOML.parse(await Bun.file(home + '/devn/config.toml').text()).projects[realpathSync(project)]).toBe('smoke');
     for (const tool of ['codex', 'claude']) {
-      await Bun.write(bin + '/' + tool, '#!/bin/sh\nprintf "%s\\n" "$PWD" "$CODEX_HOME" "$CLAUDE_CONFIG_DIR" "$DEVN_DOTENV_TEST" "$@"\nexit 7\n');
-      await $`chmod +x ${bin + '/' + tool}`.quiet();
+      await writeStandalone(path.join(bin, tool), `
+console.log(process.cwd());
+console.log(process.env.CODEX_HOME || '');
+console.log(process.env.CLAUDE_CONFIG_DIR || '');
+console.log(process.env.DEVN_DOTENV_TEST || '');
+for (const arg of process.argv.slice(2)) console.log(arg);
+process.exit(7);
+`);
       const result = run([tool, 'prompt with spaces and $literal']);
       expect(result.exitCode).toBe(7);
-      const lines = result.stdout.toString().trim().split('\n');
+      const lines = result.stdout.toString().trim().split(/\r?\n/);
       expect(lines[0]).toBe(project);
-      expect(lines[tool === 'codex' ? 1 : 2]).toBe(home + '/devn/profiles/smoke/' + tool);
+      expect(lines[tool === 'codex' ? 1 : 2]).toBe(path.join(home, 'devn/profiles/smoke', tool));
       expect(lines[3]).toBe('');
       expect(lines.at(-1)).toBe('prompt with spaces and $literal');
     }
@@ -63,6 +73,6 @@ test('release archive runs outside the source tree with no Bun on PATH', async (
     const claude = await Bun.file(home + '/devn/profiles/smoke/claude/settings.json').json();
     expect(claude.env.ANTHROPIC_AUTH_TOKEN).toBe('standalone-dummy-key');
   } finally {
-    await $`rm -rf ${temp}`.quiet();
+    rmSync(temp, { recursive: true, force: true });
   }
-}, 30000);
+}, testPlatform.timeout);

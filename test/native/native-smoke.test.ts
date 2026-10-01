@@ -1,3 +1,7 @@
+import { testPlatform, prependPath } from '../platform';
+import * as tempFS from 'node:fs';
+import * as tempOS from 'node:os';
+import * as tempPath from 'node:path';
 // Optional integration test: real installed clients, local HTTP server, dummy key only.
 import { $ } from 'bun';
 import { realpathSync } from 'node:fs';
@@ -105,7 +109,7 @@ const codexArgs = ['exec', '--skip-git-repo-check', '--sandbox', 'read-only', '-
 describe('native clients through the local Bifrost gateway', () => {
   beforeEach(async () => {
     temp = '';
-    temp = (await $`mktemp -d`.text()).trim();
+    temp = tempFS.realpathSync(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
     repo = `${temp}/cli`;
     home = `${temp}/home`;
     project = `${temp}/project`;
@@ -117,7 +121,8 @@ describe('native clients through the local Bifrost gateway', () => {
     await Bun.write(`${repo}/package.json`, Bun.file(`${root}/package.json`));
     await Bun.write(`${repo}/profiles/smoke.json`, JSON.stringify({ version: 1, id: 'smoke', name: 'Smoke', baseUrl: `http://127.0.0.1:${server.port}`, codex: {}, claude: {} }));
     await Bun.write(`${home}/devn/config.toml`, Bun.TOML.stringify({ version: 1, profiles: { smoke: { url: `http://127.0.0.1:${server.port}/profile.json`, key, origins: { codex: `http://127.0.0.1:${server.port}`, claude: `http://127.0.0.1:${server.port}` } } }, projects: { [realpathSync(project)]: 'smoke' } }));
-    await $`chmod 600 ${home + '/devn/config.toml'}`.quiet();
+    const { platform } = await import('../../src/platform');
+    platform.privateFile(home + '/devn/config.toml');
   });
 
   afterEach(async () => {
@@ -125,7 +130,7 @@ describe('native clients through the local Bifrost gateway', () => {
     await Promise.all([...children].map(child => child.exited));
     children.clear();
     await server?.stop(true);
-    if (temp) await $`rm -rf ${temp}`.quiet();
+    if (temp) tempFS.rmSync(temp, { recursive: true, force: true });
   });
 
   test.serial('Codex uses its native default model and bearer authentication', async () => {

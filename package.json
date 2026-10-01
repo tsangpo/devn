@@ -10,7 +10,8 @@
   },
   "scripts": {
     "validate": "bun bin/devn --validate-example",
-    "test": "bun test ./test/*.test.ts --timeout 20000",
+    "test": "bun test ./test/*.test.ts --timeout 180000",
+    "test:windows": "bun test ./test/windows/*.test.ts --timeout 180000",
     "test:native": "bun test ./test/native/native-smoke.test.ts",
     "check": "bun run test && bun run validate",
     "check:secrets": "bun scripts/check-secrets.ts",

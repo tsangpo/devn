@@ -1,3 +1,4 @@
+import { testPlatform } from './platform';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,14 +8,13 @@ import { fixture, read } from './helpers.ts';
 test('executable entry runs without Git checkout, invoking Git, or creating a legacy directory', t => {
   const f = fixture(t);
   const marker = path.join(f.dir, 'git-called');
-  fs.writeFileSync(path.join(f.bin, 'git'), `#!${process.execPath}
-await Bun.write(${JSON.stringify(marker)}, 'called');
+  testPlatform.writeExecutable(path.join(f.bin, 'git'), `await Bun.write(${JSON.stringify(marker)}, 'called');
 process.exit(99);
-`, { mode: 0o755 });
+`);
   const entry = path.join(f.repo, 'bin/devn');
   assert.equal(fs.existsSync(path.join(f.repo, '.git')), false);
   for (const args of [['--help'], ['profile', 'list']]) {
-    const result = Bun.spawnSync([entry, ...args], {
+    const result = Bun.spawnSync([...testPlatform.entry(entry), ...args], {
       cwd: f.project, env: { ...f.env, HOME: f.home }, stdout: 'pipe', stderr: 'pipe',
     });
     assert.equal(result.exitCode, 0, result.stderr.toString());
@@ -25,7 +25,7 @@ process.exit(99);
   assert.equal(fs.existsSync(path.join(f.home, '.update.lock')), false);
 });
 
-test('symlinked executable preserves project cwd, arguments, and tool exit status', t => {
+test('symlinked executable preserves project cwd, arguments, and tool exit status', { skip: !testPlatform.posix }, t => {
   const f = fixture(t);
   f.init('a');
   assert.equal(f.run(['profile', 'use', 'a']).status, 0);

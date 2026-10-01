@@ -22,3 +22,32 @@ jobs:
       - run: bun run check:secrets
       - run: bun run build:binary
       - run: bun run test:binary
+  windows:
+    name: Windows x64
+    runs-on: windows-2025
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: bun run check
+      - run: bun run test:windows
+      - run: bun run check:secrets
+      - run: bun run build:binary
+      - run: bun run test:binary
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: windows-x64-verified
+          path: release/*.zip*
+          if-no-files-found: error
+      - name: Install pinned clients for local-gateway smoke tests
+        run: npm install --global @openai/codex@0.159.3 @anthropic-ai/claude-code@2.1.286
+      - run: bun run test:native
