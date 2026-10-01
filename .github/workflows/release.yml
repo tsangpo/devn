@@ -62,9 +62,6 @@ jobs:
           - os: windows-2025
             platform: windows-x64
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -73,6 +70,7 @@ jobs:
         with:
           bun-version: 1.4.2
       - name: Download npm package
+        shell: bash
         run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name npm-package --dir release
         env:
           GH_TOKEN: ${{ github.token }}

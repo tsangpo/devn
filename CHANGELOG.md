@@ -4,10 +4,13 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
-## 0.4.0 — 2026-10-01
+## 0.4.1 — 2026-10-01
 
 - Add Windows x64 npm/Bun and standalone EXE support, with local configuration under LOCALAPPDATA and explicit private ACLs.
 - Isolate Windows runtime, build helpers, and integration tests behind platform adapters.
+- Use the native Windows shell for release validation so archive paths with drive letters work correctly.
+
+Version 0.4.0 was not published because Windows release validation failed.
 
 ## 0.3.1 — 2026-09-30
 
