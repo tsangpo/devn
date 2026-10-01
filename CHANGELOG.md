@@ -4,6 +4,10 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+## 0.3.1 — 2026-09-30
+
+- Ask for the URL before the local name in `profile add`, offering a valid name derived from the JSON filename as the default.
+
 ## 0.3.0 — 2026-09-30
 
 - **Breaking:** project bindings move from `.devn.json` to the `[projects]` table in `~/.config/devn/config.toml`. `.devn.json` is no longer read; run `devn profile use` again in each project.

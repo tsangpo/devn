@@ -1,6 +1,6 @@
 import { version } from '../package.json';
 import example from '../profiles/example.json';
-import { displayURL } from './urls';
+import { displayURL, secureURL } from './urls';
 import fs from 'node:fs';
 import { loadRegistry, addProfile, refreshProfile, removeProfile, cachedProfile, safeId, bindProject, unbindProject } from './store';
 import { validateProfile, endpoint, type Registry } from './registry';
@@ -10,7 +10,7 @@ import { launch } from './launch';
 
 const HELP = `Usage:
   devn profile list                 List locally registered profiles
-  devn profile add                  Enter a name, Profile JSON URL, and Bifrost key
+  devn profile add                  Enter a Profile JSON URL, name, and Bifrost key
   devn profile show [profile-name]   Show redacted local profile details
   devn profile remove <name> [--purge] Remove registration; --purge also deletes history
   devn --version                    Print the CLI version
@@ -39,13 +39,20 @@ async function dispatch(registry: Registry, args: string[]): Promise<number> {
     return 0;
   }
   if (action === 'add') {
-    const name = await question('Profile name: ');
+    const url = await question('Profile JSON URL: ');
+    const parsedURL = secureURL(url);
+    let defaultName = '';
+    try {
+      const filename = decodeURIComponent(parsedURL.pathname.split('/').pop() || '');
+      const candidate = /\.json$/i.test(filename) ? filename.slice(0, -5) : '';
+      if (safeId(candidate)) defaultName = candidate;
+    } catch { /* Invalid filename encoding leaves the name for the user to enter. */ }
+    const name = await question(defaultName ? `Profile name [${defaultName}]: ` : 'Profile name: ') || defaultName;
     if (!safeId(name)) throw new Error('Invalid profile name. Use letters, numbers, hyphens, or underscores (up to 64 characters).');
     const existing = registry.profiles.find(p => p.id === name);
     if (existing && !/^y(es)?$/i.test(await question(`Update profile ${name} URL and key? [y/N]: `))) {
       console.log('Cancelled.'); return 0;
     }
-    const url = await question('Profile JSON URL: ');
     const key = await password();
     await addProfile(name, url, key, existing, async profile => {
       console.error(`Codex gateway: ${displayURL(endpoint(profile, 'codex'))}`);

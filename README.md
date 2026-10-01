@@ -48,8 +48,13 @@ you need to pin the CLI version.
     devn profile remove customer-a
     devn profile remove customer-a --purge
 
-Add asks for a local name, a **Profile JSON URL**, and a hidden gateway key. This
-URL points to a configuration document, not a model API. The download does not
+Add asks for a **Profile JSON URL**, then a local name, then a hidden gateway key.
+The name prompt always appears. A valid JSON filename supplies the default:
+`customer-a.json` shows `Profile name [customer-a]: `. Press Enter to accept it
+or type another name. Query parameters are ignored; the filename is URL-decoded
+and its `.json` suffix is removed (case-insensitively). If it cannot supply a valid
+local name, no default is shown and you must enter one.
+The URL points to a configuration document, not a model API. The download does not
 send your key. You must explicitly approve the displayed Codex / Claude gateway
 origins before registration is saved. Adding the same name asks before replacing
 its URL/key and retains tool history.

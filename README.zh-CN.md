@@ -51,7 +51,7 @@ Bun 直接执行 TypeScript，无需安装项目依赖或构建。CLI 运行时�
 devn --version
 devn profile list
 devn profile show customer-a      # 脱敏查看，本地读取
-devn profile add                 # 输入本地名称、Profile JSON URL、隐藏输入 key
+devn profile add                 # 输入 Profile JSON URL、本地名称、隐藏输入 key
 
 cd /path/to/project
 devn profile use customer-a     # 把当前目录绑定到该 profile
@@ -62,6 +62,8 @@ devn claude
 ```
 
 `profile add` 输入的 URL 是公开的 Profile JSON 地址，例如 `https://config.example.com/customer-a.json`，不是模型网关地址。请求不携带 key；key 只用于工具连接 JSON 中指定的网关。下载并校验后展示 Codex / Claude 网关 origin，明确确认后才保存注册信息。默认要求 HTTPS；HTTP 只允许 localhost、127.0.0.0/8 和 ::1 回环地址供本地测试。远程配置重定向最多 5 次，HTTPS 不允许降级到 HTTP。
+
+第二步始终提示输入本地名称。URL 中的 `customer-a.json` 会显示 `Profile name [customer-a]: `，直接回车采用默认值，也可输入其他名称。推导时忽略查询参数，对文件名进行 URL 解码，再去掉 `.json` 后缀（不区分大小写）；无法推导合法名称时不显示默认值，必须手动输入。
 
 重复添加同名 profile 会询问是否更新 URL 和 key，保留工具数据。`profile use` 省略名称时列出已注册的 profiles。添加不会改变当前项目绑定，旧的 `profile init` 已由 `profile add` 替代。
 

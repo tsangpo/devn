@@ -34,9 +34,9 @@ test('profile add hides keys, fetches without authentication, confirms updates a
   const url = `http://127.0.0.1:${server.port}/profile.json`;
   for (let i = 0; i < 2; i++) {
     const key = `private-prompt-key-${i}-"\\秘密`;
-    const answers: [string, string][] = [['Profile name: ', 'a']];
+    const answers: [string, string][] = [['Profile JSON URL: ', url], ['Profile name [profile]: ', 'a']];
     if (i) answers.push(['[y/N]: ', 'yes']);
-    answers.push(['Profile JSON URL: ', url], ['Bifrost key (hidden): ', key], ['Trust these gateways to receive your key? [y/N]: ', 'yes']);
+    answers.push(['Bifrost key (hidden): ', key], ['Trust these gateways to receive your key? [y/N]: ', 'yes']);
     const result = await add(f, answers);
     assert.equal(result.code, 0, result.output);
     assert.equal(result.stage, answers.length);
@@ -52,12 +52,94 @@ test('profile add hides keys, fetches without authentication, confirms updates a
   }
   const file = path.join(f.home, 'devn/config.toml');
   const before = await Bun.file(file).text();
-  const cancelled = await add(f, [['Profile name: ', 'a'], ['[y/N]: ', 'n']]);
+  const cancelled = await add(f, [['Profile JSON URL: ', url], ['Profile name [profile]: ', 'a'], ['[y/N]: ', 'n']]);
   assert.equal(cancelled.code, 0);
   assert.match(cancelled.output, /Cancelled/);
   assert.equal(await Bun.file(file).text(), before);
   assert.equal(f.run(['profile', 'use', 'a']).status, 0);
   assert.deepEqual(fs.readdirSync(f.project), []);
+});
+
+test('profile add always prompts for a name second and accepts filename defaults', async t => {
+  const f = fixture(t);
+  let requests = 0;
+  const server = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch() {
+    requests++;
+    return Response.json({ version: 1, baseUrl: 'https://gateway.example.test', codex: {}, claude: {} });
+  } });
+  t.after(() => server.stop(true));
+  for (const [filename, name] of [
+    ['customer-a.json', 'customer-a'],
+    ['nested/customer-b.JSON?token=ignored.json', 'customer-b'],
+    ['customer%2Dc%2Ejson', 'customer-c'],
+  ]) {
+    const url = `http://127.0.0.1:${server.port}/${filename}`;
+    const result = await add(f, [
+      ['Profile JSON URL: ', url], ['Profile name [' + name + ']: ', ''],
+      ['Bifrost key (hidden): ', 'test-key'],
+      ['Trust these gateways to receive your key? [y/N]: ', 'yes'],
+    ]);
+    assert.equal(result.code, 0, result.output);
+    assert.equal(result.stage, 4);
+    assert.ok(result.output.indexOf('Profile JSON URL: ') < result.output.indexOf('Profile name ['));
+    const file = path.join(f.home, 'devn/config.toml');
+    assert.equal(Bun.TOML.parse(await Bun.file(file).text()).profiles[name].url, url);
+    const before = await Bun.file(file).text();
+    const count = requests;
+    const cancelled = await add(f, [
+      ['Profile JSON URL: ', url], ['Profile name [' + name + ']: ', ''],
+      [`Update profile ${name} URL and key? [y/N]: `, 'n'],
+    ]);
+    assert.equal(cancelled.code, 0, cancelled.output);
+    assert.equal(cancelled.stage, 3);
+    assert.ok(!cancelled.output.includes('Bifrost key'));
+    assert.equal(requests, count);
+    assert.equal(await Bun.file(file).text(), before);
+  }
+});
+
+test('profile add requires a manual name when the URL has no valid filename default', async t => {
+  const f = fixture(t);
+  f.addProfile('manual');
+  f.init('manual');
+  const file = path.join(f.home, 'devn/config.toml');
+  const before = await Bun.file(file).text();
+  for (const filename of [
+    '', 'folder/', 'profile', 'profile.txt', '.json', 'bad%20name.json',
+    '%2Fname.json', '%ZZ.json', '__proto__.json', 'constructor.json',
+    'prototype.json', 'a'.repeat(65) + '.json',
+  ]) {
+    const url = 'https://config.example.test/' + filename;
+    const result = await add(f, [
+      ['Profile JSON URL: ', url], ['Profile name: ', 'manual'],
+      ['Update profile manual URL and key? [y/N]: ', 'n'],
+    ]);
+    assert.equal(result.code, 0, result.output);
+    assert.equal(result.stage, 3);
+    assert.ok(result.output.indexOf('Profile JSON URL: ') < result.output.indexOf('Profile name: '));
+    assert.ok(!result.output.includes('Bifrost key'));
+  }
+  for (const name of ['', 'bad name']) {
+    const result = await add(f, [
+      ['Profile JSON URL: ', 'https://config.example.test/profile'], ['Profile name: ', name],
+    ]);
+    assert.equal(result.code, 1, result.output);
+    assert.match(result.output, /Invalid profile name/);
+    assert.ok(!result.output.includes('Bifrost key'));
+  }
+  assert.equal(await Bun.file(file).text(), before);
+});
+
+test('profile add rejects invalid URLs before asking for a name or key', async t => {
+  const f = fixture(t);
+  for (const url of ['not-a-url', 'http://config.example.test/profile.json']) {
+    const result = await add(f, [['Profile JSON URL: ', url]]);
+    assert.equal(result.code, 1, result.output);
+    assert.match(result.output, /HTTPS/);
+    assert.ok(!result.output.includes('Profile name'));
+    assert.ok(!result.output.includes('Bifrost key'));
+  }
+  assert.equal(await Bun.file(path.join(f.home, 'devn/config.toml')).exists(), false);
 });
 
 test('profile remove requires confirmation, preserves history by default, and purges explicitly', async t => {
@@ -85,8 +167,8 @@ test('declining gateway approval does not register or replace a profile', async 
   } });
   t.after(() => server.stop(true));
   const result = await add(f, [
-    ['Profile name: ', 'new'],
     ['Profile JSON URL: ', `http://127.0.0.1:${server.port}/profile.json`],
+    ['Profile name [profile]: ', 'new'],
     ['Bifrost key (hidden): ', 'private-test-key'],
     ['Trust these gateways to receive your key? [y/N]: ', 'n'],
   ]);
