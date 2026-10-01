@@ -5,6 +5,8 @@ import { windowsTests } from './windows/fixtures';
 
 const posixTests = {
   posix: true,
+  enter: '\n',
+  operationTimeout: 2000,
   timeout: 20000,
   entry: (file: string) => [file],
   executableName: (name: string) => name,

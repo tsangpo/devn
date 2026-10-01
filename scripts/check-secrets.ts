@@ -20,7 +20,7 @@ for (const file of files) {
   const data = await source.text();
   if (patterns.some(pattern => pattern.test(data))) matches.push('working file: ' + file);
 }
-const commits = git(['rev-list', '--all']).trim().split('\n').filter(Boolean);
+const commits = git(['rev-list', '--all']).trim().split(/\r?\n/).filter(Boolean);
 for (const commit of commits) {
   const patch = git(['show', '--format=', '--no-ext-diff', '--root', commit]);
   if (patterns.some(pattern => pattern.test(patch))) matches.push('history commit: ' + commit);

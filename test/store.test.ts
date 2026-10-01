@@ -1,3 +1,4 @@
+import { testPlatform } from './platform';
 import * as tempFS from 'node:fs';
 import * as tempOS from 'node:os';
 import * as tempPath from 'node:path';
@@ -94,7 +95,7 @@ test('ten-second request timeout falls back to cache', async () => {
   await addProfile('a', source(), 'secret');
   delay = 11000;
   expect((await refreshProfile('a')).key).toBe('secret');
-}, 15000);
+}, testPlatform.timeout);
 
 test('gateway origin changes require explicit approval and never replace a trusted cache', async () => {
   await addProfile('a', source(), 'secret');
@@ -160,7 +161,7 @@ test('one slow profile does not block refreshes or registry updates for another'
   await ready;
   try {
     const fast = Promise.all([refreshProfile('b'), addProfile('c', source(), 'key-c')]).then(() => true);
-    expect(await Promise.race([fast, Bun.sleep(2000).then(() => false)])).toBe(true);
+    expect(await Promise.race([fast, Bun.sleep(testPlatform.operationTimeout).then(() => false)])).toBe(true);
   } finally { release(); await slow; }
 });
 

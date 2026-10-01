@@ -9,7 +9,7 @@ export function powershellCommand(script: string): string[] {
   const root = environmentValue(process.env, 'SystemRoot');
   if (!root || !path.win32.isAbsolute(root)) throw new Error('Windows SystemRoot is unavailable.');
   const executable = path.win32.join(root, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
-  const source = "$ErrorActionPreference = 'Stop';\n" + script;
+  const source = "$ErrorActionPreference = 'Stop'; [Console]::InputEncoding = [Text.UTF8Encoding]::new($false); [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false);\n" + script;
   return [executable, '-NoLogo', '-NoProfile', '-NonInteractive',
     '-EncodedCommand', Buffer.from(source, 'utf16le').toString('base64')];
 }

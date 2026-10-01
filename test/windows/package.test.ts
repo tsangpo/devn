@@ -4,8 +4,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fixture } from '../helpers';
 import { testPlatform } from '../platform';
-import { powershell } from '../../src/platform/windows/system';
+import { powershell as systemPowershell } from '../../src/platform/windows/system';
 import { version } from '../../package.json';
+
+function powershell(script: string, data: unknown): string {
+  try { return systemPowershell(script, data); }
+  catch (error: any) { throw new Error(String(error.cause || error.message)); }
+}
 
 describe('Windows npm entry', { skip: testPlatform.posix }, () => {
   test('npm-installed shim runs in both PowerShell and cmd', async t => {

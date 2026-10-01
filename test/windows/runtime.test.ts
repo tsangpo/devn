@@ -23,7 +23,8 @@ describe('Windows runtime', { skip: testPlatform.posix }, () => {
     const override = Bun.spawnSync([process.execPath, script], { env, stdout: 'pipe' });
     assert.equal(override.stdout.toString().trim(), path.join(env.XDG_CONFIG_HOME, 'devn'));
     const file = path.join(f.dir, 'private', 'key.txt');
-    windows.atomicWrite(file, 'dummy-key');
+    try { windows.atomicWrite(file, 'dummy-key'); }
+    catch (error: any) { throw new Error(String(error.cause || error.message)); }
     testPlatform.assertPrivate(file, 0o600);
     testPlatform.assertPrivate(path.dirname(file), 0o700);
     powershell(`

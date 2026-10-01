@@ -12,7 +12,7 @@ test('published tarball installs locally and exposes devn through bunx', async (
     const archive = process.env.DEVN_PACKAGE_TARBALL || `${temp}/devn.tgz`;
     const project = `${temp}/consumer`;
     if (!process.env.DEVN_PACKAGE_TARBALL) await $`${process.execPath} pm pack --ignore-scripts --filename ${archive}`.cwd(root).quiet();
-    const files = (await $`tar -tzf ${archive}`.text()).trim().split('\n');
+    const files = (await $`tar -tzf ${archive}`.text()).trim().split(/\r?\n/);
     expect(files).toContain('package/bin/devn');
     expect(files).toContain('package/src/main.ts');
     expect(files).toContain('package/profiles/example.json');

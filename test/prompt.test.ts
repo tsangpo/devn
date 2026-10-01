@@ -6,21 +6,22 @@ import path from 'node:path';
 import { fixture } from './helpers.ts';
 
 async function add(f, answers: [string, string][], command = ['profile', 'add']) {
-  let output = '';
+  let output = '', raw = '';
   let stage = 0;
   const child = Bun.spawn([process.execPath, path.join(f.repo, 'bin/devn'), ...command], {
     env: f.env, cwd: f.project,
     terminal: {
       cols: 100, rows: 30,
       data(terminal, data) {
-        output += new TextDecoder().decode(data);
-        if (stage < answers.length && output.includes(answers[stage][0])) {
-          terminal.write(answers[stage++][1] + '\n');
+        raw += new TextDecoder().decode(data);
+        output = Bun.stripANSI(raw);
+        if (stage < answers.length && output.includes(answers[stage][0].trimEnd())) {
+          terminal.write(answers[stage++][1] + testPlatform.enter);
         }
       },
     },
   });
-  const timer = setTimeout(() => child.kill('SIGKILL'), 8000);
+  const timer = setTimeout(() => child.kill('SIGKILL'), Math.min(testPlatform.timeout, 60000));
   try { return { code: await child.exited, output, stage }; }
   finally { clearTimeout(timer); child.terminal.close(); }
 }
@@ -82,7 +83,7 @@ test('profile add always prompts for a name second and accepts filename defaults
     ]);
     assert.equal(result.code, 0, result.output);
     assert.equal(result.stage, 4);
-    assert.ok(result.output.indexOf('Profile JSON URL: ') < result.output.indexOf('Profile name ['));
+    assert.ok(result.output.indexOf('Profile JSON URL:') < result.output.indexOf('Profile name ['));
     const file = path.join(f.home, 'devn/config.toml');
     assert.equal(Bun.TOML.parse(await Bun.file(file).text()).profiles[name].url, url);
     const before = await Bun.file(file).text();
@@ -117,7 +118,7 @@ test('profile add requires a manual name when the URL has no valid filename defa
     ]);
     assert.equal(result.code, 0, result.output);
     assert.equal(result.stage, 3);
-    assert.ok(result.output.indexOf('Profile JSON URL: ') < result.output.indexOf('Profile name: '));
+    assert.ok(result.output.indexOf('Profile JSON URL:') < result.output.indexOf('Profile name:'));
     assert.ok(!result.output.includes('Bifrost key'));
   }
   for (const name of ['', 'bad name']) {

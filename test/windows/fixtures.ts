@@ -15,6 +15,8 @@ user = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value } | Convert
 
 export const windowsTests = {
   posix: false,
+  enter: '\r',
+  operationTimeout: 20000,
   timeout: 180000,
   entry: (file: string) => [process.execPath, file],
   executableName: (name: string) => name + '.exe',
