@@ -23,7 +23,19 @@ jobs:
       - run: bun run build:binary
       - run: bun run test:binary
   windows:
-    name: Windows x64
+    name: Windows x64 (${{ matrix.suite }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: cli
+            tests: ./test/cli.test.ts
+          - suite: prompts
+            tests: ./test/prompt.test.ts
+          - suite: storage
+            tests: ./test/store.test.ts ./test/security.test.ts
+          - suite: distribution
+            tests: ./test/entry.test.ts ./test/package.test.ts ./test/release.test.ts ./test/platform-boundary.test.ts ./test/windows
     runs-on: windows-2025
     timeout-minutes: 40
     steps:
@@ -38,16 +50,22 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - run: bun run test:windows
-      - run: bun run check
-      - run: bun run check:secrets
-      - run: bun run build:binary
-      - run: bun run test:binary
-      - uses: actions/upload-artifact@v7.0.1
+      - run: bun test ${{ matrix.tests }} --timeout 180000 --bail
+      - run: bun run validate
+      - if: matrix.suite == 'distribution'
+        run: bun run check:secrets
+      - if: matrix.suite == 'distribution'
+        run: bun run build:binary
+      - if: matrix.suite == 'distribution'
+        run: bun run test:binary
+      - if: matrix.suite == 'distribution'
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: windows-x64-verified
           path: release/*.zip*
           if-no-files-found: error
       - name: Install pinned clients for local-gateway smoke tests
+        if: matrix.suite == 'distribution'
         run: npm install --global @openai/codex@0.159.3 @anthropic-ai/claude-code@2.1.286
-      - run: bun run test:native
+      - if: matrix.suite == 'distribution'
+        run: bun run test:native
