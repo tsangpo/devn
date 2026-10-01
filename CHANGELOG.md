@@ -2,6 +2,11 @@
 
 Changes are recorded here before each npm release.
 
+## Unreleased
+
+- **Breaking:** project bindings move from `.devn.json` to the `[projects]` table in `~/.config/devn/config.toml`. `.devn.json` is no longer read; run `devn profile use` again in each project.
+- Add `devn profile unbind`.
+
 ## 0.2.1 — 2026-09-30
 
 - Allow Codex reasoning and verbosity config overrides while still blocking connection and model selection overrides.

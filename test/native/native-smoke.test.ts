@@ -1,5 +1,6 @@
 // Optional integration test: real installed clients, local HTTP server, dummy key only.
 import { $ } from 'bun';
+import { realpathSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
 const root = Bun.fileURLToPath(new URL('../../', import.meta.url));
@@ -115,9 +116,8 @@ describe('native clients through the local Bifrost gateway', () => {
     await Bun.write(`${repo}/profiles/example.json`, Bun.file(`${root}/profiles/example.json`));
     await Bun.write(`${repo}/package.json`, Bun.file(`${root}/package.json`));
     await Bun.write(`${repo}/profiles/smoke.json`, JSON.stringify({ version: 1, id: 'smoke', name: 'Smoke', baseUrl: `http://127.0.0.1:${server.port}`, codex: {}, claude: {} }));
-    await Bun.write(`${home}/devn/config.toml`, Bun.TOML.stringify({ version: 1, profiles: { smoke: { url: `http://127.0.0.1:${server.port}/profile.json`, key, origins: { codex: `http://127.0.0.1:${server.port}`, claude: `http://127.0.0.1:${server.port}` } } } }));
+    await Bun.write(`${home}/devn/config.toml`, Bun.TOML.stringify({ version: 1, profiles: { smoke: { url: `http://127.0.0.1:${server.port}/profile.json`, key, origins: { codex: `http://127.0.0.1:${server.port}`, claude: `http://127.0.0.1:${server.port}` } } }, projects: { [realpathSync(project)]: 'smoke' } }));
     await $`chmod 600 ${home + '/devn/config.toml'}`.quiet();
-    await Bun.write(`${project}/.devn.json`, JSON.stringify({ version: 1, profile: 'smoke' }));
   });
 
   afterEach(async () => {

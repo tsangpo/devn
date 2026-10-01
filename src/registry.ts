@@ -18,7 +18,7 @@ export type Profile = {
 };
 export type Origins = Record<Tool, string>;
 export type Registration = { id: string; name: string; url: string; key: string; origins?: Origins };
-export type Registry = { profiles: Registration[] };
+export type Registry = { profiles: Registration[]; projects: Record<string, string> };
 export const validId = (id: unknown): id is string => typeof id === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(id);
 
 function requireValue(condition: unknown, message: string): asserts condition {

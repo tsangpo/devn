@@ -37,7 +37,7 @@ No Apple Developer ID signing or notarization is provided.
 
 Package versions follow semantic versioning. Before 1.0, breaking behavior
 changes require a minor bump and migration notes. Local TOML, remote JSON, and
-project bindings declare version 1; unsupported versions fail instead of being
+the config.toml (including project bindings) declares version 1; unsupported versions fail instead of being
 silently interpreted. New required schema changes need migration documentation.
 
 ## Release setup

@@ -7,32 +7,54 @@ const { once } = require('node:events');
 const { parse, stringify } = Bun.TOML;
 const { fixture, write, read } = require('./helpers.ts');
 
+const projects = f => Bun.TOML.parse(fs.readFileSync(path.join(f.home, 'devn/config.toml'), 'utf8')).projects;
+
 test('binding, ancestor inheritance, nested override, and paths with spaces', t => {
   const f = fixture(t);
-  assert.match(f.run(['codex']).stderr, /No .devn.json/);
+  assert.match(f.run(['codex']).stderr, /No project binding/);
   assert.match(f.run(['profile', 'use', 'a']).stderr, /Unknown profile/);
   f.init('a'); f.init('b');
   assert.equal(f.run(['profile', 'use', 'a']).status, 0);
-  assert.deepEqual(read(path.join(f.project, '.devn.json')), { version: 1, profile: 'a' });
+  assert.deepEqual(projects(f), { [f.project]: 'a' });
+  assert.deepEqual(fs.readdirSync(f.project), []);
+  assert.equal(fs.statSync(path.join(f.home, 'devn/config.toml')).mode & 0o777, 0o600);
   const sub = path.join(f.project, 'packages', 'app'); fs.mkdirSync(sub, { recursive: true });
   assert.equal(f.run(['codex', 'exec', 'a prompt with spaces'], { cwd: sub }).status, 0);
   assert.equal(read(f.capture).cwd, sub);
   assert.equal(read(f.capture).codex, path.join(f.home, 'devn/profiles/a/codex'));
   assert.equal(f.run(['profile', 'use', 'b'], { cwd: sub }).status, 0);
+  assert.deepEqual(projects(f), { [f.project]: 'a', [sub]: 'b' });
   assert.equal(f.run(['claude', '-p', 'hello'], { cwd: sub }).status, 0);
   assert.equal(read(f.capture).claude, path.join(f.home, 'devn/profiles/b/claude'));
   assert.match(f.run(['profile', 'list'], { cwd: sub }).stdout, /\* b/);
+  assert.equal(f.run(['codex'], { cwd: f.project }).status, 0);
+  assert.equal(read(f.capture).codex, path.join(f.home, 'devn/profiles/a/codex'));
 });
 
-test('malformed declarations and unknown profiles fail without fallback', t => {
+test('unbind removes only the exact directory, and symlinks resolve to the real path', t => {
   const f = fixture(t); f.init('a');
-  const file = path.join(f.project, '.devn.json');
-  fs.writeFileSync(file, '{broken');
-  assert.notEqual(f.run(['profile', 'use', 'a']).status, 0);
-  assert.equal(fs.readFileSync(file, 'utf8'), '{broken');
-  write(file, { version: 1, profile: '../escape' });
-  assert.match(f.run(['codex']).stderr, /Invalid project declaration/);
-  write(file, { version: 1, profile: 'unknown' });
+  const sub = path.join(f.project, 'sub'); fs.mkdirSync(sub);
+  f.run(['profile', 'use', 'a']);
+  const inherited = f.run(['profile', 'unbind'], { cwd: sub });
+  assert.notEqual(inherited.status, 0);
+  assert.match(inherited.stderr, /inherits/);
+  assert.deepEqual(projects(f), { [f.project]: 'a' });
+  const link = path.join(f.dir, 'link'); fs.symlinkSync(f.project, link);
+  assert.equal(f.run(['codex'], { cwd: link }).status, 0);
+  assert.equal(f.run(['profile', 'unbind'], { cwd: link }).status, 0);
+  assert.deepEqual(projects(f), {});
+  assert.match(f.run(['codex']).stderr, /No project binding/);
+});
+
+test('invalid project bindings and unknown profiles fail without fallback', t => {
+  const f = fixture(t); f.init('a');
+  const file = path.join(f.home, 'devn/config.toml');
+  const config = Bun.TOML.parse(fs.readFileSync(file, 'utf8'));
+  for (const bad of [{ 'relative/path': 'a' }, { [f.project]: '../escape' }, { [f.project]: 7 }]) {
+    fs.writeFileSync(file, Bun.TOML.stringify({ ...config, projects: bad }), { mode: 0o600 });
+    assert.match(f.run(['codex']).stderr, /Invalid project bindings/);
+  }
+  fs.writeFileSync(file, Bun.TOML.stringify({ ...config, projects: { [f.project]: 'unknown' } }), { mode: 0o600 });
   assert.match(f.run(['claude']).stderr, /Unknown profile/);
 });
 

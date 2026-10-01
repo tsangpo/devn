@@ -4,7 +4,7 @@ Project-aware Codex and Claude Code launcher for Bifrost gateways.
 
 [中文](README.zh-CN.md) · [Repository](https://github.com/tsangpo/devn) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
 
-devn selects a profile using a project's .devn.json and gives each profile its own
+devn selects a profile using the project binding in its local config.toml and gives each profile its own
 Codex / Claude configuration, plugins and history. Profiles are registered locally
 from a remote JSON document. The CLI does not ship customer profiles or update itself.
 
@@ -66,13 +66,17 @@ bindings are left intact and fail until you select another registered profile.
 
 ## Project binding
 
-Run profile use in the project directory. It writes a file safe to commit:
+Run profile use in the project directory. It records the directory's real path
+in the `[projects]` table of config.toml; nothing is written into the project:
 
-    {"version":1,"profile":"customer-a"}
+    devn profile use customer-a
+    devn profile unbind
 
-The nearest .devn.json found while walking up from the current directory wins.
-Nested projects may override their parent. Unknown or malformed bindings fail;
-devn never silently chooses another customer's profile.
+The nearest bound directory found while walking up from the current directory wins.
+Nested projects may override their parent. `profile unbind` removes the binding of
+exactly the current directory. Unknown or malformed bindings fail; devn never
+silently chooses another customer's profile. Bindings are per user and per
+path: after moving or renaming a project, run profile use again.
 
 Native client arguments are forwarded, including quoted prompts:
 
@@ -159,6 +163,9 @@ Registration is TOML:
     [profiles.customer-a.origins]
     codex = "https://gateway.example.com"
     claude = "https://gateway.example.com"
+
+    [projects]
+    "/home/me/work/customer-a" = "customer-a"
 
 Keys are plaintext in config.toml and generated tool configuration. Files use
 0600 and profile directories 0700; permissions are not encryption. Codex uses

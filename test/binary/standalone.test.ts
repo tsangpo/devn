@@ -1,4 +1,5 @@
 import { $ } from 'bun';
+import { realpathSync } from 'node:fs';
 import { expect, test } from 'bun:test';
 import { archiveName, type Platform, verifyArchive, version } from '../../scripts/release-lib';
 
@@ -45,7 +46,7 @@ test('release archive runs outside the source tree with no Bun on PATH', async (
       version: 1, id: 'smoke', baseUrl: 'http://127.0.0.1:1', codex: {}, claude: {},
     }));
     expect(run(['profile', 'use', 'smoke']).exitCode).toBe(0);
-    expect(await Bun.file(project + '/.devn.json').json()).toEqual({ version: 1, profile: 'smoke' });
+    expect(Bun.TOML.parse(await Bun.file(home + '/devn/config.toml').text()).projects[realpathSync(project)]).toBe('smoke');
     for (const tool of ['codex', 'claude']) {
       await Bun.write(bin + '/' + tool, '#!/bin/sh\nprintf "%s\\n" "$PWD" "$CODEX_HOME" "$CLAUDE_CONFIG_DIR" "$DEVN_DOTENV_TEST" "$@"\nexit 7\n');
       await $`chmod +x ${bin + '/' + tool}`.quiet();

@@ -46,6 +46,9 @@ test('profile add hides keys, fetches without authentication, confirms updates a
     assert.equal(fs.statSync(file).mode & 0o777, 0o600);
     assert.equal(fs.statSync(path.join(f.home, 'devn/profiles/a/profile.json')).mode & 0o777, 0o600);
     assert.equal(fs.statSync(path.join(f.home, 'devn/profiles/a')).mode & 0o777, 0o700);
+    // Re-adding a profile must keep the project bindings stored in the same file.
+    if (!i) assert.equal(f.run(['profile', 'use', 'a']).status, 0);
+    else assert.equal(Bun.TOML.parse(await Bun.file(file).text()).projects[f.project], 'a');
   }
   const file = path.join(f.home, 'devn/config.toml');
   const before = await Bun.file(file).text();
@@ -53,8 +56,8 @@ test('profile add hides keys, fetches without authentication, confirms updates a
   assert.equal(cancelled.code, 0);
   assert.match(cancelled.output, /Cancelled/);
   assert.equal(await Bun.file(file).text(), before);
-  assert.equal(fs.existsSync(path.join(f.project, '.devn.json')), false);
   assert.equal(f.run(['profile', 'use', 'a']).status, 0);
+  assert.deepEqual(fs.readdirSync(f.project), []);
 });
 
 test('profile remove requires confirmation, preserves history by default, and purges explicitly', async t => {
@@ -69,7 +72,7 @@ test('profile remove requires confirmation, preserves history by default, and pu
   assert.equal(removed.code, 0, removed.output);
   assert.equal(await Bun.file(history).text(), 'keep history');
   assert.notEqual(f.run(['codex']).status, 0);
-  assert.equal(JSON.parse(await Bun.file(path.join(f.project, '.devn.json')).text()).profile, 'a');
+  assert.equal(Bun.TOML.parse(await Bun.file(path.join(f.home, 'devn/config.toml')).text()).projects[f.project], 'a');
   const purged = await add(f, [['Type a to confirm removal: ', 'a']], ['profile', 'remove', 'a', '--purge']);
   assert.equal(purged.code, 0, purged.output);
   assert.equal(await Bun.file(history).exists(), false);

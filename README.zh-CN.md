@@ -54,7 +54,8 @@ devn profile show customer-a      # 脱敏查看，本地读取
 devn profile add                 # 输入本地名称、Profile JSON URL、隐藏输入 key
 
 cd /path/to/project
-devn profile use customer-a     # 在当前目录写入 .devn.json
+devn profile use customer-a     # 把当前目录绑定到该 profile
+devn profile unbind            # 取消当前目录的绑定
 
 devn codex
 devn claude
@@ -64,13 +65,14 @@ devn claude
 
 重复添加同名 profile 会询问是否更新 URL 和 key，保留工具数据。`profile use` 省略名称时列出已注册的 profiles。添加不会改变当前项目绑定，旧的 `profile init` 已由 `profile add` 替代。
 
-项目声明可以提交 Git，不包含 key：
+项目绑定记录在 `~/.config/devn/config.toml` 的 `[projects]` 表中，键为目录真实路径，项目目录里不会写入任何文件：
 
-```json
-{"version":1,"profile":"customer-a"}
+```toml
+[projects]
+"/home/me/work/customer-a" = "customer-a"
 ```
 
-从子目录启动时向上查找最近的 `.devn.json`；嵌套项目可以覆盖父目录绑定。未知、损坏或未注册的 profile 会报错，不会回退到其他客户。
+从子目录启动时向上查找最近的已绑定目录；嵌套项目可以覆盖父目录绑定。`profile unbind` 只取消当前目录自身的绑定。未知、损坏或未注册的 profile 会报错，不会回退到其他客户。绑定按用户和路径保存，移动或重命名项目后需重新执行 `profile use`。
 
 原生参数直接传给对应工具：
 
@@ -96,7 +98,7 @@ CLI 不内置任何客户 profile。远程配置不提供 `models` 时，devn �
 
 ```text
 ~/.config/devn/
-├── config.toml                  # 本地名称、远程 JSON URL、key
+├── config.toml                  # 本地名称、远程 JSON URL、key、项目绑定
 └── profiles/
     └── customer-a/
         ├── profile.json         # 校验后的远程配置缓存
@@ -188,7 +190,7 @@ bun run test:native              # 需要本机 codex / claude；仅连接本地
 
 `devn profile remove customer-a` 输入名称确认后删除本地注册、key 及 devn 写入工具配置的认证字段，保留历史和个人设置。先停止该 profile 的工具会话；运行中的进程、备份或历史中的敏感内容不会被自动清除。
 
-`devn profile remove customer-a --purge` 会额外删除整个 profile 目录及会话历史。已经移除注册后，仍可用这条命令清理保留的数据。项目中的 .devn.json 不会自动删除或切换到其他 profile。
+`devn profile remove customer-a --purge` 会额外删除整个 profile 目录及会话历史。已经移除注册后，仍可用这条命令清理保留的数据。项目绑定不会自动删除或切换到其他 profile。
 
 ## 开源与发布
 
