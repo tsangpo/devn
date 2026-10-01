@@ -42,15 +42,16 @@ export async function launch(profile: Profile, tool: Tool, args: string[], apiKe
   const root = profileDir(profile.id);
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
-    if (key.startsWith('ANTHROPIC_') || key.startsWith('CLAUDE_CODE_USE_') ||
-      ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'CODEX_API_KEY', 'CODEX_MODEL', 'CODEX_PROFILE', 'CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY'].includes(key)) delete env[key];
+    const name = key.toUpperCase();
+    if (name.startsWith('ANTHROPIC_') || name.startsWith('CLAUDE_CODE_USE_') ||
+      ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'CODEX_API_KEY', 'CODEX_MODEL', 'CODEX_PROFILE', 'CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY'].includes(name)) delete env[key];
   }
   env.CODEX_HOME = path.join(root, 'codex');
   env.CLAUDE_CONFIG_DIR = path.join(root, 'claude');
   env.CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY = '0';
   const options = tool === 'codex'
     ? ['-c', 'model_provider="bifrost"',
-      ...(profile.codex.models ? ['-c', `model_catalog_json=${JSON.stringify(path.join(root, 'codex/models.json'))}`] : []),
+      ...(profile.codex.models ? ['-c', `model_catalog_json=${JSON.stringify(path.join(root, 'codex', 'models.json'))}`] : []),
       ...(hasModel || !generated.model ? [] : ['--model', generated.model])]
     : ['--settings', generated.file];
   console.error(`devn: ${profile.id} → ${tool} (${endpoint(profile, tool)})`);

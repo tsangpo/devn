@@ -42,6 +42,7 @@ export function resolveCommand(command: string, args: string[], env: Environment
 }
 
 export async function runAttached(command: string, args: string[], env: Environment): Promise<number> {
+  env = Object.fromEntries(Object.entries(env).map(([key, value]) => [key.toUpperCase(), value]));
   const argv = resolveCommand(command, args, env);
   let child;
   try { child = Bun.spawn(argv, { env, stdio: ['inherit', 'inherit', 'inherit'] }); }

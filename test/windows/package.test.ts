@@ -26,7 +26,7 @@ if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
 $entry = Join-Path $p.project 'node_modules\\.bin\\devn.cmd'
 $a = & $entry --version
 if ($LASTEXITCODE -ne 0) { throw 'PowerShell entry failed' }
-$b = & $env:ComSpec /d /s /c ('""' + $entry + '" --version"')
+$b = & $env:ComSpec /d /c node_modules\\.bin\\devn.cmd --version
 if ($LASTEXITCODE -ne 0) { throw 'cmd entry failed' }
 ConvertTo-Json -InputObject @($a, $b) -Compress
 `, { project: f.project, archive: tarball });

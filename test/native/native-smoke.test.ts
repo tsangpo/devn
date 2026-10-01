@@ -1,4 +1,4 @@
-import { testPlatform, prependPath } from '../platform';
+import { testPlatform } from '../platform';
 import * as tempFS from 'node:fs';
 import * as tempOS from 'node:os';
 import * as tempPath from 'node:path';
@@ -79,7 +79,7 @@ async function client(tool, args) {
   const start = requests.length;
   const child = Bun.spawn([process.execPath, `${repo}/bin/devn`, tool, ...args], {
     cwd: project,
-    env: { ...process.env, XDG_CONFIG_HOME: home, DISABLE_TELEMETRY: '1', DISABLE_ERROR_REPORTING: '1', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' },
+    env: { ...testPlatform.environment(), XDG_CONFIG_HOME: home, DISABLE_TELEMETRY: '1', DISABLE_ERROR_REPORTING: '1', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' },
     stdio: ['ignore', 'pipe', 'pipe'], detached: true,
   });
   children.add(child);
@@ -115,8 +115,8 @@ describe('native clients through the local Bifrost gateway', () => {
     project = `${temp}/project`;
     requests.length = 0;
     server = startGateway();
-    await $`mkdir -p ${repo} ${project} ${home + '/devn'} ${repo + '/profiles'}`.quiet();
-    await $`cp -R ${root + '/src'} ${root + '/bin'} ${repo}`.quiet();
+    for (const directory of [repo, project, home + '/devn', repo + '/profiles']) tempFS.mkdirSync(directory, { recursive: true });
+    for (const directory of ['src', 'bin']) tempFS.cpSync(tempPath.join(root, directory), tempPath.join(repo, directory), { recursive: true });
     await Bun.write(`${repo}/profiles/example.json`, Bun.file(`${root}/profiles/example.json`));
     await Bun.write(`${repo}/package.json`, Bun.file(`${root}/package.json`));
     await Bun.write(`${repo}/profiles/smoke.json`, JSON.stringify({ version: 1, id: 'smoke', name: 'Smoke', baseUrl: `http://127.0.0.1:${server.port}`, codex: {}, claude: {} }));
