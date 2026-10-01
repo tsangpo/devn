@@ -83,6 +83,10 @@ GitHub draft Release, publishes the verified npm tarball, and publishes the
 Release. Homebrew installs/tests the released binaries on all four platforms
 before the workflow commits the generated Formula to the tap.
 
+Publishing marks the release as GitHub Latest unless the current Latest has a
+higher stable version. Retrying an already-published release also repairs this
+marker. Failure to inspect Latest stops publication; a missing Latest is allowed.
+
 Release assets include `devn.tgz`, `devn-vX.Y.Z-<os>-<arch>.tar.gz`, per-archive
 `.sha256` files and `SHA256SUMS`. OS names are `darwin` and `linux`; architectures
 are `arm64` and `x64`. These archives contain `devn` and `LICENSE`. Windows adds

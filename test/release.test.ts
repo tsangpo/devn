@@ -4,13 +4,21 @@ import * as tempPath from 'node:path';
 import { testPlatform, prependPath } from './platform';
 import { $ } from 'bun';
 import { expect, test } from 'bun:test';
-import { archiveName, assertNoDowngrade, assetNames, checkedAssets, digest, formula, platforms, releaseTag, version } from '../scripts/release-lib';
+import { archiveName, assertNoDowngrade, assetNames, checkedAssets, digest, formula, platforms, releaseTag, shouldPromoteRelease, version } from '../scripts/release-lib';
 
 test('release tags must match the stable package version', () => {
   expect(releaseTag('v' + version)).toBe('v' + version);
   for (const tag of [version, 'v999.0.0', 'v' + version + '-rc.1', 'v' + version + '/unsafe']) {
     expect(() => releaseTag(tag)).toThrow();
   }
+});
+
+test('Latest promotion compares stable versions numerically and preserves newer releases', () => {
+  expect(shouldPromoteRelease('v0.9.0', 'v0.10.0')).toBe(true);
+  expect(shouldPromoteRelease('v1.0.0', 'v1.0.0')).toBe(true);
+  expect(shouldPromoteRelease('v1.0.0', 'v0.10.0')).toBe(false);
+  expect(() => shouldPromoteRelease('unknown')).toThrow();
+  expect(() => shouldPromoteRelease('v1.0.0-rc.1')).toThrow();
 });
 
 test('release preparation rejects missing and tampered artifacts', async () => {
@@ -57,20 +65,29 @@ test('GitHub staging finds draft releases and resumes without replacing assets',
       await Bun.write(temp + '/release/' + name + '.sha256', await digest(temp + '/release/' + name));
     }
     await Bun.write(temp + '/release/SHA256SUMS', 'test manifest');
-    testPlatform.writeExecutable(temp + '/bin/gh', `import { readdirSync, copyFileSync } from 'node:fs';
+    testPlatform.writeExecutable(temp + '/bin/gh', `import { readdirSync, copyFileSync, appendFileSync } from 'node:fs';
 const args = process.argv.slice(2);
 const remote = process.env.MOCK_REMOTE;
 const value = flag => args[args.indexOf(flag) + 1];
+if (args[0] === 'api') {
+  if (process.env.MOCK_LATEST_ERROR) {
+    console.error(process.env.MOCK_LATEST_ERROR);
+    process.exit(1);
+  }
+  console.log(process.env.MOCK_LATEST || 'v0.0.0');
+  process.exit(0);
+}
 if (args[0] !== 'release') process.exit(99);
-if (args[1] === 'view') console.log(JSON.stringify({isDraft: true, assets: readdirSync(remote).map(name => ({name}))}));
+if (args[1] === 'view') console.log(JSON.stringify({isDraft: process.env.MOCK_PUBLISHED !== '1', assets: readdirSync(remote).map(name => ({name}))}));
 else if (args[1] === 'upload') copyFileSync(args[3], remote + '/' + args[3].split('/').at(-1));
 else if (args[1] === 'download') copyFileSync(remote + '/' + value('--pattern'), value('--dir') + '/' + value('--pattern'));
-else if (args[1] !== 'edit') process.exit(99);
+else if (args[1] === 'edit') appendFileSync(process.env.MOCK_EDITS, JSON.stringify(args) + '\\n');
+else process.exit(99);
 `);
-    const env = { ...prependPath(temp + '/bin'), RELEASE_TAG: 'v' + version, MOCK_REMOTE: temp + '/remote' };
-    const run = async (mode: string) => {
+    const env = { ...prependPath(temp + '/bin'), RELEASE_TAG: 'v' + version, MOCK_REMOTE: temp + '/remote', MOCK_EDITS: temp + '/edits' };
+    const run = async (mode: string, extra: Record<string, string> = {}) => {
       const child = Bun.spawn([process.execPath, root + '/scripts/publish-github.ts', mode], {
-        cwd: temp, env, stdout: 'pipe', stderr: 'pipe',
+        cwd: temp, env: { ...env, ...extra }, stdout: 'pipe', stderr: 'pipe',
       });
       const timer = setTimeout(() => child.kill('SIGKILL'), 5000);
       try {
@@ -81,6 +98,13 @@ else if (args[1] !== 'edit') process.exit(99);
     await run('stage');
     await run('stage');
     await run('publish');
+    await run('publish', { MOCK_PUBLISHED: '1' });
+    await run('publish', { MOCK_LATEST_ERROR: 'HTTP 404' });
+    await run('publish', { MOCK_LATEST: 'v999.0.0' });
+    await run('publish', { MOCK_PUBLISHED: '1', MOCK_LATEST: 'v999.0.0' });
+    await expect(run('publish', { MOCK_LATEST_ERROR: 'HTTP 403' })).rejects.toThrow('Cannot inspect latest');
+    const edits = (await Bun.file(temp + '/edits').text()).trim().split('\n').map(line => JSON.parse(line));
+    expect(edits.map(args => args.at(-1))).toEqual(['--latest=true', '--latest=true', '--latest=true', '--latest=false']);
     expect(await Bun.file(temp + '/remote/devn.tgz').text()).toBe('dummy devn.tgz');
     await Bun.write(temp + '/remote/devn.tgz', 'different existing asset');
     await expect(run('stage')).rejects.toThrow();

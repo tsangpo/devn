@@ -14,6 +14,21 @@ export function releaseTag(tag = process.env.RELEASE_TAG): string {
   return tag;
 }
 
+export function shouldPromoteRelease(latest: string, next = 'v' + version): boolean {
+  const parse = (tag: string) => {
+    if (!/^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag)) {
+      throw new Error('Cannot compare stable release tag: ' + tag);
+    }
+    return tag.slice(1).split('.').map(BigInt);
+  };
+  const oldParts = parse(latest);
+  const newParts = parse(next);
+  for (let i = 0; i < 3; i++) {
+    if (newParts[i] !== oldParts[i]) return newParts[i] > oldParts[i];
+  }
+  return true;
+}
+
 export async function digest(file: string, algorithm: 'sha256' | 'sha512' = 'sha256'): Promise<string> {
   return new Bun.CryptoHasher(algorithm).update(await Bun.file(file).arrayBuffer()).digest('hex');
 }

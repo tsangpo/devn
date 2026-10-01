@@ -2,7 +2,7 @@ import * as tempFS from 'node:fs';
 import * as tempOS from 'node:os';
 import * as tempPath from 'node:path';
 import { $ } from 'bun';
-import { checkedAssets, releaseTag, repository, digest } from './release-lib';
+import { checkedAssets, releaseTag, repository, digest, shouldPromoteRelease } from './release-lib';
 
 const tag = releaseTag();
 const hashes = await checkedAssets('release');
@@ -33,7 +33,17 @@ try {
       await $`gh release upload ${tag} ${'release/' + name} --repo ${repository}`;
     }
   }
-  if (mode === 'publish' && release.isDraft) await $`gh release edit ${tag} --repo ${repository} --draft=false --latest=false`;
+  if (mode === 'publish') {
+    const latest = await $`gh api ${'repos/' + repository + '/releases/latest'} --jq .tag_name`.nothrow().quiet();
+    let promote: boolean;
+    if (latest.exitCode === 0) promote = shouldPromoteRelease(latest.stdout.toString().trim(), tag);
+    else if (latest.stderr.toString().includes('HTTP 404')) promote = true;
+    else throw new Error('Cannot inspect latest GitHub release.');
+    // Also repair the marker when resuming an already-published release.
+    if (release.isDraft || promote) {
+      await $`gh release edit ${tag} --repo ${repository} --draft=false ${'--latest=' + promote}`;
+    }
+  }
 } finally {
   tempFS.rmSync(temp, { recursive: true, force: true });
 }
