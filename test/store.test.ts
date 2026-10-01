@@ -3,7 +3,6 @@ import * as tempFS from 'node:fs';
 import * as tempOS from 'node:os';
 import * as tempPath from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
-import { $ } from 'bun';
 import { addProfile as registerProfile, removeProfile, loadRegistry, refreshProfile } from '../src/store';
 import { configHome, profileDir } from '../src/files';
 

@@ -1,11 +1,10 @@
-import { $ } from 'bun';
 import { realpathSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { targets, hostPlatform } from '../../scripts/platform';
 import { testPlatform, writeStandalone } from '../platform';
 import { expect, test } from 'bun:test';
-import { archiveName, type Platform, verifyArchive, version } from '../../scripts/release-lib';
+import { archiveName, verifyArchive, version } from '../../scripts/release-lib';
 
 const root = Bun.fileURLToPath(new URL('../../', import.meta.url));
 const platform = hostPlatform();

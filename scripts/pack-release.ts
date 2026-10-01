@@ -1,10 +1,10 @@
+import fs from 'node:fs';
 import { version, releaseTag } from './release-lib';
 
 const root = Bun.fileURLToPath(new URL('../', import.meta.url));
 releaseTag();
 const directory = root + '/release';
-const mkdir = Bun.spawnSync(['mkdir', '-p', directory]);
-if (mkdir.exitCode !== 0) throw new Error('Cannot create release directory.');
+fs.mkdirSync(directory, { recursive: true });
 const archive = directory + '/devn.tgz';
 const pack = Bun.spawn([process.execPath, 'pm', 'pack', '--ignore-scripts', '--filename', archive], {
   cwd: root, stdio: ['ignore', 'inherit', 'inherit'],

@@ -59,6 +59,7 @@ export const posix: Platform = {
   defaultConfigRoot: () => path.join(os.homedir(), '.config'),
   privateDir, privateFile, atomicWrite, runAttached,
   projectPath: dir => fs.realpathSync.native(dir),
+  storedProjectPath: dir => dir,
   profileIdentity: id => id,
   validProfileName: () => true,
 };

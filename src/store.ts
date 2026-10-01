@@ -54,10 +54,7 @@ export async function loadRegistry(): Promise<Registry> {
   if (new Set(identities).size !== identities.length) throw new Error('Profile names refer to the same directory. Rename conflicting registrations.');
   const canonical: Record<string, string> = {};
   for (const [dir, id] of Object.entries(projects) as [string, string][]) {
-    let key = dir;
-    try { key = platform.projectPath(dir); } catch (error: any) {
-      if (!['ENOENT', 'ENOTDIR'].includes(error.code)) throw error;
-    }
+    const key = platform.storedProjectPath(dir);
     if (Object.hasOwn(canonical, key) && canonical[key] !== id) throw new Error('Conflicting project bindings refer to the same directory.');
     canonical[key] = id;
   }

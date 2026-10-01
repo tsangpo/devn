@@ -1,6 +1,5 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import path from 'node:path';
 import { fixture } from '../helpers';
 import { testPlatform } from '../platform';

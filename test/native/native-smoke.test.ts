@@ -3,7 +3,6 @@ import * as tempFS from 'node:fs';
 import * as tempOS from 'node:os';
 import * as tempPath from 'node:path';
 // Optional integration test: real installed clients, local HTTP server, dummy key only.
-import { $ } from 'bun';
 import { realpathSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 

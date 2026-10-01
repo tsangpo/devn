@@ -6,6 +6,7 @@ export interface Platform {
   atomicWrite(file: string, content: string, mode?: number): void;
   runAttached(command: string, args: string[], env: Environment): Promise<number>;
   projectPath(dir: string): string;
+  storedProjectPath(dir: string): string;
   profileIdentity(id: string): string;
   validProfileName(id: string): boolean;
 }
