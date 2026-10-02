@@ -20,7 +20,7 @@ function shellEnvironment(): NodeJS.ProcessEnv {
 describe.skipIf(!windows)('Windows standalone installer', () => {
   for (const shell of shells) {
     test(`${shell}: install, repeat, upgrade and failure recovery`, async () => {
-      const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'devn-installer-'));
+      const temp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'devn-installer-')));
       try {
         const archive = path.join(root, 'release', archiveName('windows-x64'));
         const hash = await verifyArchive(archive);
@@ -45,7 +45,7 @@ describe.skipIf(!windows)('Windows standalone installer', () => {
   }
 
   test('cmd invokes powershell -c with irm | iex in a child process', async () => {
-    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'devn-installer-cmd-'));
+    const temp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'devn-installer-cmd-')));
     const script = await Bun.file(path.join(root, 'release/install.ps1')).text();
     // Serve the exact generated installer over HTTP on loopback. Only its pinned ZIP request is
     // mocked in the child process, so this test exercises the real irm pipeline and cmd quoting.
