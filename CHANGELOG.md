@@ -4,11 +4,13 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+- Initialize missing profile-local OpenCode `cli.json` files with the v2 CLI schema and `system` theme, preserving existing files.
+
 - Map the example's Claude `opusplan` slots to gateway model IDs so planning uses Opus and execution uses Sonnet, instead of sending the mode name to the gateway.
 
 - Update the example profile with the seven supplied gateway models, client-specific defaults, token limits and OpenCode pricing per million tokens.
 
-- Add `devn opencode` for OpenCode v2 >=2.0.21, with an optional native model catalog, approved Bifrost origin, private server and profile-local configuration/session storage on Linux, macOS and Windows. Preserve old profiles and scrub generated OpenCode credentials on removal.
+- Add `devn opencode` for any OpenCode v2 release, with an optional native model catalog, approved Bifrost origin, private server and profile-local configuration/session storage on Linux, macOS and Windows. Preserve old profiles and scrub generated OpenCode credentials on removal.
 
 - Add a Windows PowerShell installer for standalone devn installation and upgrades, with SHA-256 verification, user PATH setup, failure rollback, and versioned GitHub Release assets.
 

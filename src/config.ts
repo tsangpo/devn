@@ -132,7 +132,13 @@ export async function generateConfig(profile: Profile, tool: Tool, apiKey: strin
     if (tool === 'codex' && ids) {
       writeJson(catalog, { models: profile.codex.models });
     }
-    if (tool === 'opencode') writeJson(path.join(dir, 'service.json'), { disabled: true });
+    if (tool === 'opencode') {
+      writeJson(path.join(dir, 'service.json'), { disabled: true });
+      const cli = path.join(dir, 'cli.json');
+      if (!fs.existsSync(cli)) writeJson(cli, {
+        $schema: 'https://opencode.ai/v2/cli.json', theme: { name: 'system' },
+      });
+    }
     atomicWrite(file, serialized);
     writeJson(manifest, { version: 1, paths: ownedPaths });
     return { file, model };

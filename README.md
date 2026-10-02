@@ -214,7 +214,7 @@ settings such as keys, hooks, or permissions.
 
 ## OpenCode v2
 
-Install the official `@opencode/cli` client separately (v2.0.21 or newer within v2).
+Install the official `@opencode/cli` client separately (any v2 release).
 devn checks `opencode` first, then `opencode2` if no supported version is available.
 It does not install, upgrade, or migrate OpenCode. Windows supports the official
 npm package and native EXE.
@@ -268,6 +268,8 @@ XDG and temporary-directory overrides apply to the child and its subprocesses.
 `opencode.json`, `service.json` and managed provider policy are regenerated.
 Put personal agents, skills, MCP and server plugins in this profile directory;
 put terminal preferences in its `cli.json`. Unrelated JSON settings are preserved.
+If `cli.json` is missing, devn creates it with the v2 CLI schema and the `system`
+theme. Existing `cli.json` files are left unchanged.
 Use `opencode.json`, not an adjacent `opencode.jsonc` that could override it.
 
 Project OpenCode configuration and automatic project instruction discovery are

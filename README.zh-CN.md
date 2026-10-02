@@ -197,7 +197,7 @@ Claude 使用 `claude.model` 和原生 `claude.modelPicker`：`replaceBuiltInOpt
 
 ## OpenCode v2
 
-需单独安装官方 `@opencode/cli`，支持 v2.0.21 及以上的 v2 版本。优先检查 PATH 中的 `opencode`，没有符合版本要求的客户端时尝试 `opencode2`。支持 Windows 原生 EXE 和官方 npm 安装；devn 不自动安装、升级或迁移客户端。
+需单独安装官方 `@opencode/cli`，接受任意 v2 版本，不限制最低次版本或补丁版本。优先检查 PATH 中的 `opencode`，没有符合版本要求的客户端时尝试 `opencode2`。支持 Windows 原生 EXE 和官方 npm 安装；devn 不自动安装、升级或迁移客户端。
 
 在现有 `version: 1` 远程 profile 中添加可选字段：
 
@@ -229,6 +229,8 @@ devn opencode models
 `models` 直接显示已审批的 profile 模型列表，避免 v2 独立服务尚未完成插件加载时返回空列表。交互界面的 `--model bifrost/<键>` 由 devn 设置为本次默认模型；`run`、`mini` 使用原生参数。生成配置中的已有模型选择仍在列表中时保留，否则回退至 profile 默认模型。
 
 配置、会话、缓存、状态和临时文件均位于 `profiles/<名称>/opencode/`，每次使用独立服务。保留真实 HOME；XDG 和临时目录覆盖只影响客户端及其子进程。devn 管理 `opencode.json`、`service.json`、Bifrost provider 和 provider 策略，其余本地 JSON 设置保留。个人 agents、skills、MCP、服务端插件放在该 profile 目录，终端偏好放在其中的 `cli.json`。请编辑 `opencode.json`；相邻的 `opencode.jsonc` 会覆盖托管配置，因此启动时会拒绝它。
+
+如果 `cli.json` 不存在，devn 会创建它并写入 v2 CLI schema 和 `system` 主题；已有文件保持不变。
 
 不加载项目 OpenCode 配置，也不自动发现项目指令或兼容加载全局 Claude/agents skills。v2 的客户端插件发现机制独立于服务端，所以交互界面和插件命令遇到祖先目录中非空的 `.opencode/plugins` 时会提示将插件移入 profile。这属于配置和状态分离，不是针对用户安装插件的安全沙箱。
 

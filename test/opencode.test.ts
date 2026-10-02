@@ -122,13 +122,24 @@ test('OpenCode refresh replaces owned provider settings and preserves local cust
   assert.deepEqual(JSON.parse(read(f.capture).env.OPENCODE_CONFIG_CONTENT), { model: 'bifrost/gpt-6.1-sol' });
 });
 
-test('OpenCode selects a supported binary or explains the missing upgrade', t => {
+test('OpenCode accepts every v2 release, falls back to opencode2, and rejects other majors', t => {
   const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
   mock(f, 'opencode', '1.18.0'); mock(f, 'opencode2');
   assert.equal(f.run(['opencode']).status, 0);
-  mock(f, 'opencode2', '2.0.20');
+  for (const version of ['2.0.0', '2.0.20', '2.1.0']) {
+    mock(f, 'opencode', version);
+    mock(f, 'opencode2', '3.0.0');
+    const result = f.run(['opencode']);
+    assert.equal(result.status, 0, result.stderr);
+  }
+  mock(f, 'opencode', '1.18.0');
+  mock(f, 'opencode2', '2.0.0');
+  assert.equal(f.run(['opencode']).status, 0);
+  mock(f, 'opencode2', '3.0.0');
   const env = { ...f.env, PATH: f.bin };
-  assert.match(f.run(['opencode'], { env }).stderr, /v2 >=2.0.21/);
+  const unsupported = f.run(['opencode'], { env });
+  assert.notEqual(unsupported.status, 0);
+  assert.match(unsupported.stderr, /OpenCode v2 is required/);
   fs.unlinkSync(path.join(f.bin, testPlatform.executableName('opencode')));
   fs.unlinkSync(path.join(f.bin, testPlatform.executableName('opencode2')));
   assert.match(f.run(['opencode'], { env }).stderr, /official @opencode\/cli/);

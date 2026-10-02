@@ -28,7 +28,9 @@ The CLI supports Linux/macOS and Windows 11 x64 with Bun >=1.4.2. Native smoke
 was tested locally with Codex 0.159.2 and Claude Code 2.1.285; Windows CI installs
 Codex 0.159.3 and Claude Code 2.1.286 for local-gateway smoke tests. Other client
 versions are not guaranteed; run smoke tests when updating a client. OpenCode
-v2.0.21 is pinned in Windows CI and verified locally on Linux. Its separate test
+v2.0.21 is pinned in Windows CI; v2.0.20 and v2.0.21 have been verified locally
+on Linux. The launcher accepts any v2 release, without a minimum minor or patch
+version. Its separate test
 can be run with `bun test ./test/native/opencode-smoke.test.ts --timeout 180000`.
 The suite also checks the native model catalog after plugin initialization; the
 v2 model-list endpoint may initially return an empty snapshot.

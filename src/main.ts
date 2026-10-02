@@ -20,7 +20,7 @@ ${PROFILE_COMMANDS}
   devn --version                    Print the CLI version
   devn codex [arguments...]         Refresh profile, update config, and start Codex
   devn claude [arguments...]        Refresh profile, update config, and start Claude Code
-  devn opencode [arguments...]      Refresh profile and start OpenCode v2 (>=2.0.21)
+  devn opencode [arguments...]      Refresh profile and start OpenCode v2
 
 OpenCode uses a private server and profile-only configuration. External servers,
 directory overrides, service/pair/serve, auth/api and installation management are unsupported.

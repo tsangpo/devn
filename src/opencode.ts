@@ -98,8 +98,8 @@ export function openCodeCommand(env: Environment): string {
     try {
       const result = Bun.spawnSync(argv, { env, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', timeout: 5000 });
       const version = result.stdout.toString().trim().match(/^(?:opencode\s+)?v?(\d+)\.(\d+)\.(\d+)$/i);
-      if (result.exitCode === 0 && version && Number(version[1]) === 2 && (Number(version[2]) > 0 || Number(version[3]) >= 21)) return command;
+      if (result.exitCode === 0 && version && Number(version[1]) === 2) return command;
     } catch { /* Try the separately installed v2 alias. Never print probe output. */ }
   }
-  throw new Error('OpenCode v2 >=2.0.21 is required. Install or upgrade the official @opencode/cli client and put opencode or opencode2 on PATH.');
+  throw new Error('OpenCode v2 is required. Install the official @opencode/cli client and put opencode or opencode2 on PATH.');
 }
