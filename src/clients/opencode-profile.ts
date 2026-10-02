@@ -1,4 +1,4 @@
-import { secureURL } from './urls';
+import { secureURL } from '../urls';
 
 export type OpenCodeModel = {
   name?: string; modelID?: string; family?: string;
@@ -7,6 +7,10 @@ export type OpenCodeModel = {
   cost?: { input: number; output: number; cache?: { read?: number; write?: number } };
 };
 export type OpenCodeProfile = { baseUrl?: string; model: string; models: Record<string, OpenCodeModel> };
+
+export function openCodeModels(profile?: OpenCodeProfile): string[] | undefined {
+  return profile && Object.keys(profile.models).map(id => `bifrost/${id}`);
+}
 
 function requireValue(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`opencode: ${message}`);

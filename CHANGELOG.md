@@ -4,17 +4,14 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
-- Simplify the example profile by using native defaults for optional capabilities and omitting optional display/key-page metadata, while retaining gateway models, limits, pricing and Claude slot routing.
+## 0.5.0 — 2026-10-02
 
-- Initialize missing profile-local OpenCode `cli.json` files with the v2 CLI schema and `system` theme, preserving existing files.
-
-- Map the example's Claude `opusplan` slots to gateway model IDs so planning uses Opus and execution uses Sonnet, instead of sending the mode name to the gateway.
-
-- Update the example profile with the seven supplied gateway models, client-specific defaults, token limits and OpenCode pricing per million tokens.
-
-- Add `devn opencode` for any OpenCode v2 release, with an optional native model catalog, approved Bifrost origin, private server and profile-local configuration/session storage on Linux, macOS and Windows. Preserve old profiles and scrub generated OpenCode credentials on removal.
-
-- Add a Windows PowerShell installer for standalone devn installation and upgrades, with SHA-256 verification, user PATH setup, failure rollback, and versioned GitHub Release assets.
+- Add `devn opencode` for OpenCode v2, with an optional native model catalog, approved Bifrost origin, private server and profile-local configuration/session storage on Linux, macOS and Windows. Existing profile v1 data remains compatible. Upgrade devn to 0.5.0 before publishing an `opencode` section; older releases reject it. Re-run `profile add` to approve the added gateway.
+- Add a Windows PowerShell installer for standalone installation and upgrades, including checksum verification, user PATH setup and failure rollback.
+- Group client validation, configuration, isolation and credential cleanup into small modules with a static supported-client table. Preserve existing commands and configuration paths; pass official package metadata through the platform facade for future CLI integrations.
+- Initialize missing profile-local OpenCode `cli.json` files with the v2 schema and system theme, preserving existing files.
+- Refresh the example gateway catalog and Claude `opusplan` slot routing. Document that administrators must supply native Codex model instructions before using the example catalog; devn does not synthesize them.
+- Keep native Codex protocol smoke coverage independent of the example catalog, and add credential-cleanup and trusted-origin regressions.
 
 ## 0.4.1 — 2026-10-01
 

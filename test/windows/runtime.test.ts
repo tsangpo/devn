@@ -11,6 +11,8 @@ import { resolveCommand } from '../../src/platform/windows/process';
 import { powershell, powershellCommand } from '../../src/platform/windows/system';
 import { replaceFile } from '../../src/platform/windows/files';
 import { acl } from './fixtures';
+import { codexCommand } from '../../src/clients/codex';
+import { claudeCommand } from '../../src/clients/claude';
 
 describe('Windows runtime', { skip: testPlatform.posix }, () => {
   test('configuration precedence, private ACLs, and failed protection do not leak writes', async t => {
@@ -109,41 +111,54 @@ finally { $f.Dispose() }
       await Bun.write(path.join(pkg, 'cli.mjs'), 'console.log(JSON.stringify(process.argv.slice(2)))');
       await Bun.write(path.join(bin, 'codex.cmd'), '@echo WRAPPER_MUST_NOT_RUN\r\nexit /b 99');
       const env = prependPath(bin);
-      const argv = resolveCommand('codex', args, env);
+      const argv = resolveCommand(codexCommand, args, env);
       const result = Bun.spawnSync(argv, { env, stdout: 'pipe', stderr: 'pipe' });
       assert.equal(result.exitCode, 0, result.stderr.toString());
       assert.deepEqual(JSON.parse(result.stdout.toString()), args);
       const onlyBin = { ...env, PATH: bin };
-      assert.throws(() => resolveCommand('codex', args, onlyBin), /Node.js/);
+      assert.throws(() => resolveCommand(codexCommand, args, onlyBin), /Node.js/);
       await Bun.write(path.join(pkg, 'package.json'), JSON.stringify({ name: 'unrelated', bin: { codex: 'cli.mjs' } }));
-      assert.throws(() => resolveCommand('codex', args, env), /official npm/);
+      assert.throws(() => resolveCommand(codexCommand, args, env), /official npm/);
+      const outside = path.join(root, 'outside.mjs');
+      await Bun.write(outside, 'throw new Error("OUTSIDE_MUST_NOT_RUN")');
+      await Bun.write(path.join(pkg, 'package.json'), JSON.stringify({ name: '@openai/codex', bin: { codex: '../../outside.mjs' } }));
+      assert.throws(() => resolveCommand(codexCommand, args, env), /official npm/);
     }
     const bin = path.join(f.dir, 'native'); fs.mkdirSync(bin);
     testPlatform.writeExecutable(path.join(bin, 'claude'), 'console.log(JSON.stringify(process.argv.slice(2))); process.exit(7)');
     const env = { ...f.env, PATH: bin };
-    const result = Bun.spawnSync(resolveCommand('claude', args, env), { env, stdout: 'pipe' });
+    const result = Bun.spawnSync(resolveCommand(claudeCommand, args, env), { env, stdout: 'pipe' });
     assert.equal(result.exitCode, 7);
     assert.deepEqual(JSON.parse(result.stdout.toString()), args);
-    assert.throws(() => resolveCommand('codex', [], env), /not installed/);
+    assert.throws(() => resolveCommand(codexCommand, [], env), /not installed/);
     await Bun.write(path.join(bin, 'codex.cmd'), '@echo unsupported');
-    assert.throws(() => resolveCommand('codex', [], env), /official npm/);
+    assert.throws(() => resolveCommand(codexCommand, [], env), /official npm/);
     // The same npm layout can point at a native binary instead of JavaScript.
     const pkg = path.join(bin, 'node_modules', '@anthropic-ai', 'claude-code'); fs.mkdirSync(pkg, { recursive: true });
     fs.renameSync(path.join(bin, 'claude.exe'), path.join(pkg, 'cli.exe'));
     await Bun.write(path.join(bin, 'claude.cmd'), '@echo WRAPPER_MUST_NOT_RUN');
     await Bun.write(path.join(pkg, 'package.json'), JSON.stringify({ name: '@anthropic-ai/claude-code', bin: { claude: 'cli.exe' } }));
-    assert.equal(Bun.spawnSync(resolveCommand('claude', args, env), { env }).exitCode, 7);
+    assert.equal(Bun.spawnSync(resolveCommand(claudeCommand, args, env), { env }).exitCode, 7);
     const openCode = path.join(bin, 'node_modules', '@opencode', 'cli'); fs.mkdirSync(openCode, { recursive: true });
     fs.copyFileSync(path.join(pkg, 'cli.exe'), path.join(openCode, 'opencode.exe'));
     await Bun.write(path.join(openCode, 'package.json'), JSON.stringify({ name: '@opencode/cli', bin: { opencode: 'opencode.exe', opencode2: 'opencode.exe' } }));
     for (const command of ['opencode', 'opencode2']) {
       await Bun.write(path.join(bin, command + '.cmd'), '@echo WRAPPER_MUST_NOT_RUN');
-      const launched = Bun.spawnSync(resolveCommand(command, args, env), { env, stdout: 'pipe' });
+      const launched = Bun.spawnSync(resolveCommand({ name: command, npmPackage: '@opencode/cli' }, args, env), { env, stdout: 'pipe' });
       assert.equal(launched.exitCode, 7);
       assert.deepEqual(JSON.parse(launched.stdout.toString()), args);
     }
     await Bun.write(path.join(openCode, 'package.json'), JSON.stringify({ name: 'unrelated', bin: { opencode: 'opencode.exe' } }));
-    assert.throws(() => resolveCommand('opencode', args, env), /official npm/);
+    assert.throws(() => resolveCommand({ name: 'opencode', npmPackage: '@opencode/cli' }, args, env), /official npm/);
+    // The resolver accepts client-owned metadata without another name switch.
+    const custom = path.join(bin, 'node_modules', '@devn-test', 'agent');
+    fs.mkdirSync(custom, { recursive: true });
+    fs.copyFileSync(path.join(pkg, 'cli.exe'), path.join(custom, 'agent.exe'));
+    await Bun.write(path.join(custom, 'package.json'), JSON.stringify({ name: '@devn-test/agent', bin: { agent: 'agent.exe' } }));
+    await Bun.write(path.join(bin, 'agent.cmd'), '@echo WRAPPER_MUST_NOT_RUN');
+    const customRun = Bun.spawnSync(resolveCommand({ name: 'agent', npmPackage: '@devn-test/agent' }, args, env), { env, stdout: 'pipe' });
+    assert.equal(customRun.exitCode, 7);
+    assert.deepEqual(JSON.parse(customRun.stdout.toString()), args);
   });
 
   test('real paths preserve bindings across case and junction aliases and reject name collisions', t => {

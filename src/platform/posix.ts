@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import type { Platform } from './types';
+import type { ClientCommand, Platform } from './types';
 
 export function privateDir(dir: string): void {
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -31,7 +31,7 @@ export function atomicWrite(file: string, content: string, mode = 0o600): void {
 
 
 
-export async function runAttached(command: string, args: string[], env: Record<string, string | undefined>): Promise<number> {
+export async function runAttached({ name: command }: ClientCommand, args: string[], env: Record<string, string | undefined>): Promise<number> {
   let child;
   try {
     child = Bun.spawn([command, ...args], {
@@ -58,7 +58,7 @@ export async function runAttached(command: string, args: string[], env: Record<s
 export const posix: Platform = {
   defaultConfigRoot: () => path.join(os.homedir(), '.config'),
   privateDir, privateFile, atomicWrite, runAttached,
-  resolveCommand: (command, args, env) => {
+  resolveCommand: ({ name: command }, args, env) => {
     const entry = Bun.which(command, { PATH: env.PATH });
     if (!entry) throw new Error(`${command} is not installed or not on PATH.`);
     return [entry, ...args];

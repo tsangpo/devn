@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fixture, write } from '../helpers';
-import { openCodeCommand, openCodeEnvironment } from '../../src/opencode';
+import { openCodeCommand, openCodeEnvironment } from '../../src/clients/opencode-runtime';
 import { platform } from '../../src/platform';
 
 // Explicit opt-in suite: installed OpenCode v2, local gateway, dummy credentials.

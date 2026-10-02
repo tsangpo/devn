@@ -22,6 +22,43 @@ Keep changes focused. Explain the behavior change and validation in your PR.
 Update CHANGELOG.md and both READMEs for user-visible changes. Contributions
 are made under the project's MIT license; submit only material you can license.
 
+## Adding an agent CLI
+
+Client-specific rules live in `src/clients/`. Add a typed profile section to
+`ClientProfiles` in `src/types.ts`, then add the client to the static table in
+`src/clients/index.ts`. New sections should be optional so existing v1 profiles
+remain valid. Keep the native model format and explicit remote-field validation;
+do not accept executable paths, packages, or arbitrary native configuration from
+a remote profile. Older devn releases reject unknown profile sections, so document
+the CLI upgrade administrators must require before publishing the new section.
+
+Each client owns its validator, endpoint suffix, model selection, config codec,
+managed config builder, credential scrubber, argument rules, isolated environment,
+and official command/package metadata. Split substantial validation or runtime
+logic into small adjacent files, as OpenCode does. `prepareLaunch` returns either
+an attached process description or local output. Probe versions only after setting
+up the isolated environment. Keep native argument semantics in the client, including
+option operands, TUI differences, and `--` boundaries.
+
+The shared lifecycle owns gateway approval, cache updates, locks, credential
+rechecks, model retention, ownership manifests, private permissions, and writes.
+Config builders return managed fields and ordered JSON sidecar descriptions;
+they must not write files or acquire locks. Declare whole-provider replacement
+paths so stale credentials cannot survive a merge. Scrubbers remove only managed
+credentials; removal checks every supported client's retained files, including
+clients absent from the current remote profile. Do not import store or lifecycle
+modules from a client, perform work at import time, or add dynamic discovery,
+registration hooks, or a dependency injection framework.
+
+Pass the built-in command name and official npm package through the platform
+facade. Platform adapters resolve actual package bin metadata and enforce path
+containment; they do not maintain a list of client names. Keep runtime OS selection
+in the existing facade. Add lifecycle and argument regressions, a real-client smoke
+using a loopback gateway and dummy credentials, and Windows package-resolution
+coverage. Verify npm packaging and the standalone binary, including any client
+helpers imported from nested directories. Record the actual client versions and
+operating systems tested; source tests do not establish Windows runtime support.
+
 ## Compatibility
 
 The CLI supports Linux/macOS and Windows 11 x64 with Bun >=1.4.2. Native smoke
@@ -34,6 +71,13 @@ version. Its separate test
 can be run with `bun test ./test/native/opencode-smoke.test.ts --timeout 180000`.
 The suite also checks the native model catalog after plugin initialization; the
 v2 model-list endpoint may initially return an empty snapshot.
+The client-module refactor was also verified on Linux with Codex 0.160.0,
+Claude Code 2.1.287 and OpenCode 2.0.20. The Codex native catalog test uses a fixed
+fixture independent of the example profile. Known example limitation: its Codex catalog
+currently omits native model instructions; Codex 0.160.0 rejects it without
+`base_instructions` or `model_messages.instructions_template`. The refactor does
+not synthesize instructions or change that example. devn's profile validation
+does not replace validation by the installed native client.
 CI validates npm packages, terminal interaction, and standalone executables.
 The binary CI baseline is macOS 15, Ubuntu 24.04 (glibc), and Windows Server 2025
 (`windows-2025`). Windows ARM64 and musl are not distributed.

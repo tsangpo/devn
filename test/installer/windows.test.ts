@@ -9,6 +9,12 @@ const root = path.resolve(import.meta.dir, '../..');
 const windows = process.platform === 'win32';
 const shells = ['powershell.exe', 'pwsh.exe'];
 
+function shellEnvironment(): NodeJS.ProcessEnv {
+  // CI launches Bun from pwsh. Passing its module path through an intermediate
+  // process makes Windows PowerShell load incompatible PowerShell 7 modules.
+  return Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PSMODULEPATH'));
+}
+
 // These tests write and restore HKCU\Environment\Path. Run only in the dedicated installer job,
 // never concurrently with other installer tests or against a developer's default install directory.
 describe.skipIf(!windows)('Windows standalone installer', () => {
@@ -29,7 +35,7 @@ describe.skipIf(!windows)('Windows standalone installer', () => {
         expect(build.exitCode, build.stderr.toString()).toBe(0);
         const input = JSON.stringify({ temp, archive, installer: generated, version, oldExe, hash });
         const child = Bun.spawn([shell, '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(import.meta.dir, 'verify.ps1')], {
-          stdin: new Blob([input]), stdout: 'pipe', stderr: 'pipe',
+          env: shellEnvironment(), stdin: new Blob([input]), stdout: 'pipe', stderr: 'pipe',
         });
         const [code, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
         expect(code, stdout + '\n' + stderr).toBe(0);
@@ -46,6 +52,7 @@ describe.skipIf(!windows)('Windows standalone installer', () => {
     const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: () => new Response(script, { headers: { 'Content-Type': 'text/plain' } }) });
     try {
       const child = Bun.spawn(['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(import.meta.dir, 'verify-cmd.ps1')], {
+        env: shellEnvironment(),
         stdin: new Blob([JSON.stringify({ temp, root, url: `http://127.0.0.1:${server.port}/install.ps1`, version, archive: path.join(root, 'release', archiveName('windows-x64')) })]),
         stdout: 'pipe', stderr: 'pipe',
       });

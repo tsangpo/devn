@@ -144,7 +144,19 @@ describe('native clients through the local Bifrost gateway', () => {
   test.serial('Codex loads the centrally configured model catalog', async () => {
     const profilePath = `${repo}/profiles/smoke.json`;
     const profile = await Bun.file(profilePath).json();
-    profile.codex = (await Bun.file(`${root}/profiles/example.json`).json()).codex;
+    // Keep protocol coverage independent of the administrator-facing example.
+    profile.codex = {
+      model: 'devn/native-smoke',
+      models: [{
+        slug: 'devn/native-smoke', display_name: 'Native smoke', description: 'Local gateway fixture',
+        context_window: 128000, default_reasoning_level: 'medium',
+        supported_reasoning_levels: [{ effort: 'medium', description: 'Balanced' }],
+        base_instructions: 'Reply with DEVN_NATIVE_OK. Do not use tools.',
+        shell_type: 'unified_exec', support_verbosity: false, apply_patch_tool_type: 'freeform',
+        truncation_policy: { mode: 'tokens', limit: 10000 }, experimental_supported_tools: [],
+        visibility: 'list', supported_in_api: true, priority: 1,
+      }],
+    };
     await Bun.write(profilePath, JSON.stringify(profile));
     await client('codex', codexArgs);
     expect(requests.find(request => request.url.startsWith('/openai/v1/responses'))!.body.model)

@@ -224,3 +224,39 @@ test('removal scrubs generated credentials, preserves history, and purge removes
   expect(await Bun.file(`${root}/codex/history.jsonl`).exists()).toBe(false);
   expect(await Bun.file(`${root}/opencode/data/opencode/opencode.db`).exists()).toBe(false);
 });
+
+test('malformed retained client config prevents all credential writes and preserves registration', async () => {
+  // The current remote profile has no OpenCode section, but its old credentials
+  // must still be checked before changing either of the other configurations.
+  await addProfile('a', source(), 'dummy-removal-key');
+  const root = profileDir('a');
+  const codex = Bun.TOML.stringify({ model_providers: { bifrost: { experimental_bearer_token: 'dummy-removal-key' } } });
+  const claude = JSON.stringify({ env: { ANTHROPIC_API_KEY: 'dummy-removal-key' } });
+  await Bun.write(`${root}/codex/config.toml`, codex);
+  await Bun.write(`${root}/claude/settings.json`, claude);
+  await Bun.write(`${root}/opencode/opencode.json`, '{"apiKey":"dummy-removal-key"');
+  await expect(removeProfile('a')).rejects.toThrow('Cannot safely remove credentials from opencode configuration. Repair it or use --purge.');
+  expect(await Bun.file(`${root}/codex/config.toml`).text()).toBe(codex);
+  expect(await Bun.file(`${root}/claude/settings.json`).text()).toBe(claude);
+  expect((await loadRegistry()).profiles[0].id).toBe('a');
+  await removeProfile('a', true);
+  expect((await loadRegistry()).profiles).toEqual([]);
+  expect(tempFS.existsSync(root)).toBe(false);
+});
+
+test('trusted origins reject missing required clients and unknown client names', async () => {
+  await addProfile('a', source(), 'dummy-origin-key');
+  const file = `${configHome()}/config.toml`;
+  const original = Bun.TOML.parse(await Bun.file(file).text()) as any;
+  for (const origins of [
+    { codex: definition.baseUrl },
+    { claude: definition.baseUrl },
+    { ...original.profiles.a.origins, unknown: definition.baseUrl },
+    { ...original.profiles.a.origins, constructor: definition.baseUrl },
+  ]) {
+    const config = structuredClone(original);
+    config.profiles.a.origins = origins;
+    await Bun.write(file, Bun.TOML.stringify(config));
+    await expect(loadRegistry()).rejects.toThrow('Invalid trusted gateway origins.');
+  }
+});

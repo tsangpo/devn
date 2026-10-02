@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fixture, read, write } from './helpers';
 import { testPlatform } from './platform';
 import { validateProfile, gatewayOrigins, modelIds } from '../src/registry';
-import { openCodeArgs } from '../src/opencode';
+import { openCodeArgs } from '../src/clients/opencode-runtime';
 import example from '../profiles/example.json';
 
 function mock(f: ReturnType<typeof fixture>, name = 'opencode', version = '2.0.21') {
@@ -22,11 +22,11 @@ else { console.log('TOOL OUTPUT'); process.exit(Number(process.env.TEST_EXIT || 
 }
 
 test('OpenCode profile validates native model metadata without accepting executable or connection fields', () => {
-  const profile = validateProfile(structuredClone(example));
-  assert.deepEqual(modelIds(profile, 'opencode'), [
-    'bifrost/claude-opus-5-5', 'bifrost/claude-sonnet-5-5', 'bifrost/gpt-5.6-terra',
-    'bifrost/gpt-6-astra', 'bifrost/gpt-6-luna', 'bifrost/gpt-6.1-sol', 'bifrost/gemini-3.8-flash',
-  ]);
+  validateProfile(structuredClone(example));
+  const input = structuredClone(example);
+  input.opencode = { model: 'coding', models: { coding: {}, reasoning: {} } } as typeof input.opencode;
+  const profile = validateProfile(input);
+  assert.deepEqual(modelIds(profile, 'opencode'), ['bifrost/coding', 'bifrost/reasoning']);
   assert.equal(gatewayOrigins(profile).opencode, 'https://bifrost.example.invalid');
   for (const change of [
     p => { p.opencode = {}; }, p => { p.opencode.models = {}; },

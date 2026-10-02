@@ -181,7 +181,9 @@ Codex 内置网页搜索默认设为 `disabled`，因为网关支持某个模型
 
 默认无需维护模型列表。需要统一模型菜单时，参考 `profiles/example.json`，发布前填写真实值并删除 `example: true`。
 
-示例为 Codex 列出 4 个 OpenAI 模型，为 Claude 列出 Claude Opus/Sonnet 5.5 和 `opusplan` 模式，为 OpenCode 列出全部 7 个网关模型（含 Gemini 3.8 Flash）。Codex/OpenCode 默认使用 GPT 6.1 Sol，Claude 默认使用 `opusplan`。模型 ID 和 token 限制来自提供的网关列表；OpenCode 价格由每 token 换算为[每百万 token](https://opencode.ai/v2/docs/providers)。可选能力字段使用客户端原生默认值，包括文本/图片输入和 OpenCode 工具支持；Codex 保留 catalog 必填字段和 freeform 补丁工具。列表未声明实际工具、多模态或推理能力，发布前须核实这些默认值。示例省略可选的 `name`、`authUrl`。Profile schema 没有网页搜索费用字段，因此未写入该价格。
+示例为 Codex 列出 3 个 OpenAI 模型，为 Claude 列出 Claude Opus/Sonnet 5.5 和 `opusplan` 模式，为 OpenCode 列出全部 6 个网关模型（含 Gemini 3.8 Flash）。Codex/OpenCode 默认使用 GPT 6.1 Sol，Claude 默认使用 `opusplan`。模型 ID 和 token 限制来自提供的网关列表；OpenCode 价格由每 token 换算为[每百万 token](https://opencode.ai/v2/docs/providers)。可选能力字段使用客户端原生默认值，包括文本/图片输入和 OpenCode 工具支持；Codex 声明 freeform 补丁工具。列表未声明实际工具、多模态或推理能力，发布前须核实这些默认值。示例省略可选的 `name`；请替换或删除示例 `authUrl`。Profile schema 没有网页搜索费用字段，因此未写入该价格。
+
+使用示例 Codex catalog 前，须为每个模型补充与原生客户端及后端匹配的 `base_instructions` 或 `model_messages.instructions_template`。示例省略了这些指令；已测试的 Codex 客户端会拒绝缺失指令的 catalog，devn 不会自动补充。已验证的客户端版本见 [CONTRIBUTING.md](CONTRIBUTING.md#compatibility)。
 
 Codex 使用 `codex.model` 指定默认模型，`codex.models` 直接存放原生 catalog 对象：`slug`、`display_name`、`description` 和能力字段。devn 仅包一层 `{ "models": [...] }` 写入 `model_catalog_json` 指向的文件，不再补充或覆盖 `priority`、`visibility`、`supported_in_api` 等字段。能力字段必须与真实后端一致。
 
@@ -217,7 +219,7 @@ Claude 使用 `claude.model` 和原生 `claude.modelPicker`：`replaceBuiltInOpt
 
 `models` 必须是非空映射，`model` 必须引用其中一个键。模型接受原生 v2 字段 `name`、`modelID`、`family`、`capabilities`、`limit`、`cost`（`input`、`output` 和可选的 `cache.read`/`cache.write`）。远程配置不能指定 provider 包、连接覆盖、请求头、凭据或配置变量替换。省略 `modelID` 时，映射键就是发送给网关的模型 ID；能力字段需与实际后端一致。
 
-固定使用 `bifrost` provider，经 OpenAI 兼容的 Chat Completions 接口连接 `<baseUrl>/openai/v1`。可用 `opencode.baseUrl` 指定完整接口地址；不继承 Codex 的地址或模型列表。旧 profile 仍可运行 Codex/Claude；补充 OpenCode 后，需重新执行 `devn profile add` 确认新增网关 origin。发布新增字段前需先升级 devn；旧版 CLI 会拒绝未知字段。
+固定使用 `bifrost` provider，经 OpenAI 兼容的 Chat Completions 接口连接 `<baseUrl>/openai/v1`。可用 `opencode.baseUrl` 指定完整接口地址；不继承 Codex 的地址或模型列表。旧 profile 仍可运行 Codex/Claude；补充 OpenCode 后，需重新执行 `devn profile add` 确认新增网关 origin。发布新增字段前需先升级到 devn 0.5.0 或更新版本；旧版 CLI 会拒绝该字段。
 
 ```sh
 devn opencode

@@ -55,7 +55,7 @@ try {
     irm https://github.com/tsangpo/devn/releases/latest/download/install.ps1 | iex
     Assert ($ErrorActionPreference -eq $preference) 'Installer leaked preference changes'
     Assert ((& $exe --version) -eq $p.version) 'First installation failed'
-    Assert ((UserPath) -ceq ('%USERPROFILE%\existing;' + $installDir)) 'User PATH contents were not preserved'
+    Assert ((UserPath) -ceq ('%USERPROFILE%\existing;' + $installDir)) ('User PATH contents were not preserved. Expected: %USERPROFILE%\existing;' + $installDir + '; actual: ' + (UserPath))
     Assert ($env:PATH.Contains($installDir)) 'Current session PATH was not updated'
     Assert-Clean
 

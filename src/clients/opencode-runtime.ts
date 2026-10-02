@@ -1,9 +1,10 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import { privateDir } from './files';
-import { platform } from './platform';
-import { modelIds, type Profile } from './registry';
-import type { Environment } from './platform/types';
+import { privateDir } from '../files';
+import { platform } from '../platform';
+import type { Profile } from '../types';
+import { openCodeModels } from './opencode-profile';
+import type { ClientCommand, Environment } from '../platform/types';
 
 const commands = new Set(['run', 'mini', 'models', 'session', 'stats', 'debug', 'acp', 'mcp', 'plugin', 'reload']);
 const valueFlags = new Set(['--prompt', '--session', '-s', '--agent', '--format', '--file', '-f', '--title', '--model', '-m', '--replay-limit', '--max-count', '-n', '--days', '--year', '--project', '--limit', '--url', '--header', '--env']);
@@ -26,7 +27,7 @@ export function openCodeArgs(args: string[], profile: Profile): { args: string[]
   }
   const output: string[] = command ? [command] : [];
   let model: string | undefined;
-  const ids = new Set(modelIds(profile, 'opencode'));
+  const ids = new Set(openCodeModels(profile.opencode));
   for (let i = command ? 1 : 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === '--') {
@@ -90,15 +91,15 @@ export function openCodeEnvironment(root: string, inherited: Environment): Envir
   return env;
 }
 
-export function openCodeCommand(env: Environment): string {
+export function openCodeCommand(env: Environment): ClientCommand {
   for (const command of ['opencode', 'opencode2']) {
     let argv: string[];
-    try { argv = platform.resolveCommand(command, ['--version'], env); }
+    try { argv = platform.resolveCommand({ name: command, npmPackage: '@opencode/cli' }, ['--version'], env); }
     catch { continue; }
     try {
       const result = Bun.spawnSync(argv, { env, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', timeout: 5000 });
       const version = result.stdout.toString().trim().match(/^(?:opencode\s+)?v?(\d+)\.(\d+)\.(\d+)$/i);
-      if (result.exitCode === 0 && version && Number(version[1]) === 2) return command;
+      if (result.exitCode === 0 && version && Number(version[1]) === 2) return { name: command, npmPackage: '@opencode/cli' };
     } catch { /* Try the separately installed v2 alias. Never print probe output. */ }
   }
   throw new Error('OpenCode v2 is required. Install the official @opencode/cli client and put opencode or opencode2 on PATH.');

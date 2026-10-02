@@ -62,7 +62,6 @@
         "apply_patch_tool_type": "freeform",
         "truncation_policy": { "mode": "tokens", "limit": 10000 },
         "experimental_supported_tools": [],
-        "base_instructions": "You are a coding assistant. Work with the user to complete software engineering tasks.",
         "visibility": "list",
         "supported_in_api": true,
         "priority": 3

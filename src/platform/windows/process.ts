@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Environment } from '../types';
+import type { ClientCommand, Environment } from '../types';
 import { environmentValue } from './system';
 
 function executable(command: string, env: Environment): string | undefined {
@@ -13,11 +13,10 @@ function executable(command: string, env: Environment): string | undefined {
   }
 }
 
-export function resolveCommand(command: string, args: string[], env: Environment): string[] {
+export function resolveCommand({ name: command, npmPackage: packageName }: ClientCommand, args: string[], env: Environment): string[] {
   const entry = executable(command, env);
   if (!entry) throw new Error(`${command} is not installed or not on PATH.`);
   if (/\.exe$/i.test(entry)) return [entry, ...args];
-  const packageName = { codex: '@openai/codex', claude: '@anthropic-ai/claude-code', opencode: '@opencode/cli', opencode2: '@opencode/cli' }[command];
   if (!packageName) throw new Error(`Unsupported Windows entry for ${command}; use an official installation.`);
   const directory = path.dirname(entry);
   const packageRoot = path.join(path.basename(directory).toLowerCase() === '.bin'
@@ -41,12 +40,12 @@ export function resolveCommand(command: string, args: string[], env: Environment
   }
 }
 
-export async function runAttached(command: string, args: string[], env: Environment): Promise<number> {
+export async function runAttached(command: ClientCommand, args: string[], env: Environment): Promise<number> {
   env = Object.fromEntries(Object.entries(env).map(([key, value]) => [key.toUpperCase(), value]));
   const argv = resolveCommand(command, args, env);
   let child;
   try { child = Bun.spawn(argv, { env, stdio: ['inherit', 'inherit', 'inherit'] }); }
-  catch { throw new Error(`Cannot start ${command}. Check its installation.`); }
+  catch { throw new Error(`Cannot start ${command.name}. Check its installation.`); }
   // Console events already reach the attached child. kill(SIGINT) would terminate it.
   const ignore = () => {};
   process.on('SIGINT', ignore);

@@ -180,17 +180,22 @@ central model menus are documented by profiles/example.json; replace its values
 and remove example: true before hosting it. Repository examples are never
 automatically registered. Model metadata must match backend capabilities.
 
-The example lists four OpenAI models for Codex, Claude Opus/Sonnet 5.5 for Claude,
-and all seven gateway models (including Gemini 3.8 Flash) for OpenCode. Defaults
+The example lists three OpenAI models for Codex, Claude Opus/Sonnet 5.5 for Claude,
+and all six gateway models (including Gemini 3.8 Flash) for OpenCode. Defaults
 are GPT 6.1 Sol for Codex/OpenCode and `opusplan` for Claude. IDs and token
 limits follow the supplied gateway catalog; OpenCode costs convert its per-token
 rates to [per-million-token pricing](https://opencode.ai/v2/docs/providers).
 Optional capability fields use native client defaults, including text/image
-input and OpenCode tool support. Codex retains its required catalog fields and
-the freeform patch tool. The catalog does not establish actual tool, modality or
-reasoning support; verify these defaults before publishing. Optional `name` and
-`authUrl` are omitted. Web-search prices
-are omitted because the profile schema has no corresponding cost field.
+input and OpenCode tool support. Codex declares the freeform patch tool. The catalog does not establish actual tool, modality or
+reasoning support; verify these defaults before publishing. Optional `name` is
+omitted; replace or remove the example `authUrl`. Web-search prices are omitted
+because the profile schema has no corresponding cost field.
+
+Before using the example Codex catalog, supply `base_instructions` or
+`model_messages.instructions_template` for every model, matching your native
+client and backend. The example omits these instructions; the tested Codex client
+rejects a catalog without them. devn passes native catalog fields through unchanged.
+See [CONTRIBUTING.md](CONTRIBUTING.md#compatibility) for tested client versions.
 
 For a central Codex menu, `codex.model` selects the default and `codex.models`
 contains native catalog objects (`slug`, `display_name`, `description`, and
@@ -250,7 +255,7 @@ The fixed `bifrost` provider uses the OpenAI-compatible Chat Completions API at
 This does not inherit `codex.baseUrl` or the Codex model catalog. After adding
 OpenCode to a previously registered profile, run `devn profile add` again to
 approve its gateway origin. Old profiles still work with Codex and Claude.
-Upgrade devn before publishing the new field; older releases reject unknown fields.
+Upgrade devn to 0.5.0 or later before publishing the new field; older releases reject it.
 
 ```sh
 devn opencode

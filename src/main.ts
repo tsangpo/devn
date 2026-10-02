@@ -7,6 +7,7 @@ import { validateProfile, endpoint, type Registry } from './registry';
 import { findBinding, getProfile, requireProfile } from './projects';
 import { choose, password, question } from './prompts';
 import { launch } from './launch';
+import { clients, configuredClients, isTool } from './clients';
 
 const PROFILE_COMMANDS = `  devn profile list                 List locally registered profiles
   devn profile add                  Enter a Profile JSON URL, name, and Bifrost key
@@ -18,19 +19,15 @@ const PROFILE_COMMANDS = `  devn profile list                 List locally regis
 const HELP = `Usage:
 ${PROFILE_COMMANDS}
   devn --version                    Print the CLI version
-  devn codex [arguments...]         Refresh profile, update config, and start Codex
-  devn claude [arguments...]        Refresh profile, update config, and start Claude Code
-  devn opencode [arguments...]      Refresh profile and start OpenCode v2
+${clients.map(client => `  ${`devn ${client.id} [arguments...]`.padEnd(34)}${client.help}`).join('\n')}
 
-OpenCode uses a private server and profile-only configuration. External servers,
-directory overrides, service/pair/serve, auth/api and installation management are unsupported.
-Supported: run, mini, models, session, stats, debug, acp, mcp, plugin, reload.
+${clients.flatMap(client => client.helpNotes ? [client.helpNotes] : []).join('\n\n')}
 
 Keys and tool data stay local. Remote profiles refresh before launching a tool.
 `;
 
 async function dispatch(registry: Registry, args: string[]): Promise<number> {
-  if (args[0] === 'codex' || args[0] === 'claude' || args[0] === 'opencode') {
+  if (isTool(args[0])) {
     const entry = requireProfile(registry);
     const { profile, key } = await refreshProfile(entry.id);
     return launch(profile, args[0], args.slice(1), key);
@@ -64,9 +61,7 @@ async function dispatch(registry: Registry, args: string[]): Promise<number> {
       if (profile.authUrl) console.error(`Open this URL to get your Bifrost key: ${profile.authUrl}`);
       return password();
     }, existing, async profile => {
-      console.error(`Codex gateway: ${displayURL(endpoint(profile, 'codex'))}`);
-      console.error(`Claude gateway: ${displayURL(endpoint(profile, 'claude'))}`);
-      if (profile.opencode) console.error(`OpenCode gateway: ${displayURL(endpoint(profile, 'opencode'))}`);
+      for (const client of configuredClients(profile)) console.error(`${client.label} gateway: ${displayURL(endpoint(profile, client.id))}`);
       return /^y(es)?$/i.test(await question('Trust these gateways to receive your key? [y/N]: '));
     });
     console.log(`Added ${name}. Run devn profile use ${name} in your project.`);

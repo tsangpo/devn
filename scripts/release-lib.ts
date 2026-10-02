@@ -50,7 +50,7 @@ export async function checkedAssets(directory: string): Promise<Record<string, s
 export function formula(hashes: Record<string, string>): string {
   const lines = [
     'class Devn < Formula',
-    '  desc "Project-aware Codex and Claude Code launcher for Bifrost"',
+    '  desc "Project-aware Codex, Claude Code and OpenCode launcher for Bifrost"',
     '  homepage "https://github.com/' + repository + '"',
     '  version "' + version + '"',
     '  license "MIT"',
