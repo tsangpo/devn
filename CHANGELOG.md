@@ -4,6 +4,8 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+## 0.5.1 — 2026-10-02
+
 - Fix Windows profile writes failing with `SeSecurityPrivilege` errors in non-elevated sessions when reapplying private directory ACLs.
 
 ## 0.5.0 — 2026-10-02
