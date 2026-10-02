@@ -58,6 +58,11 @@ export async function runAttached(command: string, args: string[], env: Record<s
 export const posix: Platform = {
   defaultConfigRoot: () => path.join(os.homedir(), '.config'),
   privateDir, privateFile, atomicWrite, runAttached,
+  resolveCommand: (command, args, env) => {
+    const entry = Bun.which(command, { PATH: env.PATH });
+    if (!entry) throw new Error(`${command} is not installed or not on PATH.`);
+    return [entry, ...args];
+  },
   projectPath: dir => fs.realpathSync.native(dir),
   storedProjectPath: dir => dir,
   profileIdentity: id => id,

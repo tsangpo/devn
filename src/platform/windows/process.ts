@@ -17,7 +17,7 @@ export function resolveCommand(command: string, args: string[], env: Environment
   const entry = executable(command, env);
   if (!entry) throw new Error(`${command} is not installed or not on PATH.`);
   if (/\.exe$/i.test(entry)) return [entry, ...args];
-  const packageName = { codex: '@openai/codex', claude: '@anthropic-ai/claude-code' }[command];
+  const packageName = { codex: '@openai/codex', claude: '@anthropic-ai/claude-code', opencode: '@opencode/cli', opencode2: '@opencode/cli' }[command];
   if (!packageName) throw new Error(`Unsupported Windows entry for ${command}; use an official installation.`);
   const directory = path.dirname(entry);
   const packageRoot = path.join(path.basename(directory).toLowerCase() === '.bin'

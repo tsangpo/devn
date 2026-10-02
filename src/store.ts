@@ -23,7 +23,7 @@ function validateRegistration(id: string, value: any): void {
   }
   secureURL(value.url);
   if (value.origins !== undefined) {
-    if (!value.origins || Object.keys(value.origins).sort().join(',') !== 'claude,codex') throw new Error('Invalid trusted gateway origins.');
+    if (!value.origins || !['claude,codex', 'claude,codex,opencode'].includes(Object.keys(value.origins).sort().join(','))) throw new Error('Invalid trusted gateway origins.');
     for (const origin of Object.values(value.origins)) {
       if (secureURL(origin).origin !== origin) throw new Error('Invalid trusted gateway origin.');
     }
@@ -92,7 +92,8 @@ export function unbindProject(dir: string): Promise<void> {
 
 export function assertTrusted(entry: Registration, profile: Profile): void {
   const origins = gatewayOrigins(profile);
-  if (!entry.origins || entry.origins.codex !== origins.codex || entry.origins.claude !== origins.claude) {
+  if (!entry.origins || entry.origins.codex !== origins.codex || entry.origins.claude !== origins.claude ||
+      (origins.opencode !== undefined && entry.origins.opencode !== origins.opencode)) {
     throw new Error(`Gateway origins are unapproved or changed for ${entry.id}. Run devn profile add to review and accept them.`);
   }
 }

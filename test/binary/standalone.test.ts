@@ -43,10 +43,10 @@ test('release archive runs outside the source tree with no Bun on PATH', async (
     }
     await Bun.write(home + '/devn/config.toml', Bun.TOML.stringify({
       version: 1, profiles: { smoke: { url: 'http://127.0.0.1:1/profile.json', key: 'standalone-dummy-key',
-        origins: { codex: 'http://127.0.0.1:1', claude: 'http://127.0.0.1:1' } } },
+        origins: { codex: 'http://127.0.0.1:1', claude: 'http://127.0.0.1:1', opencode: 'http://127.0.0.1:1' } } },
     }));
     await Bun.write(home + '/devn/profiles/smoke/profile.json', JSON.stringify({
-      version: 1, id: 'smoke', baseUrl: 'http://127.0.0.1:1', codex: {}, claude: {},
+      version: 1, id: 'smoke', baseUrl: 'http://127.0.0.1:1', codex: {}, claude: {}, opencode: { model: 'coding', models: { coding: {} } },
     }));
     expect(run(['profile', 'use', 'smoke']).exitCode).toBe(0);
     expect(Bun.TOML.parse(await Bun.file(home + '/devn/config.toml').text()).projects[realpathSync.native(project)]).toBe('smoke');
@@ -67,6 +67,19 @@ process.exit(7);
       expect(lines[3]).toBe('');
       expect(lines.at(-1)).toBe('prompt with spaces and $literal');
     }
+    await writeStandalone(path.join(bin, 'opencode'), `
+if (process.argv[2] === '--version') { console.log('2.0.21'); process.exit(0); }
+console.log(process.env.OPENCODE_CONFIG_DIR);
+console.log(JSON.stringify(process.argv.slice(2)));
+process.exit(7);
+`);
+    const openCode = run(['opencode', 'run', 'prompt with spaces and $literal']);
+    expect(openCode.exitCode).toBe(7);
+    const openCodeLines = openCode.stdout.toString().trim().split(/\r?\n/);
+    expect(openCodeLines[0]).toBe(path.join(home, 'devn/profiles/smoke/opencode'));
+    expect(JSON.parse(openCodeLines[1])).toEqual(['run', '--standalone', 'prompt with spaces and $literal']);
+    const openCodeConfig = await Bun.file(home + '/devn/profiles/smoke/opencode/opencode.json').json();
+    expect(openCodeConfig.providers.bifrost.settings.apiKey).toBe('standalone-dummy-key');
     const codex = Bun.TOML.parse(await Bun.file(home + '/devn/profiles/smoke/codex/config.toml').text()) as any;
     expect(codex.model_providers.bifrost.experimental_bearer_token).toBe('standalone-dummy-key');
     const claude = await Bun.file(home + '/devn/profiles/smoke/claude/settings.json').json();

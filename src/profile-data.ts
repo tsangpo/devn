@@ -4,8 +4,8 @@ import { atomicWrite, privateFile, profileDir } from './files';
 // Only scrub the credentials devn writes. Histories and personal settings stay intact.
 export async function scrubCredentials(id: string): Promise<void> {
   const updates: { file: string; content: string }[] = [];
-  for (const tool of ['codex', 'claude']) {
-    const file = `${profileDir(id)}/${tool}/${tool === 'codex' ? 'config.toml' : 'settings.json'}`;
+  for (const tool of ['codex', 'claude', 'opencode']) {
+    const file = `${profileDir(id)}/${tool}/${tool === 'codex' ? 'config.toml' : tool === 'opencode' ? 'opencode.json' : 'settings.json'}`;
     if (!await Bun.file(file).exists()) continue;
     privateFile(file);
     try {
@@ -13,6 +13,7 @@ export async function scrubCredentials(id: string): Promise<void> {
       const config: any = tool === 'codex' ? Bun.TOML.parse(text) : JSON.parse(text);
       if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error();
       if (tool === 'codex') delete config.model_providers?.bifrost?.experimental_bearer_token;
+      else if (tool === 'opencode') delete config.providers?.bifrost?.settings?.apiKey;
       else {
         delete config.env?.ANTHROPIC_AUTH_TOKEN;
         delete config.env?.ANTHROPIC_API_KEY;

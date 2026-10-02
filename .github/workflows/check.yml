@@ -29,7 +29,7 @@ jobs:
       matrix:
         include:
           - suite: cli
-            tests: ./test/cli.test.ts
+            tests: ./test/cli.test.ts ./test/opencode.test.ts
           - suite: prompts
             tests: ./test/prompt.test.ts
           - suite: storage
@@ -72,6 +72,6 @@ jobs:
           if-no-files-found: error
       - name: Install pinned clients for local-gateway smoke tests
         if: matrix.suite == 'distribution'
-        run: npm install --global @openai/codex@0.159.3 @anthropic-ai/claude-code@2.1.286
+        run: npm install --global @openai/codex@0.159.3 @anthropic-ai/claude-code@2.1.286 @opencode/cli@2.0.21
       - if: matrix.suite == 'distribution'
         run: bun run test:native

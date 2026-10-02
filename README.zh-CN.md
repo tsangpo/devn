@@ -2,7 +2,7 @@
 
 [English](README.md) · [GitHub](https://github.com/tsangpo/devn)
 
-在项目目录运行 `devn codex` 或 `devn claude`，自动选择对应的 Bifrost profile。每个 profile 有独立的 Codex、Claude 配置、插件和会话数据。
+在项目目录运行 `devn codex`、`devn claude` 或 `devn opencode`，自动选择对应的 Bifrost profile。每个 profile 有独立的 Codex、Claude、OpenCode 配置、插件和会话数据。
 
 ## bunx 使用
 
@@ -14,9 +14,10 @@ bunx @tsangpo/devn profile add
 bunx @tsangpo/devn profile use customer-a
 bunx @tsangpo/devn codex
 bunx @tsangpo/devn claude
+bunx @tsangpo/devn opencode
 ```
 
-需要查看版本时运行 `devn --version`。需要固定版本时使用 `bunx @tsangpo/devn@0.1.1`。Codex 和 Claude Code 仍需自行安装并放入 PATH。
+需要查看版本时运行 `devn --version`。需要固定版本时使用 `bunx @tsangpo/devn@0.1.1`。Codex、Claude Code 和 OpenCode 仍需自行安装并放入 PATH。
 
 ## Homebrew 安装
 
@@ -25,7 +26,7 @@ brew install tsangpo/tap/devn
 devn --version
 ```
 
-安装独立二进制，不需要 Bun。支持 macOS 和 Linux（glibc）的 arm64/x64。Codex 和 Claude Code 仍需另行安装。升级使用 `brew update && brew upgrade devn`；也可从 [GitHub Releases](https://github.com/tsangpo/devn/releases) 下载二进制与 SHA-256 校验文件。
+安装独立二进制，不需要 Bun。支持 macOS 和 Linux（glibc）的 arm64/x64。Codex、Claude Code 和 OpenCode 仍需另行安装。升级使用 `brew update && brew upgrade devn`；也可从 [GitHub Releases](https://github.com/tsangpo/devn/releases) 下载二进制与 SHA-256 校验文件。
 
 ## Windows 安装
 
@@ -41,19 +42,19 @@ irm https://github.com/tsangpo/devn/releases/latest/download/install.ps1 | iex
 powershell -NoProfile -ExecutionPolicy Bypass -c "irm https://github.com/tsangpo/devn/releases/latest/download/install.ps1 | iex"
 ```
 
-安装脚本校验 SHA-256，将 `devn.exe` 和许可证安装到 `%LOCALAPPDATA%\Programs\devn`，并加入用户 PATH；缺失 `LOCALAPPDATA` 时使用用户目录下的 `AppData\Local\Programs\devn`。无需管理员权限、Bun 或 Node.js。重复执行同一命令即可升级，保留 profile 和工具历史；Codex 和 Claude Code 仍需自行安装。
+安装脚本校验 SHA-256，将 `devn.exe` 和许可证安装到 `%LOCALAPPDATA%\Programs\devn`，并加入用户 PATH；缺失 `LOCALAPPDATA` 时使用用户目录下的 `AppData\Local\Programs\devn`。无需管理员权限、Bun 或 Node.js。重复执行同一命令即可升级，保留 profile 和工具历史；Codex、Claude Code 和 OpenCode 仍需自行安装。
 
 使用外层 `powershell -c` 命令安装后，关闭并重新打开终端应用，再运行 `devn --version`。如果提示另一份 devn 优先执行，请调整 PATH 或使用安装目录下 EXE 的完整路径。升级前请关闭正在运行的 devn。
 
 安装入口将在包含此功能的首个稳定版本发布后可用。较早版本或指定版本仍可从 [GitHub Releases](https://github.com/tsangpo/devn/releases) 下载 `devn-vX.Y.Z-windows-x64.zip`，核对 SHA-256 后解压，将 `devn.exe` 所在目录加入 PATH。也可以安装 Bun 后使用 `bunx`，或运行 `npm install -g @tsangpo/devn` 在 PowerShell/cmd 中使用 `devn`。
 
-客户端支持原生 EXE 和 Codex/Claude 的官方 npm 安装；JavaScript 客户端入口需要 Node.js，原生入口不需要。不执行自定义 cmd/bat/ps1 包装脚本。不支持 Windows ARM64、Scoop 或 winget。
+客户端支持原生 EXE 和 Codex/Claude/OpenCode 的官方 npm 安装；JavaScript 客户端入口需要 Node.js，原生入口不需要。不执行自定义 cmd/bat/ps1 包装脚本。不支持 Windows ARM64、Scoop 或 winget。
 
 默认配置和工具历史保存在 `%LOCALAPPDATA%\devn`，缺失该变量时使用用户目录下的 `AppData\Local\devn`。`XDG_CONFIG_HOME` 在所有平台上优先，不自动迁移旧目录。Windows 使用只允许当前用户和 SYSTEM 的 ACL，设置失败即停止操作。Windows 设备保留名不能用作 profile 名称，也不能注册仅大小写不同的名称。
 
 ## 从源码运行
 
-支持 Linux、macOS 和 Windows 11 x64，需要 [Bun](https://bun.com/) **1.4.2 或更新版本**。Codex 和 Claude Code 由用户自行安装，并放入 PATH。
+支持 Linux、macOS 和 Windows 11 x64，需要 [Bun](https://bun.com/) **1.4.2 或更新版本**。所用的 Codex、Claude Code 或 OpenCode 由用户自行安装，并放入 PATH。
 
 获取源码后，在仓库目录运行：
 
@@ -85,7 +86,7 @@ devn codex
 devn claude
 ```
 
-`profile add` 输入的 URL 是公开的 Profile JSON 地址，例如 `https://config.example.com/customer-a.json`，不是模型网关地址。请求不携带 key；key 只用于工具连接 JSON 中指定的网关。下载并校验后展示 Codex / Claude 网关 origin，明确确认后才保存注册信息。默认要求 HTTPS；HTTP 只允许 localhost、127.0.0.0/8 和 ::1 回环地址供本地测试。远程配置重定向最多 5 次，HTTPS 不允许降级到 HTTP。
+`profile add` 输入的 URL 是公开的 Profile JSON 地址，例如 `https://config.example.com/customer-a.json`，不是模型网关地址。请求不携带 key；key 只用于工具连接 JSON 中指定的网关。下载并校验后展示已配置客户端的网关 origin，明确确认后才保存注册信息。默认要求 HTTPS；HTTP 只允许 localhost、127.0.0.0/8 和 ::1 回环地址供本地测试。远程配置重定向最多 5 次，HTTPS 不允许降级到 HTTP。
 
 输入本地名称并确认更新（若有）后，devn 会先下载并校验 profile，再提示输入 key。若配置了 `authUrl`，会先显示完整链接，方便打开页面获取 key；支持 URL 识别的终端可直接点击，否则可复制到浏览器。随后将 key 粘贴到隐藏输入提示中。devn 不会自动打开浏览器或获取 key。
 
@@ -122,7 +123,7 @@ CLI 不内置任何客户 profile。远程配置不提供 `models` 时，devn �
 
 ## Profile 刷新与数据位置
 
-`devn codex` / `devn claude` 每次先拉取该 profile 的远程 JSON，再生成工具配置。下载上限 1 MiB（解压后），请求最长等待十秒；网络错误、超时或 HTTP 5xx 时提示并使用有效缓存，没有有效缓存则报错。HTTP 4xx、无效 JSON、超大响应、不安全重定向或非法配置会阻止启动并保留原缓存。若网关 origin（协议、主机或端口）变化，也会停止启动；重新执行 `profile add` 查看并接受新地址。同一 origin 内的路径和模型更新自动生效。每个 profile 独立刷新加锁，慢请求不会阻塞其他 profile。`profile list` 和 `profile use` 只读取本地注册信息。
+`devn codex` / `devn claude` / `devn opencode` 每次先拉取该 profile 的远程 JSON，再生成工具配置。下载上限 1 MiB（解压后），请求最长等待十秒；网络错误、超时或 HTTP 5xx 时提示并使用有效缓存，没有有效缓存则报错。HTTP 4xx、无效 JSON、超大响应、不安全重定向或非法配置会阻止启动并保留原缓存。若网关 origin（协议、主机或端口）变化，也会停止启动；重新执行 `profile add` 查看并接受新地址。同一 origin 内的路径和模型更新自动生效。每个 profile 独立刷新加锁，慢请求不会阻塞其他 profile。`profile list` 和 `profile use` 只读取本地注册信息。
 
 ```text
 ~/.config/devn/
@@ -132,7 +133,8 @@ CLI 不内置任何客户 profile。远程配置不提供 `models` 时，devn �
         ├── profile.json         # 校验后的远程配置缓存
         ├── codex/               # CODEX_HOME
         │   └── config.toml
-        └── claude/              # CLAUDE_CONFIG_DIR
+        ├── claude/              # CLAUDE_CONFIG_DIR
+        └── opencode/            # OPENCODE_CONFIG_DIR，含独立 data/cache/state/tmp
             └── settings.json
 ```
 
@@ -150,7 +152,7 @@ codex = "https://gateway.example.com"
 claude = "https://gateway.example.com"
 ```
 
-启动前更新对应工具的配置，生成文件和密钥文件权限为 `0600`，profile 目录为 `0700`。Codex key 写入 `model_providers.bifrost.experimental_bearer_token`，Claude key 写入 `env.ANTHROPIC_AUTH_TOKEN`。这些文件在仓库之外，不会随 CLI 更新提交或覆盖。Key 当前保存在本机文件中；不使用 Bun.secrets，以便在没有系统密钥服务的 Linux/SSH 环境使用。
+启动前更新对应工具的配置，生成文件和密钥文件权限为 `0600`，profile 目录为 `0700`。Codex key 写入 `model_providers.bifrost.experimental_bearer_token`，Claude key 写入 `env.ANTHROPIC_AUTH_TOKEN`，OpenCode key 写入 `providers.bifrost.settings.apiKey`。这些文件在仓库之外，不会随 CLI 更新提交或覆盖。Key 当前保存在本机文件中；不使用 Bun.secrets，以便在没有系统密钥服务的 Linux/SSH 环境使用。
 
 Codex 内置网页搜索默认设为 `disabled`，因为网关支持某个模型不代表支持 OpenAI 托管搜索。保留用户在 profile 的 `codex/config.toml` 中显式设置的 `web_search`。旧版本遇到搜索不支持错误时，可运行 `devn codex -c 'web_search="disabled"'`。
 
@@ -189,6 +191,47 @@ Claude 使用 `claude.model` 和原生 `claude.modelPicker`：`replaceBuiltInOpt
 
 参考：[Codex 配置](https://learn.chatgpt.com/docs/config-file/config-reference)、[Claude 配置目录](https://code.claude.com/docs/en/env-vars)、[Claude 模型菜单](https://code.claude.com/docs/en/settings-reference#modelpicker)。
 
+## OpenCode v2
+
+需单独安装官方 `@opencode/cli`，支持 v2.0.21 及以上的 v2 版本。优先检查 PATH 中的 `opencode`，没有符合版本要求的客户端时尝试 `opencode2`。支持 Windows 原生 EXE 和官方 npm 安装；devn 不自动安装、升级或迁移客户端。
+
+在现有 `version: 1` 远程 profile 中添加可选字段：
+
+```json
+"opencode": {
+  "model": "coding",
+  "models": {
+    "coding": {
+      "modelID": "openai/your-chat-model",
+      "name": "Coding model",
+      "capabilities": { "tools": true, "input": ["text"], "output": ["text"] },
+      "limit": { "context": 128000, "output": 16000 }
+    }
+  }
+}
+```
+
+`models` 必须是非空映射，`model` 必须引用其中一个键。模型接受原生 v2 字段 `name`、`modelID`、`family`、`capabilities`、`limit`、`cost`（`input`、`output` 和可选的 `cache.read`/`cache.write`）。远程配置不能指定 provider 包、连接覆盖、请求头、凭据或配置变量替换。省略 `modelID` 时，映射键就是发送给网关的模型 ID；能力字段需与实际后端一致。
+
+固定使用 `bifrost` provider，经 OpenAI 兼容的 Chat Completions 接口连接 `<baseUrl>/openai/v1`。可用 `opencode.baseUrl` 指定完整接口地址；不继承 Codex 的地址或模型列表。旧 profile 仍可运行 Codex/Claude；补充 OpenCode 后，需重新执行 `devn profile add` 确认新增网关 origin。发布新增字段前需先升级 devn；旧版 CLI 会拒绝未知字段。
+
+```sh
+devn opencode
+devn opencode run --model bifrost/coding "Explain this project"
+devn opencode mini
+devn opencode models
+```
+
+`models` 直接显示已审批的 profile 模型列表，避免 v2 独立服务尚未完成插件加载时返回空列表。交互界面的 `--model bifrost/<键>` 由 devn 设置为本次默认模型；`run`、`mini` 使用原生参数。生成配置中的已有模型选择仍在列表中时保留，否则回退至 profile 默认模型。
+
+配置、会话、缓存、状态和临时文件均位于 `profiles/<名称>/opencode/`，每次使用独立服务。保留真实 HOME；XDG 和临时目录覆盖只影响客户端及其子进程。devn 管理 `opencode.json`、`service.json`、Bifrost provider 和 provider 策略，其余本地 JSON 设置保留。个人 agents、skills、MCP、服务端插件放在该 profile 目录，终端偏好放在其中的 `cli.json`。请编辑 `opencode.json`；相邻的 `opencode.jsonc` 会覆盖托管配置，因此启动时会拒绝它。
+
+不加载项目 OpenCode 配置，也不自动发现项目指令或兼容加载全局 Claude/agents skills。v2 的客户端插件发现机制独立于服务端，所以交互界面和插件命令遇到祖先目录中非空的 `.opencode/plugins` 时会提示将插件移入 profile。这属于配置和状态分离，不是针对用户安装插件的安全沙箱。
+
+支持交互界面以及 `run`、`mini`、`models`、`session`、`stats`、`debug`、`acp`、`mcp`、`plugin`、`reload`。`mcp add` 写入 profile 的全局配置。不透传目录切换、外部服务器、共享服务管理、`serve`、`pair`、`auth`、`api`、升级或卸载命令；请从已绑定项目目录运行。通过 `devn profile add` 更新 key；移除 profile 默认清除生成的 key、保留会话，`--purge` 删除全部数据。
+
+参考：[v2 providers](https://opencode.ai/v2/docs/providers)、[独立服务](https://opencode.ai/v2/docs/cli)、[provider 策略](https://opencode.ai/v2/docs/policies)。
+
 ## 开发与验证
 
 ```bash
@@ -199,10 +242,10 @@ Bun 直接执行 TypeScript 源文件，项目没有 dependencies / devDependenc
 
 ```bash
 bun run validate                 # 校验仓库 example，不读取本地 key
-bun run test:native              # 需要本机 codex / claude；仅连接本地模拟网关
+bun run test:native              # 需要本机 codex / claude / opencode；仅连接本地模拟网关
 ```
 
-原生测试位于 `test/native/native-smoke.test.ts`，使用 `bun:test`，分为 Codex 默认模型、Claude 默认模型和 Codex 中央模型目录三个独立用例，每个用例单独创建并清理网关与临时目录。
+原生测试位于 `test/native/`，覆盖 Codex/Claude 默认与中央模型配置，以及 OpenCode v2 的网关、认证、模型目录和数据路径隔离；使用本地模拟网关和临时目录。
 
 `bun run test` / `bun run check` 只运行常规测试；`bun run test:native` 运行原生测试，直接执行 `bun test` 还包含二进制测试，需先运行 `bun run build:binary`。
 
@@ -214,7 +257,7 @@ bun run test:native              # 需要本机 codex / claude；仅连接本地
 
 旧开发版本的注册记录若没有已批准的 origins，需执行 `devn profile add` 重新添加并确认网关地址。搬迁配置或工具数据前先停止工具会话；复制历史和个人设置到 profile 目录时保留文件权限，key 以 `config.toml` 为准。不会自动迁移旧开发版本的数据目录。
 
-已验证基线：Bun 1.4.2、Codex 0.159.2、Claude Code 2.1.285。
+已验证基线：Bun 1.4.2、Codex 0.159.2、Claude Code 2.1.285；OpenCode 新增本地网关验证基线为 2.0.21。
 
 ## 删除 profile
 

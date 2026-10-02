@@ -133,6 +133,17 @@ finally { $f.Dispose() }
     await Bun.write(path.join(bin, 'claude.cmd'), '@echo WRAPPER_MUST_NOT_RUN');
     await Bun.write(path.join(pkg, 'package.json'), JSON.stringify({ name: '@anthropic-ai/claude-code', bin: { claude: 'cli.exe' } }));
     assert.equal(Bun.spawnSync(resolveCommand('claude', args, env), { env }).exitCode, 7);
+    const openCode = path.join(bin, 'node_modules', '@opencode', 'cli'); fs.mkdirSync(openCode, { recursive: true });
+    fs.copyFileSync(path.join(pkg, 'cli.exe'), path.join(openCode, 'opencode.exe'));
+    await Bun.write(path.join(openCode, 'package.json'), JSON.stringify({ name: '@opencode/cli', bin: { opencode: 'opencode.exe', opencode2: 'opencode.exe' } }));
+    for (const command of ['opencode', 'opencode2']) {
+      await Bun.write(path.join(bin, command + '.cmd'), '@echo WRAPPER_MUST_NOT_RUN');
+      const launched = Bun.spawnSync(resolveCommand(command, args, env), { env, stdout: 'pipe' });
+      assert.equal(launched.exitCode, 7);
+      assert.deepEqual(JSON.parse(launched.stdout.toString()), args);
+    }
+    await Bun.write(path.join(openCode, 'package.json'), JSON.stringify({ name: 'unrelated', bin: { opencode: 'opencode.exe' } }));
+    assert.throws(() => resolveCommand('opencode', args, env), /official npm/);
   });
 
   test('real paths preserve bindings across case and junction aliases and reject name collisions', t => {

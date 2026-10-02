@@ -13,7 +13,7 @@ function paths(value: Data, prefix: string[] = []): KeyPath[] {
   return Object.entries(value).flatMap(([key, item]) => {
     const next = [...prefix, key];
     // The entire provider is owned, so obsolete auth methods cannot survive a merge.
-    if (['model_providers.bifrost', 'modelPicker'].includes(next.join('.'))) return [next];
+    if (['model_providers.bifrost', 'providers.bifrost', 'modelPicker'].includes(next.join('.'))) return [next];
     return isObject(item) && Object.keys(item).length ? paths(item, next) : [next];
   });
 }
@@ -58,12 +58,18 @@ export async function generateConfig(profile: Profile, tool: Tool, apiKey: strin
     assertTrusted(entry, profile);
     for (const name of ['codex', 'claude']) privateDir(path.join(root, name));
     const dir = path.join(root, tool);
-    const file = path.join(dir, tool === 'codex' ? 'config.toml' : 'settings.json');
+    privateDir(dir);
+    if (tool === 'opencode' && fs.existsSync(path.join(dir, 'opencode.jsonc'))) {
+      throw new Error('Use the profile opencode.json for local settings; opencode.jsonc would override managed configuration.');
+    }
+    const file = path.join(dir, tool === 'codex' ? 'config.toml' : tool === 'opencode' ? 'opencode.json' : 'settings.json');
     const existing = readConfig(file, tool);
     const definitions = profile[tool];
+    if (!definitions) throw new Error('Add an opencode section with model and models to the remote profile first.');
+    const defaultModel = tool === 'opencode' ? `bifrost/${definitions.model}` : definitions.model;
     const ids = modelIds(profile, tool);
     const model = ids
-      ? (ids.includes(existing.model) ? existing.model : definitions.model)
+      ? (ids.includes(existing.model) ? existing.model : defaultModel)
       : undefined;
     if (ids && existing.model && model !== existing.model) console.error(`devn: saved ${tool} model is no longer listed; using ${model}.`);
     const catalog = path.join(root, 'codex', 'models.json');
@@ -80,6 +86,21 @@ export async function generateConfig(profile: Profile, tool: Tool, apiKey: strin
         name: 'Bifrost', base_url: endpoint(profile, tool),
         wire_api: 'responses', experimental_bearer_token: apiKey, requires_openai_auth: false, supports_websockets: false,
       };
+    } else if (tool === 'opencode') {
+      managed.providers = { bifrost: {
+        name: 'Bifrost', package: '@opencode/ai/providers/openai-compatible',
+        env: [], settings: { baseURL: endpoint(profile, tool), apiKey },
+        models: profile.opencode!.models,
+      } };
+      if (existing.plugins !== undefined && !Array.isArray(existing.plugins)) throw new Error('Invalid OpenCode plugins.');
+      managed.plugins = [...(existing.plugins || []).filter((p: unknown) => p !== '-opencode.config.compatibility'), '-opencode.config.compatibility'];
+      const policies = existing.experimental?.policies;
+      if (policies !== undefined && !Array.isArray(policies)) throw new Error('Invalid OpenCode policies.');
+      managed.experimental = { policies: [
+        ...(policies || []).filter((p: any) => p?.action !== 'provider.use'),
+        { action: 'provider.use', resource: '*', effect: 'deny' },
+        { action: 'provider.use', resource: 'bifrost', effect: 'allow' },
+      ] };
     } else {
       managed.env = {
         ANTHROPIC_BASE_URL: endpoint(profile, tool), ANTHROPIC_AUTH_TOKEN: apiKey,
@@ -111,6 +132,7 @@ export async function generateConfig(profile: Profile, tool: Tool, apiKey: strin
     if (tool === 'codex' && ids) {
       writeJson(catalog, { models: profile.codex.models });
     }
+    if (tool === 'opencode') writeJson(path.join(dir, 'service.json'), { disabled: true });
     atomicWrite(file, serialized);
     writeJson(manifest, { version: 1, paths: ownedPaths });
     return { file, model };

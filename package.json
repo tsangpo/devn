@@ -1,7 +1,7 @@
 {
   "name": "@tsangpo/devn",
   "version": "0.4.1",
-  "description": "Project-aware Codex and Claude Code launcher for Bifrost",
+  "description": "Project-aware Codex, Claude Code and OpenCode v2 launcher for Bifrost",
   "bin": {
     "devn": "bin/devn"
   },
@@ -12,7 +12,7 @@
     "validate": "bun bin/devn --validate-example",
     "test": "bun test ./test/*.test.ts --timeout 180000",
     "test:windows": "bun test ./test/windows/*.test.ts --timeout 180000",
-    "test:native": "bun test ./test/native/native-smoke.test.ts",
+    "test:native": "bun test ./test/native/*.test.ts --timeout 180000",
     "check": "bun run test && bun run validate",
     "check:secrets": "bun scripts/check-secrets.ts",
     "release:pack": "bun scripts/pack-release.ts",

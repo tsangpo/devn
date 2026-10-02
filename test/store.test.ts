@@ -133,6 +133,23 @@ test('registrations without trusted origins cannot launch even with a valid cach
   await expect(refreshProfile('a')).rejects.toThrow('unapproved or changed');
 });
 
+test('adding OpenCode requires approval, preserves old profiles, and pins its own origin', async () => {
+  await addProfile('a', source(), 'secret');
+  expect((await refreshProfile('a')).profile.opencode).toBeUndefined();
+  const cache = `${profileDir('a')}/profile.json`;
+  const before = await Bun.file(cache).text();
+  payload.opencode = { model: 'coding', models: { coding: { name: 'Coding' } }, baseUrl: 'https://opencode.example.test/v1' };
+  await expect(refreshProfile('a')).rejects.toThrow('unapproved or changed');
+  expect(await Bun.file(cache).text()).toBe(before);
+  const entry = (await loadRegistry()).profiles[0];
+  await addProfile('a', source(), 'secret', entry);
+  expect((await loadRegistry()).profiles[0].origins?.opencode).toBe('https://opencode.example.test');
+  payload.opencode.baseUrl = 'https://opencode.example.test/updated/v1';
+  expect((await refreshProfile('a')).profile.opencode?.baseUrl).toBe(payload.opencode.baseUrl);
+  payload.opencode.baseUrl = 'https://different.example.test/v1';
+  await expect(refreshProfile('a')).rejects.toThrow('unapproved or changed');
+});
+
 test('HTTP outside loopback and unsafe redirects are rejected', async () => {
   await expect(addProfile('a', 'http://example.test/profile.json', 'secret')).rejects.toThrow('HTTPS');
   payload.baseUrl = 'http://example.test';
@@ -189,12 +206,21 @@ test('removal scrubs generated credentials, preserves history, and purge removes
     env: { ANTHROPIC_AUTH_TOKEN: 'secret', USER_SETTING: 'preserved' },
   }));
   await Bun.write(`${root}/codex/history.jsonl`, 'history');
+  await Bun.write(`${root}/opencode/opencode.json`, JSON.stringify({
+    providers: { bifrost: { settings: { apiKey: 'secret', baseURL: definition.baseUrl } } },
+    agents: { custom: { description: 'Local agent' } },
+  }));
+  await Bun.write(`${root}/opencode/data/opencode/opencode.db`, 'saved sessions');
   await removeProfile('a');
   expect((await loadRegistry()).profiles).toEqual([]);
   expect(await Bun.file(`${root}/codex/config.toml`).text()).not.toContain('secret');
   expect(await Bun.file(`${root}/claude/settings.json`).text()).not.toContain('secret');
+  expect(await Bun.file(`${root}/opencode/opencode.json`).text()).not.toContain('secret');
+  expect((await Bun.file(`${root}/opencode/opencode.json`).json()).agents.custom.description).toBe('Local agent');
+  expect(await Bun.file(`${root}/opencode/data/opencode/opencode.db`).text()).toBe('saved sessions');
   expect(await Bun.file(`${root}/codex/history.jsonl`).text()).toBe('history');
   expect((await Bun.file(`${root}/claude/settings.json`).json()).env.USER_SETTING).toBe('preserved');
   await removeProfile('a', true);
   expect(await Bun.file(`${root}/codex/history.jsonl`).exists()).toBe(false);
+  expect(await Bun.file(`${root}/opencode/data/opencode/opencode.db`).exists()).toBe(false);
 });

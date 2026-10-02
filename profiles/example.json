@@ -66,5 +66,27 @@
         }
       ]
     }
+  },
+  "opencode": {
+    "model": "coding",
+    "models": {
+      "coding": {
+        "modelID": "openai/your-chat-model",
+        "name": "Your OpenCode model",
+        "capabilities": {
+          "tools": true,
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "limit": {
+          "context": 128000,
+          "output": 16000
+        }
+      }
+    }
   }
 }

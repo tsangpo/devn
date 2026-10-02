@@ -4,6 +4,8 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+- Add `devn opencode` for OpenCode v2 >=2.0.21, with an optional native model catalog, approved Bifrost origin, private server and profile-local configuration/session storage on Linux, macOS and Windows. Preserve old profiles and scrub generated OpenCode credentials on removal.
+
 - Add a Windows PowerShell installer for standalone devn installation and upgrades, with SHA-256 verification, user PATH setup, failure rollback, and versioned GitHub Release assets.
 
 ## 0.4.1 — 2026-10-01

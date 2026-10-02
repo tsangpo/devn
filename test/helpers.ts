@@ -57,6 +57,7 @@ else {console.log('TOOL OUTPUT');process.exit(Number(process.env.TEST_EXIT||0));
     config.profiles[id] = { url: 'http://127.0.0.1:1/profile.json', key, origins: {
       codex: new URL(profile.codex.baseUrl || profile.baseUrl).origin,
       claude: new URL(profile.claude.baseUrl || profile.baseUrl).origin,
+      ...(profile.opencode ? { opencode: new URL(profile.opencode.baseUrl || profile.baseUrl).origin } : {}),
     } };
     fs.writeFileSync(file, Bun.TOML.stringify(config), { mode: 0o600 });
   }

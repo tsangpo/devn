@@ -14,7 +14,7 @@ directory. There is no dist directory.
     bun run test:binary
     bun run test:windows  # Windows-specific integration tests
 
-The native smoke command requires installed Codex and Claude Code; it uses dummy keys
+The native smoke command requires installed Codex, Claude Code and OpenCode v2; it uses dummy keys
 and a local gateway. Never use customer credentials in tests or issue reports.
 Bun transpiles TypeScript without static type-checking.
 
@@ -27,7 +27,11 @@ are made under the project's MIT license; submit only material you can license.
 The CLI supports Linux/macOS and Windows 11 x64 with Bun >=1.4.2. Native smoke
 was tested locally with Codex 0.159.2 and Claude Code 2.1.285; Windows CI installs
 Codex 0.159.3 and Claude Code 2.1.286 for local-gateway smoke tests. Other client
-versions are not guaranteed; run smoke tests when updating either client.
+versions are not guaranteed; run smoke tests when updating a client. OpenCode
+v2.0.21 is pinned in Windows CI and verified locally on Linux. Its separate test
+can be run with `bun test ./test/native/opencode-smoke.test.ts --timeout 180000`.
+The suite also checks the native model catalog after plugin initialization; the
+v2 model-list endpoint may initially return an empty snapshot.
 CI validates npm packages, terminal interaction, and standalone executables.
 The binary CI baseline is macOS 15, Ubuntu 24.04 (glibc), and Windows Server 2025
 (`windows-2025`). Windows ARM64 and musl are not distributed.

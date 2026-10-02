@@ -1,6 +1,7 @@
 import { secureURL } from './urls';
+import { validateOpenCode, type OpenCodeProfile } from './opencode-profile';
 
-export type Tool = 'codex' | 'claude';
+export type Tool = 'codex' | 'claude' | 'opencode';
 export type CodexModel = {
   slug: string;
   display_name: string;
@@ -12,11 +13,12 @@ export type CodexModel = {
 };
 export type ClaudeModel = { model: string; label: string; description?: string; behavesAs?: string };
 export type Profile = {
+  opencode?: OpenCodeProfile;
   version: 1; id: string; name: string; baseUrl: string; authUrl?: string; example?: boolean;
   codex: { model?: string; baseUrl?: string; models?: CodexModel[] };
   claude: { model?: string; baseUrl?: string; modelPicker?: { replaceBuiltInOptions: boolean; options: ClaudeModel[] }; slots?: Partial<Record<'sonnet' | 'opus' | 'haiku', string>> };
 };
-export type Origins = Record<Tool, string>;
+export type Origins = Record<'codex' | 'claude', string> & { opencode?: string };
 export type Registration = { id: string; name: string; url: string; key: string; origins?: Origins };
 export type Registry = { profiles: Registration[]; projects: Record<string, string> };
 export const validId = (id: unknown): id is string => typeof id === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(id);
@@ -38,7 +40,7 @@ function keys(value: Record<string, any>, allowed: string[], label: string): voi
 
 export function validateProfile(value: any, localId?: string): Profile {
   requireValue(object(value), 'Profile must be an object.');
-  keys(value, ['version', 'id', 'name', 'baseUrl', 'authUrl', 'example', 'codex', 'claude'], 'profile');
+  keys(value, ['version', 'id', 'name', 'baseUrl', 'authUrl', 'example', 'codex', 'claude', 'opencode'], 'profile');
   requireValue(value.version === 1 && (value.id === undefined || validId(value.id)), 'Profile requires version 1 and an optional safe id.');
   requireValue(value.name === undefined || (typeof value.name === 'string' && value.name.trim()), 'Profile name must be nonempty.');
   requireValue(value.example === undefined || typeof value.example === 'boolean', 'example must be Boolean.');
@@ -100,17 +102,23 @@ export function validateProfile(value: any, localId?: string): Profile {
       requireValue(Object.values(config.slots).every(id => ids.has(id as string)), 'Claude slots must reference listed models.');
     }
   }
+  if (value.opencode !== undefined) {
+    validateOpenCode(value.opencode);
+    requireValue(!/\{(?:env|file):/.test(value.baseUrl), 'OpenCode gateway URLs must not contain configuration substitutions.');
+  }
   return { ...value, id: localId || value.id || 'example', name: value.name || localId || value.id || 'Example' } as Profile;
 }
 
 export function endpoint(profile: Profile, tool: Tool): string {
-  return (profile[tool].baseUrl || `${profile.baseUrl.replace(/\/+$/, '')}/${tool === 'codex' ? 'openai/v1' : 'anthropic'}`).replace(/\/+$/, '');
+  return (profile[tool]?.baseUrl || `${profile.baseUrl.replace(/\/+$/, '')}/${tool === 'claude' ? 'anthropic' : 'openai/v1'}`).replace(/\/+$/, '');
 }
 
 export function gatewayOrigins(profile: Profile): Origins {
-  return { codex: new URL(endpoint(profile, 'codex')).origin, claude: new URL(endpoint(profile, 'claude')).origin };
+  return { codex: new URL(endpoint(profile, 'codex')).origin, claude: new URL(endpoint(profile, 'claude')).origin,
+    ...(profile.opencode ? { opencode: new URL(endpoint(profile, 'opencode')).origin } : {}) };
 }
 
 export function modelIds(profile: Profile, tool: Tool): string[] | undefined {
+  if (tool === 'opencode') return profile.opencode && Object.keys(profile.opencode.models).map(id => `bifrost/${id}`);
   return tool === 'codex' ? profile.codex.models?.map(m => m.slug) : profile.claude.modelPicker?.options.map(m => m.model);
 }

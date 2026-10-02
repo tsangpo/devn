@@ -3,14 +3,14 @@ import path from 'node:path';
 import os from 'node:os';
 import type { Platform } from '../types';
 import { privateDir, privateFile, atomicWrite } from './files';
-import { runAttached } from './process';
+import { runAttached, resolveCommand } from './process';
 import { environmentValue } from './system';
 
 const projectPath = (dir: string) => fs.realpathSync.native(dir).replace(/^[a-z]:/, drive => drive.toUpperCase());
 
 export const windows: Platform = {
   defaultConfigRoot: () => environmentValue(process.env, 'LOCALAPPDATA') || path.join(os.homedir(), 'AppData', 'Local'),
-  privateDir, privateFile, atomicWrite, runAttached,
+  privateDir, privateFile, atomicWrite, runAttached, resolveCommand,
   projectPath,
   storedProjectPath(dir) {
     try { return projectPath(dir); } catch (error: any) {
