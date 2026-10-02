@@ -180,6 +180,15 @@ central model menus are documented by profiles/example.json; replace its values
 and remove example: true before hosting it. Repository examples are never
 automatically registered. Model metadata must match backend capabilities.
 
+The example lists four OpenAI models for Codex, Claude Opus/Sonnet 5.5 for Claude,
+and all seven gateway models (including Gemini 3.8 Flash) for OpenCode. Defaults
+are GPT 6.1 Sol for Codex/OpenCode and `opusplan` for Claude. IDs and token
+limits follow the supplied gateway catalog; OpenCode costs convert its per-token
+rates to [per-million-token pricing](https://opencode.ai/v2/docs/providers).
+The catalog does not specify tool, modality or reasoning support: those fields
+remain illustrative and must be verified before publishing. Web-search prices
+are omitted because the profile schema has no corresponding cost field.
+
 For a central Codex menu, `codex.model` selects the default and `codex.models`
 contains native catalog objects (`slug`, `display_name`, `description`, and
 capability fields). devn writes `{ "models": [...] }` without adding or changing
@@ -188,6 +197,11 @@ For Claude, use `claude.model` and native `claude.modelPicker` with
 `replaceBuiltInOptions: true` and `options` containing `model`, `label`, optional
 `description` and `behavesAs`. The picker is copied unchanged; optional `slots`
 still map `opus`, `sonnet`, and `haiku` to the corresponding environment variables.
+When using `opusplan`, explicitly map all three slots to gateway model IDs:
+the example uses Opus 5.5 for planning and Sonnet 5.5 for execution, with Sonnet
+also serving the Haiku slot because the supplied catalog has no Haiku model.
+Without slots, devn uses `claude.model` for every slot, so `opusplan` would be sent
+as a literal gateway model ID and Claude could warn about an unknown model.
 Saved model choices are retained while listed; otherwise the manifest default is used.
 
 Migration from the previous model format: rename `defaultModel` to `model`;

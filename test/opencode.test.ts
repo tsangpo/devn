@@ -23,19 +23,22 @@ else { console.log('TOOL OUTPUT'); process.exit(Number(process.env.TEST_EXIT || 
 
 test('OpenCode profile validates native model metadata without accepting executable or connection fields', () => {
   const profile = validateProfile(structuredClone(example));
-  assert.deepEqual(modelIds(profile, 'opencode'), ['bifrost/coding']);
+  assert.deepEqual(modelIds(profile, 'opencode'), [
+    'bifrost/claude-opus-5-5', 'bifrost/claude-sonnet-5-5', 'bifrost/gpt-5.6-terra',
+    'bifrost/gpt-6-astra', 'bifrost/gpt-6-luna', 'bifrost/gpt-6.1-sol', 'bifrost/gemini-3.8-flash',
+  ]);
   assert.equal(gatewayOrigins(profile).opencode, 'https://bifrost.example.invalid');
   for (const change of [
     p => { p.opencode = {}; }, p => { p.opencode.models = {}; },
-    p => { p.opencode.model = 'missing'; }, p => { p.opencode.models.coding.package = 'evil'; },
-    p => { p.opencode.models.coding.settings = { baseURL: 'https://evil.test' }; },
-    p => { p.opencode.models.coding.headers = { Authorization: 'evil' }; },
-    p => { p.opencode.models.coding.limit.context = 0; },
-    p => { p.opencode.models.coding.capabilities.tools = 'true'; },
-    p => { p.opencode.models.coding.cost = { input: -1, output: 1 }; },
-    p => { p.opencode.models.coding.name = '{file:/tmp/secret}'; },
+    p => { p.opencode.model = 'missing'; }, p => { p.opencode.models['gpt-6.1-sol'].package = 'evil'; },
+    p => { p.opencode.models['gpt-6.1-sol'].settings = { baseURL: 'https://evil.test' }; },
+    p => { p.opencode.models['gpt-6.1-sol'].headers = { Authorization: 'evil' }; },
+    p => { p.opencode.models['gpt-6.1-sol'].limit.context = 0; },
+    p => { p.opencode.models['gpt-6.1-sol'].capabilities.tools = 'true'; },
+    p => { p.opencode.models['gpt-6.1-sol'].cost = { input: -1, output: 1 }; },
+    p => { p.opencode.models['gpt-6.1-sol'].name = '{file:/tmp/secret}'; },
     p => { p.baseUrl = 'https://gateway.example.test/{file:/tmp/secret}'; },
-    p => { p.opencode.models.coding.modelID = 'bad#variant'; },
+    p => { p.opencode.models['gpt-6.1-sol'].modelID = 'bad#variant'; },
     p => { p.opencode.models.constructor = {}; },
     p => { p.opencode.baseUrl = 'http://remote.example.test'; },
   ]) {
@@ -50,10 +53,10 @@ test('OpenCode profile validates native model metadata without accepting executa
 test('OpenCode argument handling separates option values from routing overrides', () => {
   const profile = validateProfile(example);
   const prompt = 'spaces, $literal, "quotes", 中文\nnext line';
-  assert.deepEqual(openCodeArgs(['run', '-mbifrost/coding', '--', prompt], profile).args,
-    ['run', '--standalone', '--model', 'bifrost/coding', '--', prompt]);
+  assert.deepEqual(openCodeArgs(['run', '-mbifrost/gpt-6.1-sol', '--', prompt], profile).args,
+    ['run', '--standalone', '--model', 'bifrost/gpt-6.1-sol', '--', prompt]);
   assert.deepEqual(openCodeArgs(['--prompt', '--server'], profile).args, ['--standalone', '--prompt', '--server']);
-  assert.deepEqual(openCodeArgs(['--model=bifrost/coding'], profile), { args: ['--standalone'], model: 'bifrost/coding' });
+  assert.deepEqual(openCodeArgs(['--model=bifrost/gpt-6.1-sol'], profile), { args: ['--standalone'], model: 'bifrost/gpt-6.1-sol' });
   assert.deepEqual(openCodeArgs(['session', 'list', '--format', 'json'], profile).args, ['session', 'list', '--standalone', '--format', 'json']);
   assert.deepEqual(openCodeArgs(['mcp', 'add', 'local', '--', 'bun', 'server.ts'], profile).args, ['mcp', 'add', '--global', 'local', '--', 'bun', 'server.ts']);
   assert.throws(() => openCodeArgs(['mcp', 'add', 'local', '--global=false'], profile));
@@ -65,14 +68,14 @@ test('OpenCode argument handling separates option values from routing overrides'
 test('OpenCode launches with private paths, managed gateway, preserved arguments and exit status', t => {
   const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']); mock(f);
   const prompt = 'spaces and $literal "quotes" 中文';
-  const result = f.run(['opencode', 'run', '--model', 'bifrost/coding', prompt], { env: {
+  const result = f.run(['opencode', 'run', '--model', 'bifrost/gpt-6.1-sol', prompt], { env: {
     ...f.env, TEST_EXIT: '7', OPENCODE_CONFIG_CONTENT: 'secret override', OPENCODE_DB: '/external.db',
     OPENCODE_CONFIG_DIR: '/external', OPENCODE_CONFIG_PROJECT_DISABLE: '0', OPENCODE_TEST_HOME: '/external',
     OPENAI_API_KEY: 'external', ANTHROPIC_AUTH_TOKEN: 'external', OPENCODE_DISABLE_MOUSE: '1',
   } });
   assert.equal(result.status, 7, result.stderr);
   const capture = read(f.capture), dir = path.join(f.home, 'devn/profiles/a/opencode');
-  assert.deepEqual(capture.args, ['run', '--standalone', '--model', 'bifrost/coding', prompt]);
+  assert.deepEqual(capture.args, ['run', '--standalone', '--model', 'bifrost/gpt-6.1-sol', prompt]);
   assert.equal(capture.cwd, f.project);
   assert.equal(capture.env.OPENCODE_CONFIG_DIR, dir);
   assert.equal(capture.env.OPENCODE_CONFIG_PROJECT_DISABLE, '1');
@@ -87,7 +90,7 @@ test('OpenCode launches with private paths, managed gateway, preserved arguments
   assert.ok(!result.stdout.includes('secret-a') && !result.stderr.includes('secret-a'));
   testPlatform.assertPrivate(path.join(dir, 'opencode.json'), 0o600);
   testPlatform.assertPrivate(dir, 0o700);
-  assert.equal(f.run(['opencode', 'models']).stdout.trim(), 'bifrost/coding');
+  assert.deepEqual(f.run(['opencode', 'models']).stdout.trim().split(/\r?\n/), modelIds(f.a, 'opencode')!.sort());
 });
 
 test('OpenCode refresh replaces owned provider settings and preserves local customization', t => {
@@ -111,12 +114,12 @@ test('OpenCode refresh replaces owned provider settings and preserves local cust
   assert.equal(next.experimental.policies.length, 3);
   delete f.a.opencode.models.second; f.a.opencode.baseUrl = 'https://a.example.test/updated/v1'; write(profile, f.a);
   const result = f.run(['opencode']); assert.equal(result.status, 0, result.stderr);
-  next = read(file); assert.equal(next.model, 'bifrost/coding');
+  next = read(file); assert.equal(next.model, 'bifrost/gpt-6.1-sol');
   assert.equal(next.providers.bifrost.models.second, undefined);
   assert.equal(next.providers.bifrost.settings.baseURL, f.a.opencode.baseUrl);
   assert.match(result.stderr, /no longer listed/);
-  assert.equal(f.run(['opencode', '--model=bifrost/coding']).status, 0);
-  assert.deepEqual(JSON.parse(read(f.capture).env.OPENCODE_CONFIG_CONTENT), { model: 'bifrost/coding' });
+  assert.equal(f.run(['opencode', '--model=bifrost/gpt-6.1-sol']).status, 0);
+  assert.deepEqual(JSON.parse(read(f.capture).env.OPENCODE_CONFIG_CONTENT), { model: 'bifrost/gpt-6.1-sol' });
 });
 
 test('OpenCode selects a supported binary or explains the missing upgrade', t => {

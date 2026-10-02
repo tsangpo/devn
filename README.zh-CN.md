@@ -181,9 +181,13 @@ Codex 内置网页搜索默认设为 `disabled`，因为网关支持某个模型
 
 默认无需维护模型列表。需要统一模型菜单时，参考 `profiles/example.json`，发布前填写真实值并删除 `example: true`。
 
+示例为 Codex 列出 4 个 OpenAI 模型，为 Claude 列出 Claude Opus/Sonnet 5.5 和 `opusplan` 模式，为 OpenCode 列出全部 7 个网关模型（含 Gemini 3.8 Flash）。Codex/OpenCode 默认使用 GPT 6.1 Sol，Claude 默认使用 `opusplan`。模型 ID 和 token 限制来自提供的网关列表；OpenCode 价格由每 token 换算为[每百万 token](https://opencode.ai/v2/docs/providers)。列表未声明工具、多模态或推理能力，相应字段仍为示例值，发布前须核实。Profile schema 没有网页搜索费用字段，因此未写入该价格。
+
 Codex 使用 `codex.model` 指定默认模型，`codex.models` 直接存放原生 catalog 对象：`slug`、`display_name`、`description` 和能力字段。devn 仅包一层 `{ "models": [...] }` 写入 `model_catalog_json` 指向的文件，不再补充或覆盖 `priority`、`visibility`、`supported_in_api` 等字段。能力字段必须与真实后端一致。
 
 Claude 使用 `claude.model` 和原生 `claude.modelPicker`：`replaceBuiltInOptions` 必须为 `true`，`options` 条目使用 `model`、`label`，可选 `description`、`behavesAs`。菜单原样写入 settings；可选 `slots` 仍将 `opus`、`sonnet`、`haiku` 转换成对应环境变量。远程配置不能传入任意 settings，例如 key、hooks 或权限。
+
+使用 `opusplan` 时须显式将三个 `slots` 映射到真实网关模型 ID。示例的规划阶段使用 Opus 5.5，执行阶段使用 Sonnet 5.5；列表没有 Haiku 模型，因此 Haiku 槽位也使用 Sonnet。不设置 `slots` 时，devn 会将全部槽位设为 `claude.model`，导致把 `opusplan` 原样发给网关，并可能出现未知模型警告。
 
 已保存模型仍在列表中时保留，否则采用管理员默认值。移除中央模型列表会恢复原生菜单并保留用户选择。
 

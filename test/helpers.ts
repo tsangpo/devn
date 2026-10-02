@@ -22,10 +22,11 @@ function fixture(t) {
     Object.assign(profile, { id, name: id, example: false, baseUrl: `https://${id}.example.test` });
     const codex = profile.codex.models[0];
     codex.slug = profile.codex.model = `${id}/codex-one`;
-    profile.codex.models.push({ ...structuredClone(codex), slug: `${id}/codex-two`, display_name: 'Second model' });
+    profile.codex.models = [codex, { ...structuredClone(codex), slug: `${id}/codex-two`, display_name: 'Second model' }];
     const claude = profile.claude.modelPicker.options[0];
     claude.model = profile.claude.model = `${id}/claude-one`;
-    profile.claude.modelPicker.options.push({ ...structuredClone(claude), model: `${id}/claude-two`, label: 'Second model' });
+    profile.claude.modelPicker.options = [claude, { ...structuredClone(claude), model: `${id}/claude-two`, label: 'Second model' }];
+    delete profile.claude.slots;
     write(path.join(home, 'devn/profiles', id, 'profile.json'), profile);
     return profile;
   }

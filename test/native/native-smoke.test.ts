@@ -97,6 +97,7 @@ async function client(tool, args) {
   expect(request!.authorization).toBe(`Bearer ${key}`);
   expect(request!.body.model).toBeTruthy();
   console.log(`${tool}: model ${request.body.model}, bearer auth, endpoint, and streaming verified`);
+  return { request: request!, stdout, stderr };
 }
 
 function stopChild(child: ReturnType<typeof Bun.spawn>) {
@@ -155,8 +156,10 @@ describe('native clients through the local Bifrost gateway', () => {
     const profile = await Bun.file(profilePath).json();
     profile.claude = (await Bun.file(`${root}/profiles/example.json`).json()).claude;
     await Bun.write(profilePath, JSON.stringify(profile));
-    await client('claude', ['-p', 'Reply with DEVN_NATIVE_OK. Do not use tools.']);
-    expect(requests.find(request => request.url.startsWith('/anthropic/v1/messages'))!.body.model)
-      .toBe(profile.claude.model);
+    for (const [mode, model] of [['default', profile.claude.slots.sonnet], ['plan', profile.claude.slots.opus]]) {
+      const result = await client('claude', ['--permission-mode', mode, '-p', 'Reply with DEVN_NATIVE_OK. Do not use tools.']);
+      expect(result.request.body.model).toBe(model);
+      expect(result.stdout + result.stderr).not.toContain("isn't described by this version's model catalog");
+    }
   }, 50000);
 });
