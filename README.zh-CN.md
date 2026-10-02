@@ -4,6 +4,16 @@
 
 在项目目录运行 `devn codex`、`devn claude` 或 `devn opencode`，自动选择对应的 Bifrost profile。每个 profile 有独立的 Codex、Claude、OpenCode 配置、插件和会话数据。
 
+## Bun 全局安装
+
+安装 Bun 后，全局安装即可直接使用 `devn` 命令：
+
+```bash
+bun i -g @tsangpo/devn
+devn --version
+devn profile add
+```
+
 ## bunx 使用
 
 npm 包名为 `@tsangpo/devn`，命令入口为 `bin/devn`，由 Bun 直接运行 TypeScript。使用以下命令运行：

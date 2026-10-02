@@ -57,7 +57,15 @@ JavaScript client entries require Node.js; native entries do not. Custom cmd/bat
 wrappers are not executed. Use an official installation when an entry cannot be resolved.
 Scoop, winget and Windows ARM64 are not supported.
 
-Run the npm package with Bun:
+Install globally with Bun to use the `devn` command directly:
+
+```sh
+bun i -g @tsangpo/devn
+devn --version
+devn profile add
+```
+
+Alternatively, run the npm package with `bunx`:
 
     bunx @tsangpo/devn --version
     bunx @tsangpo/devn profile add
