@@ -23,7 +23,9 @@ foreach ($identity in @($sid, $system)) {
   $rule = [Security.AccessControl.FileSystemAccessRule]::new($identity, 'FullControl', $flags, 'None', 'Allow')
   $acl.AddAccessRule($rule)
 }
-Set-Acl -LiteralPath $p.path -AclObject $acl
+# Persist only the modified owner/DACL sections. Set-Acl can also request SACL
+# access on an already protected directory, requiring SeSecurityPrivilege.
+$item.SetAccessControl($acl)
 $actual = Get-Acl -LiteralPath $p.path
 if (!$actual.AreAccessRulesProtected) { throw 'ACL inheritance remains enabled' }
 $rules = @($actual.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]))

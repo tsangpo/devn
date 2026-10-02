@@ -36,7 +36,7 @@ $p = [Console]::In.ReadToEnd() | ConvertFrom-Json
 $a = Get-Acl -LiteralPath $p.path
 $a.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
   [Security.Principal.SecurityIdentifier]::new('S-1-1-0'), 'Read', 'Allow'))
-Set-Acl -LiteralPath $p.path -AclObject $a
+(Get-Item -LiteralPath $p.path -Force).SetAccessControl($a)
 `, { path: file });
     assert.ok(acl(file).sids.includes('S-1-1-0'));
     windows.privateFile(file);
@@ -51,6 +51,35 @@ Set-Acl -LiteralPath $p.path -AclObject $a
     const link = path.join(f.dir, 'junction');
     fs.symlinkSync(path.dirname(file), link, 'junction');
     assert.throws(() => windows.atomicWrite(path.join(link, 'key.txt'), 'bad'), /junction/);
+  });
+
+  test('repeated private writes do not require SeSecurityPrivilege', async t => {
+    const f = fixture(t);
+    const probe = path.join(f.dir, 'unprivileged.ts');
+    await Bun.write(probe, `
+import { windows } from ${JSON.stringify(path.join(f.repo, 'src/platform/windows/index.ts'))};
+import { acl } from ${JSON.stringify(path.join(import.meta.dir, 'fixtures.ts'))};
+import assert from 'node:assert/strict';
+const dir = ${JSON.stringify(path.join(f.dir, 'protected'))};
+const file = dir + '/dummy.txt';
+try {
+  windows.privateDir(dir);
+  for (let i = 0; i < 2; i++) {
+    windows.atomicWrite(file, 'dummy-key');
+    for (const target of [dir, file]) {
+      const value = acl(target);
+      assert.equal(value.protected, true);
+      assert.deepEqual(value.sids.sort(), [value.user, 'S-1-5-18'].sort());
+    }
+  }
+} catch (error) { throw new Error(String(error.cause || error)); }
+`);
+    const child = Bun.spawn([powershellCommand('')[0], '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', path.join(import.meta.dir, 'without-security-privilege.ps1')], {
+      stdin: Buffer.from(JSON.stringify({ bun: process.execPath, probe })), stdout: 'pipe', stderr: 'pipe',
+    });
+    const [code, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+    assert.equal(code, 0, stdout + stderr);
   });
 
   test('rename retries transient sharing violations and preserves old data on exhaustion', async t => {

@@ -78,8 +78,9 @@ Windows stores configuration and tool data in `%LOCALAPPDATA%\devn` (falling bac
 to `AppData\Local\devn` under the user directory). `XDG_CONFIG_HOME` overrides
 this root on all platforms. Existing directories are not migrated automatically.
 Windows protects managed files and directories with ACLs granting only the current
-user and SYSTEM; failure to apply permissions stops the operation. Windows device
-names and profile names differing only in case cannot be registered together.
+user and SYSTEM; failure to apply permissions stops the operation. Profile management
+runs in a normal, non-elevated terminal and does not require administrator privileges.
+Windows device names and profile names differing only in case cannot be registered together.
 
 ## Profiles
 

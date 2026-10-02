@@ -50,7 +50,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -c "irm https://github.com/tsangpo
 
 客户端支持原生 EXE 和 Codex/Claude/OpenCode 的官方 npm 安装；JavaScript 客户端入口需要 Node.js，原生入口不需要。不执行自定义 cmd/bat/ps1 包装脚本。不支持 Windows ARM64、Scoop 或 winget。
 
-默认配置和工具历史保存在 `%LOCALAPPDATA%\devn`，缺失该变量时使用用户目录下的 `AppData\Local\devn`。`XDG_CONFIG_HOME` 在所有平台上优先，不自动迁移旧目录。Windows 使用只允许当前用户和 SYSTEM 的 ACL，设置失败即停止操作。Windows 设备保留名不能用作 profile 名称，也不能注册仅大小写不同的名称。
+默认配置和工具历史保存在 `%LOCALAPPDATA%\devn`，缺失该变量时使用用户目录下的 `AppData\Local\devn`。`XDG_CONFIG_HOME` 在所有平台上优先，不自动迁移旧目录。Windows 使用只允许当前用户和 SYSTEM 的 ACL，设置失败即停止操作。Profile 管理应在普通终端中运行，无需管理员权限。Windows 设备保留名不能用作 profile 名称，也不能注册仅大小写不同的名称。
 
 ## 从源码运行
 

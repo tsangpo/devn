@@ -4,6 +4,8 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+- Fix Windows profile writes failing with `SeSecurityPrivilege` errors in non-elevated sessions when reapplying private directory ACLs.
+
 ## 0.5.0 — 2026-10-02
 
 - Add `devn opencode` for OpenCode v2, with an optional native model catalog, approved Bifrost origin, private server and profile-local configuration/session storage on Linux, macOS and Windows. Existing profile v1 data remains compatible. Upgrade devn to 0.5.0 before publishing an `opencode` section; older releases reject it. Re-run `profile add` to approve the added gateway.
