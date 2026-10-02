@@ -24,7 +24,7 @@ test('OpenCode v2 uses the isolated catalog, bearer key, upstream model and Chat
   t.after(() => server.stop(true));
   f.a.baseUrl = `http://127.0.0.1:${server.port}`;
   f.a.opencode = { model: 'coding', models: { coding: { modelID: 'gateway/upstream-coder', name: 'Local coding',
-    capabilities: { tools: true, input: ['text'], output: ['text'] }, limit: { context: 32768, output: 1024 } } } };
+    limit: { context: 32768, output: 1024 } } } };
   write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
   f.init('a', 'devn-opencode-dummy-key');
   assert.equal(f.run(['profile', 'use', 'a']).status, 0);
@@ -94,6 +94,7 @@ test('OpenCode v2 uses the isolated catalog, bearer key, upstream model and Chat
       await Bun.sleep(100);
     }
     assert.deepEqual(catalog.map(model => `${model.providerID}/${model.id}`), ['bifrost/coding']);
+    assert.deepEqual(catalog[0].capabilities, { tools: true, input: ['text', 'image'], output: ['text'] });
   } finally {
     nativeServer.stdin.end();
     await nativeServer.exited;

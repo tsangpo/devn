@@ -4,6 +4,8 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+- Simplify the example profile by using native defaults for optional capabilities and omitting optional display/key-page metadata, while retaining gateway models, limits, pricing and Claude slot routing.
+
 - Initialize missing profile-local OpenCode `cli.json` files with the v2 CLI schema and `system` theme, preserving existing files.
 
 - Map the example's Claude `opusplan` slots to gateway model IDs so planning uses Opus and execution uses Sonnet, instead of sending the mode name to the gateway.

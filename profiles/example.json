@@ -1,193 +1,73 @@
 {
   "version": 1,
-  "name": "Example remote profile — configure before publishing",
   "example": true,
   "baseUrl": "https://bifrost.example.invalid",
   "authUrl": "https://bifrost.example.invalid/keys",
   "codex": {
+    "model": "bedrock/global.openai.gpt-6.1-sol",
     "models": [
       {
-        "default_reasoning_level": "medium",
-        "supported_reasoning_levels": [
-          {
-            "effort": "low",
-            "description": "Fast"
-          },
-          {
-            "effort": "medium",
-            "description": "Balanced"
-          },
-          {
-            "effort": "high",
-            "description": "Thorough"
-          }
-        ],
-        "shell_type": "unified_exec",
-        "include_skills_usage_instructions": true,
-        "include_plugin_usage_instructions": true,
-        "include_apps_usage_instructions": false,
-        "support_verbosity": false,
-        "default_verbosity": null,
-        "apply_patch_tool_type": "freeform",
-        "web_search_tool_type": "text",
-        "truncation_policy": {
-          "mode": "tokens",
-          "limit": 10000
-        },
-        "supports_image_detail_original": false,
-        "context_window": 1000000,
-        "effective_context_window_percent": 95,
-        "input_modalities": [
-          "text"
-        ],
-        "experimental_supported_tools": [],
-        "supports_search_tool": false,
-        "supports_reasoning_summaries": false,
-        "base_instructions": "You are a coding assistant. Work with the user to complete software engineering tasks.",
-        "slug": "bedrock/global.openai.gpt-5.6-terra",
-        "display_name": "GPT 5.6 Terra",
-        "description": "GPT 5.6 Terra",
-        "visibility": "list",
-        "supported_in_api": true,
-        "priority": 0
-      },
-      {
-        "default_reasoning_level": "medium",
-        "supported_reasoning_levels": [
-          {
-            "effort": "low",
-            "description": "Fast"
-          },
-          {
-            "effort": "medium",
-            "description": "Balanced"
-          },
-          {
-            "effort": "high",
-            "description": "Thorough"
-          }
-        ],
-        "shell_type": "unified_exec",
-        "include_skills_usage_instructions": true,
-        "include_plugin_usage_instructions": true,
-        "include_apps_usage_instructions": false,
-        "support_verbosity": false,
-        "default_verbosity": null,
-        "apply_patch_tool_type": "freeform",
-        "web_search_tool_type": "text",
-        "truncation_policy": {
-          "mode": "tokens",
-          "limit": 10000
-        },
-        "supports_image_detail_original": false,
-        "context_window": 1050000,
-        "effective_context_window_percent": 95,
-        "input_modalities": [
-          "text"
-        ],
-        "experimental_supported_tools": [],
-        "supports_search_tool": false,
-        "supports_reasoning_summaries": false,
-        "base_instructions": "You are a coding assistant. Work with the user to complete software engineering tasks.",
         "slug": "bedrock/global.openai.gpt-6-astra",
         "display_name": "GPT 6 Astra",
         "description": "GPT 6 Astra",
+        "context_window": 1050000,
+        "default_reasoning_level": "medium",
+        "supported_reasoning_levels": [
+          { "effort": "low", "description": "Fast" },
+          { "effort": "medium", "description": "Balanced" },
+          { "effort": "high", "description": "Thorough" }
+        ],
+        "shell_type": "unified_exec",
+        "support_verbosity": false,
+        "apply_patch_tool_type": "freeform",
+        "truncation_policy": { "mode": "tokens", "limit": 10000 },
+        "experimental_supported_tools": [],
         "visibility": "list",
         "supported_in_api": true,
         "priority": 1
       },
       {
-        "default_reasoning_level": "medium",
-        "supported_reasoning_levels": [
-          {
-            "effort": "low",
-            "description": "Fast"
-          },
-          {
-            "effort": "medium",
-            "description": "Balanced"
-          },
-          {
-            "effort": "high",
-            "description": "Thorough"
-          }
-        ],
-        "shell_type": "unified_exec",
-        "include_skills_usage_instructions": true,
-        "include_plugin_usage_instructions": true,
-        "include_apps_usage_instructions": false,
-        "support_verbosity": false,
-        "default_verbosity": null,
-        "apply_patch_tool_type": "freeform",
-        "web_search_tool_type": "text",
-        "truncation_policy": {
-          "mode": "tokens",
-          "limit": 10000
-        },
-        "supports_image_detail_original": false,
-        "context_window": 1050000,
-        "effective_context_window_percent": 95,
-        "input_modalities": [
-          "text"
-        ],
-        "experimental_supported_tools": [],
-        "supports_search_tool": false,
-        "supports_reasoning_summaries": false,
-        "base_instructions": "You are a coding assistant. Work with the user to complete software engineering tasks.",
         "slug": "bedrock/global.openai.gpt-6-luna",
         "display_name": "GPT 6 Luna",
         "description": "GPT 6 Luna",
+        "context_window": 1050000,
+        "default_reasoning_level": "medium",
+        "supported_reasoning_levels": [
+          { "effort": "low", "description": "Fast" },
+          { "effort": "medium", "description": "Balanced" },
+          { "effort": "high", "description": "Thorough" }
+        ],
+        "shell_type": "unified_exec",
+        "support_verbosity": false,
+        "apply_patch_tool_type": "freeform",
+        "truncation_policy": { "mode": "tokens", "limit": 10000 },
+        "experimental_supported_tools": [],
         "visibility": "list",
         "supported_in_api": true,
         "priority": 2
       },
       {
-        "default_reasoning_level": "medium",
-        "supported_reasoning_levels": [
-          {
-            "effort": "low",
-            "description": "Fast"
-          },
-          {
-            "effort": "medium",
-            "description": "Balanced"
-          },
-          {
-            "effort": "high",
-            "description": "Thorough"
-          }
-        ],
-        "shell_type": "unified_exec",
-        "include_skills_usage_instructions": true,
-        "include_plugin_usage_instructions": true,
-        "include_apps_usage_instructions": false,
-        "support_verbosity": false,
-        "default_verbosity": null,
-        "apply_patch_tool_type": "freeform",
-        "web_search_tool_type": "text",
-        "truncation_policy": {
-          "mode": "tokens",
-          "limit": 10000
-        },
-        "supports_image_detail_original": false,
-        "context_window": 1050000,
-        "effective_context_window_percent": 95,
-        "input_modalities": [
-          "text"
-        ],
-        "experimental_supported_tools": [],
-        "supports_search_tool": false,
-        "supports_reasoning_summaries": false,
-        "base_instructions": "You are a coding assistant. Work with the user to complete software engineering tasks.",
         "slug": "bedrock/global.openai.gpt-6.1-sol",
         "display_name": "GPT 6.1 Sol",
         "description": "GPT 6.1 Sol",
+        "context_window": 1050000,
+        "default_reasoning_level": "medium",
+        "supported_reasoning_levels": [
+          { "effort": "low", "description": "Fast" },
+          { "effort": "medium", "description": "Balanced" },
+          { "effort": "high", "description": "Thorough" }
+        ],
+        "shell_type": "unified_exec",
+        "support_verbosity": false,
+        "apply_patch_tool_type": "freeform",
+        "truncation_policy": { "mode": "tokens", "limit": 10000 },
+        "experimental_supported_tools": [],
+        "base_instructions": "You are a coding assistant. Work with the user to complete software engineering tasks.",
         "visibility": "list",
         "supported_in_api": true,
         "priority": 3
       }
-    ],
-    "model": "bedrock/global.openai.gpt-6.1-sol"
+    ]
   },
   "claude": {
     "model": "opusplan",
@@ -199,19 +79,9 @@
     "modelPicker": {
       "replaceBuiltInOptions": true,
       "options": [
-        {
-          "model": "opusplan",
-          "label": "Opus Plan Mode",
-          "description": "Use Opus in plan mode, Sonnet otherwise"
-        },
-        {
-          "model": "bedrock/global.anthropic.claude-opus-5-5",
-          "label": "Claude Opus 5.5"
-        },
-        {
-          "model": "bedrock/global.anthropic.claude-sonnet-5-5",
-          "label": "Claude Sonnet 5.5"
-        }
+        { "model": "opusplan", "label": "Opus Plan Mode" },
+        { "model": "bedrock/global.anthropic.claude-opus-5-5", "label": "Claude Opus 5.5" },
+        { "model": "bedrock/global.anthropic.claude-sonnet-5-5", "label": "Claude Sonnet 5.5" }
       ]
     }
   },
@@ -221,183 +91,38 @@
       "claude-opus-5-5": {
         "modelID": "bedrock/global.anthropic.claude-opus-5-5",
         "name": "Claude Opus 5.5",
-        "capabilities": {
-          "tools": true,
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "limit": {
-          "context": 1000000,
-          "input": 1000000,
-          "output": 128000
-        },
-        "cost": {
-          "input": 4,
-          "output": 20,
-          "cache": {
-            "read": 0.2,
-            "write": 5
-          }
-        }
+        "limit": { "context": 1000000, "input": 1000000, "output": 128000 },
+        "cost": { "input": 4, "output": 20, "cache": {"read": 0.2, "write": 5} }
       },
       "claude-sonnet-5-5": {
         "modelID": "bedrock/global.anthropic.claude-sonnet-5-5",
         "name": "Claude Sonnet 5.5",
-        "capabilities": {
-          "tools": true,
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "limit": {
-          "context": 1000000,
-          "input": 1000000,
-          "output": 128000
-        },
-        "cost": {
-          "input": 2,
-          "output": 10,
-          "cache": {
-            "read": 0.2,
-            "write": 2.5
-          }
-        }
-      },
-      "gpt-5.6-terra": {
-        "modelID": "bedrock/global.openai.gpt-5.6-terra",
-        "name": "GPT 5.6 Terra",
-        "capabilities": {
-          "tools": true,
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "limit": {
-          "context": 1000000,
-          "input": 1000000,
-          "output": 128000
-        },
-        "cost": {
-          "input": 2,
-          "output": 12,
-          "cache": {
-            "read": 0.2,
-            "write": 2.5
-          }
-        }
+        "limit": { "context": 1000000, "input": 1000000, "output": 128000 },
+        "cost": { "input": 2, "output": 10, "cache": {"read": 0.2, "write": 2.5} }
       },
       "gpt-6-astra": {
         "modelID": "bedrock/global.openai.gpt-6-astra",
         "name": "GPT 6 Astra",
-        "capabilities": {
-          "tools": true,
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "limit": {
-          "context": 1050000,
-          "input": 1050000,
-          "output": 128000
-        },
-        "cost": {
-          "input": 10,
-          "output": 50,
-          "cache": {
-            "read": 1,
-            "write": 12.5
-          }
-        }
+        "limit": { "context": 1050000, "input": 1050000, "output": 128000 },
+        "cost": { "input": 10, "output": 50, "cache": {"read": 1, "write": 12.5} }
       },
       "gpt-6-luna": {
         "modelID": "bedrock/global.openai.gpt-6-luna",
         "name": "GPT 6 Luna",
-        "capabilities": {
-          "tools": true,
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "limit": {
-          "context": 1050000,
-          "input": 1050000,
-          "output": 128000
-        },
-        "cost": {
-          "input": 0.1,
-          "output": 0.5,
-          "cache": {
-            "read": 0.01,
-            "write": 0.125
-          }
-        }
+        "limit": { "context": 1050000, "input": 1050000, "output": 128000 },
+        "cost": { "input": 0.1, "output": 0.5, "cache": {"read": 0.01, "write": 0.125} }
       },
       "gpt-6.1-sol": {
         "modelID": "bedrock/global.openai.gpt-6.1-sol",
         "name": "GPT 6.1 Sol",
-        "capabilities": {
-          "tools": true,
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "limit": {
-          "context": 1050000,
-          "input": 1050000,
-          "output": 128000
-        },
-        "cost": {
-          "input": 2,
-          "output": 10,
-          "cache": {
-            "read": 0.1,
-            "write": 2.5
-          }
-        }
+        "limit": { "context": 1050000, "input": 1050000, "output": 128000 },
+        "cost": { "input": 2, "output": 10, "cache": {"read": 0.1, "write": 2.5} }
       },
       "gemini-3.8-flash": {
         "modelID": "gemini/gemini-3.8-flash",
         "name": "Gemini 3.8 Flash",
-        "capabilities": {
-          "tools": true,
-          "input": [
-            "text"
-          ],
-          "output": [
-            "text"
-          ]
-        },
-        "limit": {
-          "context": 1114112,
-          "input": 1048576,
-          "output": 65536
-        },
-        "cost": {
-          "input": 0.75,
-          "output": 3.75,
-          "cache": {
-            "read": 0.075
-          }
-        }
+        "limit": { "context": 1114112, "input": 1048576, "output": 65536 },
+        "cost": { "input": 0.75, "output": 3.75, "cache": {"read": 0.075} }
       }
     }
   }

@@ -34,7 +34,7 @@ test('OpenCode profile validates native model metadata without accepting executa
     p => { p.opencode.models['gpt-6.1-sol'].settings = { baseURL: 'https://evil.test' }; },
     p => { p.opencode.models['gpt-6.1-sol'].headers = { Authorization: 'evil' }; },
     p => { p.opencode.models['gpt-6.1-sol'].limit.context = 0; },
-    p => { p.opencode.models['gpt-6.1-sol'].capabilities.tools = 'true'; },
+    p => { p.opencode.models['gpt-6.1-sol'].capabilities = { tools: 'true', input: ['text'], output: ['text'] }; },
     p => { p.opencode.models['gpt-6.1-sol'].cost = { input: -1, output: 1 }; },
     p => { p.opencode.models['gpt-6.1-sol'].name = '{file:/tmp/secret}'; },
     p => { p.baseUrl = 'https://gateway.example.test/{file:/tmp/secret}'; },

@@ -185,8 +185,11 @@ and all seven gateway models (including Gemini 3.8 Flash) for OpenCode. Defaults
 are GPT 6.1 Sol for Codex/OpenCode and `opusplan` for Claude. IDs and token
 limits follow the supplied gateway catalog; OpenCode costs convert its per-token
 rates to [per-million-token pricing](https://opencode.ai/v2/docs/providers).
-The catalog does not specify tool, modality or reasoning support: those fields
-remain illustrative and must be verified before publishing. Web-search prices
+Optional capability fields use native client defaults, including text/image
+input and OpenCode tool support. Codex retains its required catalog fields and
+the freeform patch tool. The catalog does not establish actual tool, modality or
+reasoning support; verify these defaults before publishing. Optional `name` and
+`authUrl` are omitted. Web-search prices
 are omitted because the profile schema has no corresponding cost field.
 
 For a central Codex menu, `codex.model` selects the default and `codex.models`
