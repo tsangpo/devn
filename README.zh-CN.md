@@ -4,6 +4,16 @@
 
 在项目目录运行 `devn codex`、`devn claude` 或 `devn opencode`，自动选择对应的 Bifrost profile。每个 profile 有独立的 Codex、Claude、OpenCode 配置、插件和会话数据。
 
+## 安装客户端
+
+安装 Bun 后，可一次性全局安装 Codex、Claude Code 和 OpenCode：
+
+```bash
+bun i -g @anthropic-ai/claude-code @openai/codex @opencode/cli
+```
+
+通过 devn 启动前，请确保 `codex`、`claude` 和 `opencode` 命令已加入 PATH。
+
 ## Bun 全局安装
 
 安装 Bun 后，全局安装即可直接使用 `devn` 命令：

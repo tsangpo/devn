@@ -14,6 +14,14 @@ Linux, macOS, or Windows 11 x64. Install the clients you use (Codex, Claude Code
 The npm/source distribution requires Bun >=1.4.2 and runs TypeScript directly.
 There are no runtime or development npm dependencies or dist files.
 
+With Bun installed, install Codex, Claude Code and OpenCode globally:
+
+```sh
+bun i -g @anthropic-ai/claude-code @openai/codex @opencode/cli
+```
+
+Make sure `codex`, `claude` and `opencode` are available on PATH before using them through devn.
+
 Homebrew installs a standalone binary with no Bun dependency:
 
     brew install tsangpo/tap/devn
