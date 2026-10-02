@@ -20,6 +20,8 @@ function fixture(t) {
   function addProfile(id) {
     const profile = structuredClone(original);
     Object.assign(profile, { id, name: id, example: false, baseUrl: `https://${id}.example.test` });
+    // Exercise the root gateway fallback instead of the example's explicit URL.
+    if (profile.opencode) delete profile.opencode.baseUrl;
     const codex = profile.codex.models[0];
     codex.slug = profile.codex.model = `${id}/codex-one`;
     profile.codex.models = [codex, { ...structuredClone(codex), slug: `${id}/codex-two`, display_name: 'Second model' }];

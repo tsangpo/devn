@@ -33,7 +33,8 @@ Supported: run, mini, models, session, stats, debug, acp, mcp, plugin, reload.`,
         managed: {
           ...(model ? { model } : {}),
           providers: { bifrost: {
-            name: 'Bifrost', package: '@opencode/ai/providers/openai-compatible',
+            // v2.0.20 bundles this entry; openai-compatible/responses is not in its native loader.
+            name: 'Bifrost', package: '@opencode/ai/providers/openai/responses',
             env: [], settings: { baseURL: endpoint, apiKey }, models: profile.opencode!.models,
           } },
           plugins: [...(existing.plugins || []).filter((p: unknown) => p !== '-opencode.config.compatibility'), '-opencode.config.compatibility'],

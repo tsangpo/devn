@@ -85,6 +85,7 @@
     }
   },
   "opencode": {
+    "baseUrl": "https://bifrost.example.invalid/openai/v1",
     "model": "gpt-6.1-sol",
     "models": {
       "claude-opus-5-5": {

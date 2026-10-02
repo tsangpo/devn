@@ -251,8 +251,12 @@ provider packages, connection settings, headers, credentials, and configuration
 substitutions, are rejected. Without `modelID`, the map key is the upstream ID.
 Use actual backend capabilities rather than the example's placeholder values.
 
-The fixed `bifrost` provider uses the OpenAI-compatible Chat Completions API at
-`<baseUrl>/openai/v1`; optional `opencode.baseUrl` supplies the complete endpoint.
+The fixed `bifrost` provider uses the OpenAI-compatible Responses API, sending
+requests to `<baseUrl>/openai/v1/responses`. Optional `opencode.baseUrl` supplies
+the API base URL (for example, `https://gateway.example/v1`); do not append
+`/responses`, since the provider adds it. The gateway must support Responses
+requests and streaming events; Chat Completions-only gateways are incompatible.
+Existing managed OpenCode configurations switch providers on the next launch.
 This does not inherit `codex.baseUrl` or the Codex model catalog. After adding
 OpenCode to a previously registered profile, run `devn profile add` again to
 approve its gateway origin. Old profiles still work with Codex and Claude.

@@ -103,6 +103,7 @@ test('OpenCode refresh replaces owned provider settings and preserves local cust
   config.model = 'bifrost/second'; config.agents = { review: { description: 'Local agent' } };
   config.mcp = { servers: {} }; config.providers.bifrost.settings.baseURL = 'https://wrong.test';
   config.providers.bifrost.headers = { Authorization: 'old-secret' };
+  config.providers.bifrost.package = '@opencode/ai/providers/openai-compatible';
   config.experimental.policies.push({ action: 'permission', resource: 'shell:git push *', effect: 'deny' });
   write(file, config); f.init('a', 'rotated-key');
   assert.equal(f.run(['opencode']).status, 0);
@@ -110,6 +111,7 @@ test('OpenCode refresh replaces owned provider settings and preserves local cust
   assert.equal(next.model, 'bifrost/second'); assert.deepEqual(next.agents, config.agents);
   assert.deepEqual(next.mcp, config.mcp);
   assert.equal(next.providers.bifrost.headers, undefined);
+  assert.equal(next.providers.bifrost.package, '@opencode/ai/providers/openai/responses');
   assert.equal(next.providers.bifrost.settings.apiKey, 'rotated-key');
   assert.equal(next.experimental.policies.length, 3);
   delete f.a.opencode.models.second; f.a.opencode.baseUrl = 'https://a.example.test/updated/v1'; write(profile, f.a);

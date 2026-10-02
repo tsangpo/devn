@@ -4,6 +4,10 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+## 0.6.0 — 2026-10-02
+
+- **Breaking:** switch OpenCode to the OpenAI-compatible Responses API instead of Chat Completions. Gateways must serve `<baseUrl>/openai/v1/responses`, or `/responses` under the configured `opencode.baseUrl`. Keep custom base URLs without the `/responses` suffix; existing managed providers switch on the next launch. Chat Completions-only gateways must add Responses support before upgrading.
+
 ## 0.5.1 — 2026-10-02
 
 - Fix Windows profile writes failing with `SeSecurityPrivilege` errors in non-elevated sessions when reapplying private directory ACLs.

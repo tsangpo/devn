@@ -219,7 +219,7 @@ Claude 使用 `claude.model` 和原生 `claude.modelPicker`：`replaceBuiltInOpt
 
 `models` 必须是非空映射，`model` 必须引用其中一个键。模型接受原生 v2 字段 `name`、`modelID`、`family`、`capabilities`、`limit`、`cost`（`input`、`output` 和可选的 `cache.read`/`cache.write`）。远程配置不能指定 provider 包、连接覆盖、请求头、凭据或配置变量替换。省略 `modelID` 时，映射键就是发送给网关的模型 ID；能力字段需与实际后端一致。
 
-固定使用 `bifrost` provider，经 OpenAI 兼容的 Chat Completions 接口连接 `<baseUrl>/openai/v1`。可用 `opencode.baseUrl` 指定完整接口地址；不继承 Codex 的地址或模型列表。旧 profile 仍可运行 Codex/Claude；补充 OpenCode 后，需重新执行 `devn profile add` 确认新增网关 origin。发布新增字段前需先升级到 devn 0.5.0 或更新版本；旧版 CLI 会拒绝该字段。
+固定使用 `bifrost` provider，经 OpenAI 兼容的 Responses API 请求 `<baseUrl>/openai/v1/responses`。可用 `opencode.baseUrl` 指定 API 基础地址（如 `https://gateway.example/v1`），不要加 `/responses`，provider 会自动追加。网关必须支持 Responses 请求和流式事件，仅支持 Chat Completions 的网关不兼容。已有的 OpenCode 托管配置会在下次启动时自动切换 provider。不继承 Codex 的地址或模型列表。旧 profile 仍可运行 Codex/Claude；补充 OpenCode 后，需重新执行 `devn profile add` 确认新增网关 origin。发布新增字段前需先升级到 devn 0.5.0 或更新版本；旧版 CLI 会拒绝该字段。
 
 ```sh
 devn opencode

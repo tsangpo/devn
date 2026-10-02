@@ -69,6 +69,11 @@ v2.0.21 is pinned in Windows CI; v2.0.20 and v2.0.21 have been verified locally
 on Linux. The launcher accepts any v2 release, without a minimum minor or patch
 version. Its separate test
 can be run with `bun test ./test/native/opencode-smoke.test.ts --timeout 180000`.
+OpenCode Responses traffic is verified on Linux with v2.0.20 using the bundled
+`@opencode/ai/providers/openai/responses` entry. Although v2.0.20 contains
+`openai-compatible/responses` source, that entry is missing from its native
+loader and fails in the standalone client. Keep the real-client smoke test when
+changing provider packages.
 The suite also checks the native model catalog after plugin initialization; the
 v2 model-list endpoint may initially return an empty snapshot.
 The client-module refactor was also verified on Linux with Codex 0.160.0,
