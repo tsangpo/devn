@@ -55,7 +55,7 @@ else {console.log('TOOL OUTPUT');process.exit(Number(process.env.TEST_EXIT||0));
   }
   function init(id, key = `secret-${id}`) {
     const file = path.join(home, 'devn/config.toml');
-    const config = fs.existsSync(file) ? Bun.TOML.parse(fs.readFileSync(file, 'utf8')) : { version: 1, profiles: {} };
+    const config = fs.existsSync(file) ? Bun.TOML.parse(fs.readFileSync(file, 'utf8')) : { version: 3, profiles: {} };
     const profile = read(path.join(home, 'devn/profiles', id, 'profile.json'));
     config.profiles[id] = { url: 'http://127.0.0.1:1/profile.json', key, origins: {
       codex: new URL(profile.codex.baseUrl || profile.baseUrl).origin,

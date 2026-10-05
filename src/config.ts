@@ -1,8 +1,7 @@
-import { assertTrusted, loadRegistry, lockProfile } from './store';
 import fs from 'node:fs';
 import path from 'node:path';
 import { atomicWrite, privateDir, privateFile, profileDir, readJson, writeJson } from './files';
-import { endpoint } from './registry';
+import { endpoint } from './profile';
 import type { Profile, Tool } from './types';
 import { clients, getClient } from './clients';
 import type { ConfigData as Data } from './clients/types';
@@ -49,47 +48,67 @@ function readConfig(file: string, tool: Tool): Data {
   }
 }
 
+// Caller holds the profile lock and has rechecked the approved binding and key.
 export async function generateConfig(profile: Profile, tool: Tool, apiKey: string): Promise<{ file: string; model?: string }> {
   const root = profileDir(profile.id);
   privateDir(root);
-  const release = await lockProfile(profile.id);
-  try {
-    const entry = (await loadRegistry()).profiles.find(p => p.id === profile.id);
-    if (!entry || entry.key !== apiKey) throw new Error('Profile changed before launch. Try again.');
-    assertTrusted(entry, profile);
-    const client = getClient(tool);
-    for (const entry of clients) if (entry.required) privateDir(path.join(root, entry.id));
-    const dir = path.join(root, tool);
-    privateDir(dir);
-    client.config.checkFiles?.(dir);
-    const file = path.join(dir, client.config.filename);
-    const existing = readConfig(file, tool);
-    const { ids, defaultModel } = client.models(profile);
-    const model = ids
-      ? (ids.includes(existing.model) ? existing.model : defaultModel)
-      : undefined;
-    if (ids && existing.model && model !== existing.model) console.error(`devn: saved ${tool} model is no longer listed; using ${model}.`);
-    const { managed, files = [] } = client.config.build({ profile, dir, endpoint: endpoint(profile, tool), apiKey, existing, model });
-    const manifest = path.join(dir, '.devn-managed.json');
-    const prior = fs.existsSync(manifest) ? readJson(manifest) : { paths: [] };
-    if (!Array.isArray(prior.paths) || !prior.paths.every((p: any) => Array.isArray(p) && p.every((k: any) => typeof k === 'string'))) {
-      throw new Error(`Invalid ownership metadata at ${manifest}.`);
+  const client = getClient(tool);
+  for (const entry of clients) if (entry.required) privateDir(path.join(root, entry.id));
+  const dir = path.join(root, tool);
+  privateDir(dir);
+  client.config.checkFiles?.(dir);
+  const file = path.join(dir, client.config.filename);
+  const existing = readConfig(file, tool);
+  const { ids, defaultModel } = client.models(profile);
+  const model = ids
+    ? (ids.includes(existing.model) ? existing.model : defaultModel)
+    : undefined;
+  if (ids && existing.model && model !== existing.model) console.error(`devn: saved ${tool} model is no longer listed; using ${model}.`);
+  const { managed, files = [] } = client.config.build({ profile, dir, endpoint: endpoint(profile, tool), apiKey, existing, model });
+  const manifest = path.join(dir, '.devn-managed.json');
+  const prior = fs.existsSync(manifest) ? readJson(manifest) : { paths: [] };
+  if (!Array.isArray(prior.paths) || !prior.paths.every((p: any) => Array.isArray(p) && p.every((k: any) => typeof k === 'string'))) {
+    throw new Error(`Invalid ownership metadata at ${manifest}.`);
+  }
+  const ownedPaths = paths(managed, client.config.replacePaths);
+  for (const keyPath of [...prior.paths, ...ownedPaths]) {
+    if (!ids && keyPath.length === 1 && keyPath[0] === 'model') continue;
+    deleteAt(existing, keyPath);
+  }
+  const output = merge(existing, managed);
+  let serialized: string;
+  try { serialized = client.config.serialize(output) + '\n'; }
+  catch { throw new Error(`Cannot serialize ${tool} configuration; no configuration was written.`); }
+  for (const extra of files) {
+    const target = path.join(dir, extra.name);
+    if (!extra.ifMissing || !fs.existsSync(target)) writeJson(target, extra.data);
+  }
+  atomicWrite(file, serialized);
+  writeJson(manifest, { version: 1, paths: ownedPaths });
+  return { file, model };
+}
+
+// Only scrub the credentials devn writes. Histories and personal settings stay intact.
+export async function scrubCredentials(id: string, invalidate = false): Promise<void> {
+  const updates: { file: string; content: string }[] = [];
+  for (const client of clients) {
+    const tool = client.id;
+    const file = path.join(profileDir(id), tool, client.config.filename);
+    if (!await Bun.file(file).exists()) continue;
+    privateFile(file);
+    try {
+      const text = await Bun.file(file).text();
+      const config: any = client.config.parse(text);
+      if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error();
+      client.config.scrub(config);
+      updates.push({ file, content: client.config.serialize(config) });
+    } catch {
+      if (!invalidate) throw new Error(`Cannot safely remove credentials from ${tool} configuration. Repair it or use --purge.`);
+      // An invalidated or replaced credential must not survive in a malformed generated config.
+      // Histories remain separate; do not create a backup containing the secret.
+      fs.rmSync(file);
+      console.error(`devn: Removed malformed ${tool} configuration while replacing or clearing credentials; history retained.`);
     }
-    const ownedPaths = paths(managed, client.config.replacePaths);
-    for (const keyPath of [...prior.paths, ...ownedPaths]) {
-      if (!ids && keyPath.length === 1 && keyPath[0] === 'model') continue;
-      deleteAt(existing, keyPath);
-    }
-    const output = merge(existing, managed);
-    let serialized: string;
-    try { serialized = client.config.serialize(output) + '\n'; }
-    catch { throw new Error(`Cannot serialize ${tool} configuration; no configuration was written.`); }
-    for (const extra of files) {
-      const target = path.join(dir, extra.name);
-      if (!extra.ifMissing || !fs.existsSync(target)) writeJson(target, extra.data);
-    }
-    atomicWrite(file, serialized);
-    writeJson(manifest, { version: 1, paths: ownedPaths });
-    return { file, model };
-  } finally { release(); }
+  }
+  for (const update of updates) atomicWrite(update.file, update.content + '\n');
 }

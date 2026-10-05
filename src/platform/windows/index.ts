@@ -9,6 +9,12 @@ import { environmentValue } from './system';
 const projectPath = (dir: string) => fs.realpathSync.native(dir).replace(/^[a-z]:/, drive => drive.toUpperCase());
 
 export const windows: Platform = {
+  hasDesktop: () => !process.env.SSH_CONNECTION && !process.env.SSH_TTY && process.env.SESSIONNAME !== 'Services',
+  async openBrowser(url) {
+    const child = Bun.spawn(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', 'Start-Process -FilePath $env:DEVN_BROWSER_URL'],
+      { env: { ...process.env, DEVN_BROWSER_URL: url }, stdio: ['ignore', 'ignore', 'ignore'] });
+    if (await child.exited !== 0) throw new Error('Cannot open browser.');
+  },
   defaultConfigRoot: () => environmentValue(process.env, 'LOCALAPPDATA') || path.join(os.homedir(), 'AppData', 'Local'),
   privateDir, privateFile, atomicWrite, runAttached, resolveCommand,
   projectPath,

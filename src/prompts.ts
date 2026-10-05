@@ -1,14 +1,14 @@
 import readline from 'node:readline';
 import { createInterface } from 'node:readline/promises';
-import type { Registration } from './registry';
+import type { LocalConfig } from './types';
 
 function requireTTY(): void {
   if (!process.stdin.isTTY || !process.stderr.isTTY) throw new Error('This command requires an interactive terminal.');
 }
-export async function choose(profiles: Registration[]): Promise<Registration> {
+export async function choose(profiles: LocalConfig['profiles']): Promise<LocalConfig['profiles'][number]> {
   requireTTY();
   if (!profiles.length) throw new Error('No profiles are available. Run devn profile add.');
-  profiles.forEach((p, i) => console.error(`  ${i + 1}. ${p.id} — ${p.name}`));
+  profiles.forEach((p, i) => console.error(`  ${i + 1}. ${p.id}`));
   const input = createInterface({ input: process.stdin, output: process.stderr });
   try {
     const answer = (await input.question('Profile (name or number): ')).trim();

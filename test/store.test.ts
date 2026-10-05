@@ -3,7 +3,7 @@ import * as tempFS from 'node:fs';
 import * as tempOS from 'node:os';
 import * as tempPath from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
-import { addProfile as registerProfile, removeProfile, loadRegistry, refreshProfile } from '../src/store';
+import { addProfile as registerProfile, removeProfile, loadConfig, refreshProfile } from '../src/store';
 import { configHome, profileDir } from '../src/files';
 
 let temp: string;
@@ -39,10 +39,10 @@ afterEach(async () => {
 });
 
 test('registration is local, uses its alias, and refreshes remote routing', async () => {
-  expect((await loadRegistry()).profiles).toEqual([]);
+  expect((await loadConfig()).profiles).toEqual([]);
   await addProfile('local', source(), 'secret');
   expect(authorization).toBeNull();
-  expect((await loadRegistry()).profiles[0].id).toBe('local');
+  expect((await loadConfig()).profiles[0].id).toBe('local');
   payload.baseUrl = 'https://gateway.example.test/updated';
   const result = await refreshProfile('local');
   expect(result.profile.id).toBe('local');
@@ -59,8 +59,8 @@ test('cancelled or invalid deferred key input does not save registration or cach
   ]) {
     let approved = false;
     await expect(registerProfile('a', source(), getKey, undefined, async () => { approved = true; return true; })).rejects.toThrow();
-    expect(approved).toBe(false);
-    expect((await loadRegistry()).profiles).toEqual([]);
+    expect(approved).toBe(true);
+    expect((await loadConfig()).profiles).toEqual([]);
     expect(await Bun.file(`${profileDir('a')}/profile.json`).exists()).toBe(false);
   }
 });
@@ -93,10 +93,10 @@ test('4xx, invalid JSON, and invalid definitions fail without changing cache or 
 
 test('concurrent additions retain both registrations and stale updates are rejected', async () => {
   await Promise.all([addProfile('a', source(), 'key-a'), addProfile('b', source(), 'key-b')]);
-  const registry = await loadRegistry();
-  expect(registry.profiles.map(p => p.id).sort()).toEqual(['a', 'b']);
+  const config = await loadConfig();
+  expect(config.profiles.map(p => p.id).sort()).toEqual(['a', 'b']);
   await expect(addProfile('a', source(), 'oops')).rejects.toThrow('changed');
-  const entry = registry.profiles.find(p => p.id === 'a')!;
+  const entry = config.profiles.find(p => p.id === 'a')!;
   await Bun.write(`${profileDir('a')}/codex/history.jsonl`, 'saved session');
   await addProfile('a', source(), 'new-key', entry);
   expect((await refreshProfile('a')).key).toBe('new-key');
@@ -117,7 +117,7 @@ test('gateway origin changes require explicit approval and never replace a trust
   payload.baseUrl = 'https://different.example.test';
   await expect(refreshProfile('a')).rejects.toThrow('unapproved or changed');
   expect(await Bun.file(file).text()).toBe(before);
-  const entry = (await loadRegistry()).profiles[0];
+  const entry = (await loadConfig()).profiles[0];
   await expect(registerProfile('a', source(), 'secret', entry)).rejects.toThrow('approval cancelled');
   expect(await Bun.file(file).text()).toBe(before);
   await addProfile('a', source(), 'secret', entry);
@@ -141,9 +141,9 @@ test('adding OpenCode requires approval, preserves old profiles, and pins its ow
   payload.opencode = { model: 'coding', models: { coding: { name: 'Coding' } }, baseUrl: 'https://opencode.example.test/v1' };
   await expect(refreshProfile('a')).rejects.toThrow('unapproved or changed');
   expect(await Bun.file(cache).text()).toBe(before);
-  const entry = (await loadRegistry()).profiles[0];
+  const entry = (await loadConfig()).profiles[0];
   await addProfile('a', source(), 'secret', entry);
-  expect((await loadRegistry()).profiles[0].origins?.opencode).toBe('https://opencode.example.test');
+  expect((await loadConfig()).profiles[0].origins?.opencode).toBe('https://opencode.example.test');
   payload.opencode.baseUrl = 'https://opencode.example.test/updated/v1';
   expect((await refreshProfile('a')).profile.opencode?.baseUrl).toBe(payload.opencode.baseUrl);
   payload.opencode.baseUrl = 'https://different.example.test/v1';
@@ -176,7 +176,7 @@ test('oversized responses are rejected with and without Content-Length', async (
   expect(await Bun.file(`${profileDir('a')}/profile.json`).text()).toBe(before);
 });
 
-test('one slow profile does not block refreshes or registry updates for another', async () => {
+test('one slow profile does not block refreshes or config updates for another', async () => {
   await addProfile('a', source() + '?slow', 'key-a');
   await addProfile('b', source(), 'key-b');
   let release!: () => void;
@@ -212,7 +212,7 @@ test('removal scrubs generated credentials, preserves history, and purge removes
   }));
   await Bun.write(`${root}/opencode/data/opencode/opencode.db`, 'saved sessions');
   await removeProfile('a');
-  expect((await loadRegistry()).profiles).toEqual([]);
+  expect((await loadConfig()).profiles).toEqual([]);
   expect(await Bun.file(`${root}/codex/config.toml`).text()).not.toContain('secret');
   expect(await Bun.file(`${root}/claude/settings.json`).text()).not.toContain('secret');
   expect(await Bun.file(`${root}/opencode/opencode.json`).text()).not.toContain('secret');
@@ -238,9 +238,9 @@ test('malformed retained client config prevents all credential writes and preser
   await expect(removeProfile('a')).rejects.toThrow('Cannot safely remove credentials from opencode configuration. Repair it or use --purge.');
   expect(await Bun.file(`${root}/codex/config.toml`).text()).toBe(codex);
   expect(await Bun.file(`${root}/claude/settings.json`).text()).toBe(claude);
-  expect((await loadRegistry()).profiles[0].id).toBe('a');
+  expect((await loadConfig()).profiles[0].id).toBe('a');
   await removeProfile('a', true);
-  expect((await loadRegistry()).profiles).toEqual([]);
+  expect((await loadConfig()).profiles).toEqual([]);
   expect(tempFS.existsSync(root)).toBe(false);
 });
 
@@ -257,6 +257,21 @@ test('trusted origins reject missing required clients and unknown client names',
     const config = structuredClone(original);
     config.profiles.a.origins = origins;
     await Bun.write(file, Bun.TOML.stringify(config));
-    await expect(loadRegistry()).rejects.toThrow('Invalid trusted gateway origins.');
+    await expect(loadConfig()).rejects.toThrow('Invalid trusted gateway origins.');
   }
+});
+
+
+test('manual re-add repairs malformed generated config only after approval and retains history', async () => {
+  await addProfile('a', source(), 'dummy-old-key');
+  const previous = (await loadConfig()).profiles[0], root = profileDir('a');
+  const file = `${root}/opencode/opencode.json`;
+  await Bun.write(file, '{"apiKey":"dummy-old-key"');
+  await Bun.write(`${root}/opencode/history.jsonl`, 'dummy-history');
+  await expect(registerProfile('a', source(), 'dummy-new-key', previous, async () => false)).rejects.toThrow('cancelled');
+  expect(await Bun.file(file).text()).toContain('dummy-old-key');
+  await addProfile('a', source(), 'dummy-new-key', previous);
+  expect((await loadConfig()).profiles[0].key).toBe('dummy-new-key');
+  expect(await Bun.file(file).exists()).toBe(false);
+  expect(await Bun.file(`${root}/opencode/history.jsonl`).text()).toBe('dummy-history');
 });

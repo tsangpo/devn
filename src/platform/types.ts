@@ -2,6 +2,8 @@ export type Environment = Record<string, string | undefined>;
 // Supplied by a built-in client, never by remote profile data.
 export type ClientCommand = { name: string; npmPackage: string };
 export interface Platform {
+  hasDesktop(): boolean;
+  openBrowser(url: string): Promise<void>;
   defaultConfigRoot(): string;
   privateDir(dir: string): void;
   privateFile(file: string): void;

@@ -107,21 +107,76 @@ Windows device names and profile names differing only in case cannot be register
     devn profile remove customer-a
     devn profile remove customer-a --purge
 
-Add asks for a **Profile JSON URL**, then a local name, then a hidden gateway key.
+Add accepts an optional **Profile JSON URL** argument, then asks for a local name and trust approval.
+OAuth profiles sign in through the browser; manual profiles ask for a hidden gateway key.
 The name prompt always appears. A valid JSON filename supplies the default:
 `customer-a.json` shows `Profile name [customer-a]: `. Press Enter to accept it
 or type another name. Query parameters are ignored; the filename is URL-decoded
 and its `.json` suffix is removed (case-insensitively). If it cannot supply a valid
 local name, no default is shown and you must enter one.
 After the name and any update confirmation, devn downloads and validates the
-profile before asking for the key. If the profile includes `authUrl`, it displays
+profile and asks you to approve its gateways before authentication. For manual profiles, `authUrl` displays
 the full URL so you can open it to obtain a key. Terminals that recognize URLs
 can make it clickable; otherwise copy it into your browser. Then paste the key
-into the hidden prompt. devn does not open the browser or fetch the key for you.
+into the hidden prompt. This manual flow does not open a browser or fetch a key automatically.
 The URL points to a configuration document, not a model API. The download does not
 send your key. You must explicitly approve the displayed client gateway
 origins before registration is saved. Adding the same name asks before replacing
 its URL/key and retains tool history.
+
+For platform login, use the new public CLI profile URL:
+
+    devn profile add https://platform.example.com/public/cli/team.json --auth auto
+
+`profile add` reads the downloaded profile and completes login automatically.
+Authentication starts with `profile add`; there are no login/logout commands.
+Each profile owns an independent session, even when auth bindings match. Desktop `auto` opens the
+platform's browser Slack sign-in with Authorization Code + PKCE S256, using a
+random `127.0.0.1` port and `/callback`. No key needs to be pasted. SSH or a
+headless session uses Device Authorization: open the displayed verification link
+on another computer and enter the displayed user code. Use `--auth browser` or
+`--auth device` to choose explicitly. A failed browser opener leaves a usable
+link; if the loopback listener cannot start, `auto` switches to device flow.
+Ctrl-C cancels authorization.
+
+Before first login, approve the issuer, client ID, complete resource URL and
+all gateway origins. Registrations pin these values; changed OAuth bindings or
+gateway origins require `profile add` again. Each profile has a random persistent
+session ID and its own tokens. Re-add with the same URL, name and binding reuses
+that profile's valid session; rejected authorization is replaced through browser
+or device authorization within the same add attempt. To switch accounts, remove
+that profile and add it again. Default removal preserves history and bindings.
+
+The resource is an opaque key URL: devn GETs it directly and never requests `/me`.
+Only add/re-add may POST to that URL after a `404 key_missing`. The first key
+response establishes the subject from `user.id`; later responses must match.
+The response's `instanceId` and the resource path are not interpreted.
+Normal startup synchronizes existing keys and generates tool config, never
+recreating a missing key. Network errors, timeouts and 5xx may use that profile's
+same-subject cached key. Refresh `invalid_grant` and resource 403/404 clear its cached/generated
+credentials and prohibit fallback; a 401 gets at most one refresh and retry.
+
+Removal, rebinding or switching to manual retires only that profile's session.
+Failed registration cleans up its newly created session. Other profiles remain
+independent, even for identical resources. Revocation failure still clears local
+tokens and reports that remote revocation was not confirmed. The Bifrost key is
+never deleted. Stop running tools before removing profiles.
+
+Refresh responses may omit `refresh_token`; devn retains the previous token.
+Generic discovery/token/device 401/403/404 failures stop without deleting cached
+credentials or using offline fallback. Explicit account disabling still clears them.
+Approved add/re-add and key rotation remove malformed generated configs with a
+warning so they can be regenerated. Personal settings in those damaged files are
+lost; separate history files remain. Rotation commits the new key only after
+old generated credentials are scrubbed successfully.
+
+`profile add --auth manual` keeps the hidden-key workflow. Existing manual
+registrations never adopt OAuth during refresh or a default re-add; explicitly
+re-add with `--auth auto`, `browser` or `device` to approve the switch. The old
+`/public/bifrost/*.json` endpoint and `authUrl` retain their manual meaning.
+See [the OAuth example](profiles/oauth.example.json) and
+[compatibility requirements](CONTRIBUTING.md#compatibility) before publishing
+profiles containing `auth`; older CLIs reject that optional field.
 
 Show reads local data only. It hides the key, URL paths and query parameters.
 Without a name, it shows the current project's profile. Use without a name offers
@@ -323,6 +378,7 @@ Configuration references: [v2 providers](https://opencode.ai/v2/docs/providers),
 Configuration uses ${XDG_CONFIG_HOME:-~/.config}/devn:
 
     config.toml
+    oauth/              # private per-profile platform sessions; never sent to tools
     profiles/
       customer-a/
         profile.json
@@ -330,9 +386,12 @@ Configuration uses ${XDG_CONFIG_HOME:-~/.config}/devn:
         claude/         # CLAUDE_CONFIG_DIR
         opencode/       # OPENCODE_CONFIG_DIR; isolated data/cache/state below it
 
-Registration is TOML:
+Local profiles and project bindings are stored together in config.toml, version 3 only, with pinned OAuth bindings, independent
+session IDs and cached subjects. Older config versions are rejected without
+rewriting files or migrating credentials. Old shared tokens are never reused.
+Remote profile JSON remains version 1 with the new optional OAuth binding.
 
-    version = 1
+    version = 3
 
     [profiles.customer-a]
     url = "https://config.example.com/customer-a.json"
@@ -360,11 +419,9 @@ plugins and history are preserved. Profiles do not copy global client settings.
 This separates configuration and state, not OS permissions or agent file access.
 See SECURITY.md for limitations.
 
-Registrations without approved origins must be added again with `devn profile add`.
-Stop active clients before moving configuration or tool data. Preserve file
-permissions when copying history and personal settings into a profile directory;
-the key in config.toml remains the source of truth. No automatic migration from
-older development layouts is performed.
+Only config v3 is accepted. Older config files fail before profile operations;
+files, histories and old credentials remain untouched. There is no compatibility
+reader or migration. An auth binding containing instanceId is also rejected.
 
 ## Development and release
 

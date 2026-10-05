@@ -38,7 +38,7 @@ test('profile add hides keys, fetches without authentication, confirms updates a
     const key = `private-prompt-key-${i}-"\\秘密`;
     const answers: [string, string][] = [['Profile JSON URL: ', url], ['Profile name [profile]: ', 'a']];
     if (i) answers.push(['[y/N]: ', 'yes']);
-    answers.push(['Bifrost key (hidden): ', key], ['Trust these gateways to receive your key? [y/N]: ', 'yes']);
+    answers.push(['Trust these gateways to receive your key? [y/N]: ', 'yes'], ['Bifrost key (hidden): ', key]);
     const result = await add(f, answers);
     assert.equal(result.code, 0, result.output);
     assert.equal(result.stage, answers.length);
@@ -75,8 +75,8 @@ test('profile add displays authUrl before the hidden key prompt and downloads on
   const authUrl = `http://127.0.0.1:${server.port}/keys?application=devn`;
   const result = await add(f, [
     ['Profile JSON URL: ', `http://127.0.0.1:${server.port}/profile.json`], ['Profile name [profile]: ', 'linked'],
-    ['Bifrost key (hidden): ', 'private-linked-key'],
     ['Trust these gateways to receive your key? [y/N]: ', 'yes'],
+    ['Bifrost key (hidden): ', 'private-linked-key'],
   ]);
   assert.equal(result.code, 0, result.output);
   assert.equal(result.stage, 4);
@@ -126,8 +126,8 @@ test('profile add always prompts for a name second and accepts filename defaults
     const url = `http://127.0.0.1:${server.port}/${filename}`;
     const result = await add(f, [
       ['Profile JSON URL: ', url], ['Profile name [' + name + ']: ', ''],
-      ['Bifrost key (hidden): ', 'test-key'],
       ['Trust these gateways to receive your key? [y/N]: ', 'yes'],
+      ['Bifrost key (hidden): ', 'test-key'],
     ]);
     assert.equal(result.code, 0, result.output);
     assert.equal(result.stage, 4);
@@ -219,7 +219,6 @@ test('declining gateway approval does not register or replace a profile', async 
   const result = await add(f, [
     ['Profile JSON URL: ', `http://127.0.0.1:${server.port}/profile.json`],
     ['Profile name [profile]: ', 'new'],
-    ['Bifrost key (hidden): ', 'private-test-key'],
     ['Trust these gateways to receive your key? [y/N]: ', 'n'],
   ]);
   assert.notEqual(result.code, 0);

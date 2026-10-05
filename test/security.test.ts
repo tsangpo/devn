@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { downloadProfile } from '../src/download';
 import { secureURL } from '../src/urls';
-import { validateProfile } from '../src/registry';
+import { validateProfile } from '../src/profile';
 
 test('optional authUrl accepts secure key pages and rejects unsafe values', () => {
   const profile = { version: 1, baseUrl: 'https://gateway.test', codex: {}, claude: {} };

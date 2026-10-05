@@ -96,7 +96,7 @@ Bun 直接执行 TypeScript，无需安装项目依赖或构建。CLI 运行时�
 devn --version
 devn profile list
 devn profile show customer-a      # 脱敏查看，本地读取
-devn profile add                 # 输入 Profile JSON URL、本地名称、隐藏输入 key
+devn profile add [URL]           # 输入名称、确认信任，然后登录或隐藏输入 key
 
 cd /path/to/project
 devn profile use customer-a     # 把当前目录绑定到该 profile
@@ -108,9 +108,27 @@ devn claude
 
 `profile add` 输入的 URL 是公开的 Profile JSON 地址，例如 `https://config.example.com/customer-a.json`，不是模型网关地址。请求不携带 key；key 只用于工具连接 JSON 中指定的网关。下载并校验后展示已配置客户端的网关 origin，明确确认后才保存注册信息。默认要求 HTTPS；HTTP 只允许 localhost、127.0.0.0/8 和 ::1 回环地址供本地测试。远程配置重定向最多 5 次，HTTPS 不允许降级到 HTTP。
 
-输入本地名称并确认更新（若有）后，devn 会先下载并校验 profile，再提示输入 key。若配置了 `authUrl`，会先显示完整链接，方便打开页面获取 key；支持 URL 识别的终端可直接点击，否则可复制到浏览器。随后将 key 粘贴到隐藏输入提示中。devn 不会自动打开浏览器或获取 key。
+输入本地名称并确认更新（若有）后，devn 会先下载并校验 profile，先确认网关信任，然后进行认证。手动模式若配置了 `authUrl`，会先显示完整链接，方便打开页面获取 key；支持 URL 识别的终端可直接点击，否则可复制到浏览器。随后将 key 粘贴到隐藏输入提示中。手动模式不会自动打开浏览器或获取 key。
 
 第二步始终提示输入本地名称。URL 中的 `customer-a.json` 会显示 `Profile name [customer-a]: `，直接回车采用默认值，也可输入其他名称。推导时忽略查询参数，对文件名进行 URL 解码，再去掉 `.json` 后缀（不区分大小写）；无法推导合法名称时不显示默认值，必须手动输入。
+
+平台 OAuth 登录使用新的 CLI profile 地址：
+
+```sh
+devn profile add https://platform.example.com/public/cli/team.json --auth auto
+```
+
+`profile add` 下载 profile 后读取认证方式并自动完成登录。认证入口只有 `profile add`，不提供 login/logout 命令。每个 profile 独立持有 session，即使认证绑定完全相同也不共享 token。桌面 `auto` 使用 Authorization Code + PKCE S256，随机监听 `127.0.0.1` 端口的 `/callback`，打开浏览器进行 Slack 登录，无须粘贴 key。SSH 或无桌面环境自动使用 Device Authorization Flow：在另一台电脑打开显示的链接并输入 user code。可用 `--auth browser` 或 `--auth device` 显式选择。浏览器打开失败仍显示可用链接；自动模式监听失败会改用 device。Ctrl-C 可取消授权。
+
+首次登录前明确确认 issuer、client ID、完整 resource URL 和各网关 origin。认证绑定及网关 origin 固定，远端变更必须重新 `profile add` 确认。每个 profile 使用独立随机持久 session ID；相同 URL、本地名称及绑定重新 add 会复用自己的有效 session，失效授权在同一次 add 内重新浏览器或 device 授权。切换账号时移除该 profile 后重新 add；默认保留工具历史和项目绑定。
+
+resource 是不透明的完整 key URL，客户端直接 GET，不解析路径，也不请求 `/me`。只有 add/re-add 遇到 `404 key_missing` 才向同一 URL POST 领取 key。首次 key 响应的 `user.id` 确定 subject，后续响应必须一致；客户端不依赖响应的 `instanceId`。日常启动只同步已有 key 并更新工具配置，不重建缺失 key。网络错误、超时、5xx 可使用该 profile 同 subject 的缓存；refresh 的 invalid_grant、资源端点的 403/404 会持久清除自身缓存与生成凭证，禁止回退。401 最多 refresh 后再试一次。
+
+删除、改绑或切换 manual 只撤销并清理自身 session；注册失败清理自身新建 session。相同 resource 的其他 profile 也不受影响。网络失败仍清理本地，并提示远端撤销未确认；绝不删除 Bifrost key。清理前请停止已运行的工具。
+
+刷新响应省略 `refresh_token` 时保留原 token。discovery/token/device 端点的普通 401/403/404 会停止操作，不删除缓存凭证，也不离线回退；明确账户封禁仍会清理凭证。批准 add/re-add 或 key 轮换时，损坏的生成配置会在提示后删除，以便重新生成；该文件内的个人设置会丢失，独立历史文件保留。轮换先清理旧生成凭证，成功后才保存新 key。
+
+`profile add --auth manual` 保留隐藏输入 key。手动注册不会在刷新或默认重新添加时自动升级 OAuth；需要显式重新 add 并指定 `--auth auto`、`browser` 或 `device`。旧 `/public/bifrost/*.json` 与 `authUrl` 保持手动语义。发布含 `auth` 的 profile 前必须升级到支持 OAuth 的 CLI（目前未发布），旧版会拒绝新字段；见 [OAuth 示例](profiles/oauth.example.json) 和 [兼容说明](CONTRIBUTING.md#compatibility)。
 
 重复添加同名 profile 会询问是否更新 URL 和 key，保留工具数据。`profile use` 省略名称时列出已注册的 profiles。添加不会改变当前项目绑定，旧的 `profile init` 已由 `profile add` 替代。
 
@@ -147,7 +165,8 @@ CLI 不内置任何客户 profile。远程配置不提供 `models` 时，devn �
 
 ```text
 ~/.config/devn/
-├── config.toml                  # 本地名称、远程 JSON URL、key、项目绑定
+├── config.toml                  # 注册、认证绑定、缓存 key/subject、项目绑定
+├── oauth/                       # 独立私有平台会话，绝不传给工具
 └── profiles/
     └── customer-a/
         ├── profile.json         # 校验后的远程配置缓存
@@ -158,10 +177,10 @@ CLI 不内置任何客户 profile。远程配置不提供 `models` 时，devn �
             └── settings.json
 ```
 
-本地注册文件：
+本地 profile 和项目绑定统一保存在 config.toml，仅接受 v3，保存固定认证绑定、独立 session ID 和 subject。旧版本直接报错，不改写文件，不兼容或迁移旧凭证，也不复用旧共享 token。
 
 ```toml
-version = 1
+version = 3
 
 [profiles.customer-a]
 url = "https://config.example.com/customer-a.json"
@@ -281,9 +300,9 @@ bun run test:native              # 需要本机 codex / claude / opencode；仅�
 
 配置与工具数据使用 `${XDG_CONFIG_HOME:-~/.config}/devn`，测试通过 `XDG_CONFIG_HOME` 隔离数据。CLI 源码可以放在任意目录，移动或升级代码不会迁移用户数据。
 
-## 从旧版迁移
+## 旧配置行为
 
-旧开发版本的注册记录若没有已批准的 origins，需执行 `devn profile add` 重新添加并确认网关地址。搬迁配置或工具数据前先停止工具会话；复制历史和个人设置到 profile 目录时保留文件权限，key 以 `config.toml` 为准。不会自动迁移旧开发版本的数据目录。
+仅接受本地配置文件 v3；v1/v2 等旧版本在 profile 操作前直接报错，文件、历史和旧凭证保持原样。不提供兼容读取或迁移，也不把旧共享 token 复制到新 session。含 instanceId 的旧 auth 绑定也会被拒绝。
 
 已验证基线：Bun 1.4.2、Codex 0.159.2、Claude Code 2.1.285；OpenCode 新增本地网关验证基线为 2.0.21。
 
@@ -310,4 +329,4 @@ bun run test:binary
 
 产物放在忽略提交的 `release/`，不引入 dist 或项目依赖。正式发布工作流仅接受稳定版本，不发布预览版。
 
-此前注册记录若没有 origins，升级后需重新运行 `profile add` 接受网关地址；工具历史保留。配置格式 version 1 继续支持，未知版本报错，不会静默迁移。兼容范围和发布前测试要求见 CONTRIBUTING.md。
+远程 profile 仍为 version 1；本地配置文件仅接受 v3，旧版本报错且保持文件原样，无兼容或迁移。兼容范围和发布前测试要求见 CONTRIBUTING.md。

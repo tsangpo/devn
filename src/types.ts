@@ -9,9 +9,23 @@ export type ClientProfiles = {
   opencode?: OpenCodeProfile;
 };
 export type Profile = ClientProfiles & {
-  version: 1; id: string; name: string; baseUrl: string; authUrl?: string; example?: boolean;
+  version: 1; id: string; name: string; baseUrl: string; authUrl?: string; auth?: OAuthBinding; example?: boolean;
 };
+export type OAuthBinding = { type: 'oauth2'; issuer: string; clientId: string; resource: string };
 export type Tool = keyof ClientProfiles;
 export type Origins = { [K in keyof ClientProfiles]: string };
-export type Registration = { id: string; name: string; url: string; key: string; origins?: Origins };
-export type Registry = { profiles: Registration[]; projects: Record<string, string> };
+export type LocalConfig = {
+  profiles: Array<{
+    id: string;
+    url: string;
+    key: string;
+    origins?: Origins;
+    auth?: OAuthBinding;
+    sessionId?: string;
+    subject?: string;
+  }>;
+  projects: Record<string, string>;
+};
+
+export type SessionRef = { id: string; auth: OAuthBinding };
+export type OAuthCredentials = { key: string; auth: OAuthBinding; sessionId: string; subject: string };

@@ -1,15 +1,15 @@
 import { clients, getClient } from './clients';
 import { profileDir } from './files';
-import { generateConfig } from './config';
-import { endpoint } from './registry';
+import { prepareConfig } from './store';
+import { endpoint } from './profile';
 import type { Profile, Tool } from './types';
-import { runAttached } from './process';
+import { platform } from './platform';
 
 export async function launch(profile: Profile, tool: Tool, args: string[], apiKey: string): Promise<number> {
   if (profile.example) throw new Error('The example profile cannot connect. Run devn profile add with a real profile first.');
   const client = getClient(tool);
   const prepared = client.checkArgs(args, profile);
-  const generated = await generateConfig(profile, tool, apiKey);
+  const generated = await prepareConfig(profile, tool, apiKey);
   const env = { ...process.env };
   for (const entry of clients) entry.clearEnvironment?.(env);
   const result = client.prepareLaunch({ profile, root: profileDir(profile.id), generated, prepared, env });
@@ -18,5 +18,5 @@ export async function launch(profile: Profile, tool: Tool, args: string[], apiKe
     console.log(result.text);
     return 0;
   }
-  return runAttached(result.command, result.args, result.env);
+  return platform.runAttached(result.command, result.args, result.env);
 }

@@ -26,6 +26,7 @@
     "bin/",
     "src/",
     "profiles/example.json",
+    "profiles/oauth.example.json",
     "README.zh-CN.md",
     "CHANGELOG.md",
     "SECURITY.md",

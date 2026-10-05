@@ -4,6 +4,20 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+- Centralize local credential updates and cleanup locking in store, keep OAuth invalidation policy in lifecycle, and move generic profile lookup out of project binding resolution. Remove the process forwarding module; launch calls the platform facade directly.
+
+- Consolidate generated tool configuration and credential cleanup in `config.ts`; keep launch validation, locking and profile-directory removal in `store.ts`. Remove `profile-data.ts` without changing cleanup behavior.
+
+- Retain the existing refresh token when a refresh response omits it. Distinguish resource failures and refresh-grant rejection from generic discovery/token/device errors, preserving cached credentials on unrelated authorization failures. Startup still never claims a missing key.
+- Repair malformed generated configs during approved add/re-add and key rotation, warning about lost settings while preserving separate histories. Scrub old generated credentials before committing rotated keys; abort on filesystem cleanup failure.
+
+- Inline local profile fields into `LocalConfig`, removing the separate Registration type and duplicate local display name.
+- Remove the Registry concept: profile validation lives in `profile.ts`, while `LocalConfig` and config read/write operations describe local storage directly. Preserve the file format and locking behavior.
+
+- Add optional OAuth through `profile add`: desktop PKCE S256 with a random loopback callback and SSH/headless device flow. Re-add reuses the profile's valid session or renews rejected authorization within one attempt. No public login/logout commands; `--auth auto|browser|device|manual` selects authentication after approval.
+- Give every profile an independent random session ID and private rotating tokens, even for identical bindings. Treat resource as the complete opaque key URL; GET directly, POST only on add/re-add after `404 key_missing`, derive subject from the key response, and never request `/me`. Remove auth.instanceId. Invalidation, removal, rebinding and failed registration affect only the owning session; preserve Bifrost keys, history and bindings.
+- Accept only local config v3, rejecting older versions without compatibility or migration. Remote profiles remain v1 with optional OAuth; manual authUrl retains its meaning. Old shared tokens are not reused. Upgrade the CLI before publishing auth. No new runtime dependencies.
+
 ## 0.6.0 — 2026-10-02
 
 - **Breaking:** switch OpenCode to the OpenAI-compatible Responses API instead of Chat Completions. Gateways must serve `<baseUrl>/openai/v1/responses`, or `/responses` under the configured `opencode.baseUrl`. Keep custom base URLs without the `/responses` suffix; existing managed providers switch on the next launch. Chat Completions-only gateways must add Responses support before upgrading.

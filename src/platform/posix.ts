@@ -56,6 +56,12 @@ export async function runAttached({ name: command }: ClientCommand, args: string
 }
 
 export const posix: Platform = {
+  hasDesktop: () => !process.env.SSH_CONNECTION && !process.env.SSH_TTY &&
+    (os.type() === 'Darwin' || Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY)),
+  async openBrowser(url) {
+    const child = Bun.spawn([os.type() === 'Darwin' ? 'open' : 'xdg-open', url], { stdio: ['ignore', 'ignore', 'ignore'] });
+    if (await child.exited !== 0) throw new Error('Cannot open browser.');
+  },
   defaultConfigRoot: () => path.join(os.homedir(), '.config'),
   privateDir, privateFile, atomicWrite, runAttached,
   resolveCommand: ({ name: command }, args, env) => {

@@ -1,23 +1,19 @@
+import { getProfile } from './store';
 import { platform } from './platform';
 import path from 'node:path';
-import type { Registration, Registry } from './registry';
+import type { LocalConfig } from './types';
 
-export function findBinding(registry: Registry, cwd = process.cwd()): { id: string; dir: string } | undefined {
+export function findBinding(config: LocalConfig, cwd = process.cwd()): { id: string; dir: string } | undefined {
   let dir = platform.projectPath(cwd);
   while (true) {
-    if (Object.hasOwn(registry.projects, dir)) return { id: registry.projects[dir], dir };
+    if (Object.hasOwn(config.projects, dir)) return { id: config.projects[dir], dir };
     const parent = path.dirname(dir);
     if (dir === parent) return undefined;
     dir = parent;
   }
 }
-export function getProfile(registry: Registry, id: string): Registration {
-  const profile = registry.profiles.find(p => p.id === id);
-  if (!profile) throw new Error(`Unknown profile ${id}. Run devn profile list.`);
-  return profile;
-}
-export function requireProfile(registry: Registry): Registration {
-  const binding = findBinding(registry);
+export function requireProfile(config: LocalConfig): LocalConfig['profiles'][number] {
+  const binding = findBinding(config);
   if (!binding) throw new Error('No project binding found. Run devn profile use in your project directory.');
-  return getProfile(registry, binding.id);
+  return getProfile(config, binding.id);
 }

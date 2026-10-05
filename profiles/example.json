@@ -78,9 +78,21 @@
     "modelPicker": {
       "replaceBuiltInOptions": true,
       "options": [
-        { "model": "opusplan", "label": "Opus Plan Mode" },
-        { "model": "bedrock/global.anthropic.claude-opus-5-5", "label": "Claude Opus 5.5" },
-        { "model": "bedrock/global.anthropic.claude-sonnet-5-5", "label": "Claude Sonnet 5.5" }
+        {
+          "model": "opusplan",
+          "label": "Opus Plan",
+          "description": "Opus in plan mode, Sonnet for implementation. Recommended default"
+        },
+        {
+          "model": "bedrock/global.anthropic.claude-sonnet-5-5",
+          "label": "Sonnet 5.5",
+          "description": "Fastest Sonnet. Well-scoped everyday tasks, bug fixes, polished docs & slides · $2/$10"
+        },
+        {
+          "model": "bedrock/global.anthropic.claude-opus-5-5",
+          "label": "Opus 5.5",
+          "description": "Leading model. Fable 5.1-level, 40% cheaper than Opus 5. Complex work & big migrations · $4/$20"
+        }
       ]
     }
   },

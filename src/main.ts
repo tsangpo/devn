@@ -1,16 +1,20 @@
+import { loginCredentials, syncCredentials } from './oauth/lifecycle';
+import type { AuthMode } from './oauth/authorize';
 import { version } from '../package.json';
 import example from '../profiles/example.json';
+import oauthExample from '../profiles/oauth.example.json';
 import { displayURL, secureURL } from './urls';
 import { platform } from './platform';
-import { loadRegistry, addProfile, refreshProfile, removeProfile, cachedProfile, safeId, bindProject, unbindProject } from './store';
-import { validateProfile, endpoint, type Registry } from './registry';
-import { findBinding, getProfile, requireProfile } from './projects';
+import { loadConfig, getProfile, addProfile, refreshProfile, removeProfile, cachedProfile, safeId, bindProject, unbindProject } from './store';
+import { validateProfile, endpoint } from './profile';
+import type { LocalConfig } from './types';
+import { findBinding, requireProfile } from './projects';
 import { choose, password, question } from './prompts';
 import { launch } from './launch';
 import { clients, configuredClients, isTool } from './clients';
 
 const PROFILE_COMMANDS = `  devn profile list                 List locally registered profiles
-  devn profile add                  Enter a Profile JSON URL, name, and Bifrost key
+  devn profile add [URL] [--auth auto|browser|device|manual]
   devn profile show [profile-name]   Show redacted local profile details
   devn profile remove <name> [--purge] Remove registration; --purge also deletes history
   devn profile use [profile-name]    Bind the current directory to a profile
@@ -26,24 +30,41 @@ ${clients.flatMap(client => client.helpNotes ? [client.helpNotes] : []).join('\n
 Keys and tool data stay local. Remote profiles refresh before launching a tool.
 `;
 
-async function dispatch(registry: Registry, args: string[]): Promise<number> {
+function authArguments(args: string[], allowAuth: boolean, manual = false): { value?: string; mode: AuthMode | 'manual'; explicit: boolean } {
+  let value: string | undefined, mode: AuthMode | 'manual' = 'auto', seen = false;
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--auth' || arg.startsWith('--auth=')) {
+      if (!allowAuth || seen) throw new Error('Unexpected --auth option.');
+      const input = arg === '--auth' ? args[++i] : arg.slice(7);
+      if (!['auto', 'browser', 'device', ...(manual ? ['manual'] : [])].includes(input)) throw new Error('Invalid --auth mode.');
+      mode = input as typeof mode; seen = true;
+    } else if (arg.startsWith('-') || value !== undefined) throw new Error('Unexpected arguments. Run devn --help.');
+    else value = arg;
+  }
+  return { value, mode, explicit: seen };
+}
+
+async function dispatch(config: LocalConfig, args: string[]): Promise<number> {
   if (isTool(args[0])) {
-    const entry = requireProfile(registry);
-    const { profile, key } = await refreshProfile(entry.id);
+    const entry = requireProfile(config);
+    const { profile } = await refreshProfile(entry.id);
+    const key = await syncCredentials(entry.id);
     return launch(profile, args[0], args.slice(1), key);
   }
   if (args[0] !== 'profile') throw new Error('Unknown command. Run devn --help.');
   const [, action, id, ...extra] = args;
-  if ((extra.length && !(action === 'remove' && extra.length === 1 && extra[0] === '--purge')) || (id !== undefined && !['use', 'show', 'remove'].includes(action))) throw new Error('Unexpected arguments. Run devn --help.');
+  const adding = action === 'add' ? authArguments(args.slice(2), true, true) : undefined;
+  if (!adding && ((extra.length && !(action === 'remove' && extra.length === 1 && extra[0] === '--purge')) || (id !== undefined && !['use', 'show', 'remove'].includes(action)))) throw new Error('Unexpected arguments. Run devn --help.');
   if (action === 'list') {
-    const binding = findBinding(registry);
-    for (const p of registry.profiles) console.log(`${binding?.id === p.id ? '*' : ' '} ${p.id}`);
-    if (!registry.profiles.length) console.log('No profiles registered. Run devn profile add.');
+    const binding = findBinding(config);
+    for (const p of config.profiles) console.log(`${binding?.id === p.id ? '*' : ' '} ${p.id}`);
+    if (!config.profiles.length) console.log('No profiles registered. Run devn profile add.');
     if (binding) console.log(`Binding: ${binding.dir} → ${binding.id}`);
     return 0;
   }
   if (action === 'add') {
-    const url = await question('Profile JSON URL: ');
+    const url = adding!.value || await question('Profile JSON URL: ');
     const parsedURL = secureURL(url);
     let defaultName = '';
     try {
@@ -53,14 +74,19 @@ async function dispatch(registry: Registry, args: string[]): Promise<number> {
     } catch { /* Invalid filename encoding leaves the name for the user to enter. */ }
     const name = await question(defaultName ? `Profile name [${defaultName}]: ` : 'Profile name: ') || defaultName;
     if (!safeId(name)) throw new Error('Invalid profile name. Use letters, numbers, hyphens, or underscores (up to 64 characters).');
-    const existing = registry.profiles.find(p => p.id === name);
+    const existing = config.profiles.find(p => p.id === name);
     if (existing && !/^y(es)?$/i.test(await question(`Update profile ${name} URL and key? [y/N]: `))) {
       console.log('Cancelled.'); return 0;
     }
-    await addProfile(name, url, async profile => {
+    const mode = adding!.mode;
+    const manual = mode === 'manual' || (!!existing && !existing.auth && !adding!.explicit);
+    await addProfile(name, url, async (profile, session) => {
+      if (!manual && profile.auth) return loginCredentials(session!, mode as AuthMode);
+      if (!manual && mode !== 'auto') throw new Error('Profile does not offer OAuth.');
       if (profile.authUrl) console.error(`Open this URL to get your Bifrost key: ${profile.authUrl}`);
       return password();
     }, existing, async profile => {
+      if (!manual && profile.auth) console.error(`OAuth issuer: ${profile.auth.issuer}\nClient: ${profile.auth.clientId}\nResource: ${profile.auth.resource}`);
       for (const client of configuredClients(profile)) console.error(`${client.label} gateway: ${displayURL(endpoint(profile, client.id))}`);
       return /^y(es)?$/i.test(await question('Trust these gateways to receive your key? [y/N]: '));
     });
@@ -68,7 +94,7 @@ async function dispatch(registry: Registry, args: string[]): Promise<number> {
     return 0;
   }
   if (action === 'show') {
-    const entry = id ? getProfile(registry, id) : requireProfile(registry);
+    const entry = id ? getProfile(config, id) : requireProfile(config);
     let cached = false;
     try { await cachedProfile(entry.id); cached = true; } catch { /* Show missing/invalid cache without parsing details. */ }
     console.log(JSON.stringify({
@@ -80,7 +106,7 @@ async function dispatch(registry: Registry, args: string[]): Promise<number> {
   if (action === 'remove') {
     if (!safeId(id)) throw new Error('Specify a valid profile name to remove.');
     const purge = extra[0] === '--purge';
-    if (!purge) getProfile(registry, id);
+    if (!purge) getProfile(config, id);
     console.error(purge ? 'This deletes all tool data and history. Stop active sessions first.' : 'This removes registration and generated credentials, preserving history. Stop active sessions first.');
     if (await question(`Type ${id} to confirm removal: `) !== id) { console.log('Cancelled.'); return 0; }
     await removeProfile(id, purge);
@@ -88,7 +114,7 @@ async function dispatch(registry: Registry, args: string[]): Promise<number> {
     return 0;
   }
   if (action === 'use') {
-    const p = id ? getProfile(registry, id) : await choose(registry.profiles);
+    const p = id ? getProfile(config, id) : await choose(config.profiles);
     const dir = platform.projectPath(process.cwd());
     await bindProject(dir, p.id);
     console.log(`Selected ${p.id} for ${dir}`);
@@ -96,7 +122,7 @@ async function dispatch(registry: Registry, args: string[]): Promise<number> {
   }
   if (action === 'unbind') {
     const dir = platform.projectPath(process.cwd());
-    const binding = findBinding(registry, dir);
+    const binding = findBinding(config, dir);
     if (binding && binding.dir !== dir) throw new Error(`${dir} has no binding of its own; it inherits ${binding.dir}. Run devn profile unbind there.`);
     await unbindProject(dir);
     console.log(`Removed binding for ${dir}`);
@@ -114,9 +140,10 @@ async function main(): Promise<void> {
   }
   if (args[0] === '--validate-example') {
     validateProfile(example);
+    validateProfile(oauthExample);
     console.log('Validated example profile.'); return;
   }
-  process.exitCode = await dispatch(await loadRegistry(), args);
+  process.exitCode = await dispatch(await loadConfig(), args);
 }
 main().catch(error => {
   console.error(`devn: ${error.message}`);

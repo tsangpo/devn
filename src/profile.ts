@@ -1,16 +1,15 @@
 import { secureURL } from './urls';
+import { validateBinding } from './oauth/binding';
 import { clients, configuredClients, getClient } from './clients';
 import { requireValue, object, keys, url } from './clients/validation';
 import type { Profile, Tool, Origins } from './types';
-export type { Profile, Tool, Origins, Registration, Registry } from './types';
-export type { CodexModel } from './clients/codex-profile';
-export type { ClaudeModel } from './clients/claude-profile';
 
 export const validId = (id: unknown): id is string => typeof id === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(id);
 
 export function validateProfile(value: any, localId?: string): Profile {
   requireValue(object(value), 'Profile must be an object.');
-  keys(value, ['version', 'id', 'name', 'baseUrl', 'authUrl', 'example', ...clients.map(client => client.id)], 'profile');
+  keys(value, ['version', 'id', 'name', 'baseUrl', 'authUrl', 'auth', 'example', ...clients.map(client => client.id)], 'profile');
+  if (value.auth !== undefined) validateBinding(value.auth);
   requireValue(value.version === 1 && (value.id === undefined || validId(value.id)), 'Profile requires version 1 and an optional safe id.');
   requireValue(value.name === undefined || (typeof value.name === 'string' && value.name.trim()), 'Profile name must be nonempty.');
   requireValue(value.example === undefined || typeof value.example === 'boolean', 'example must be Boolean.');

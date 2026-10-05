@@ -40,6 +40,15 @@ an attached process description or local output. Probe versions only after setti
 up the isolated environment. Keep native argument semantics in the client, including
 option operands, TUI differences, and `--` boundaries.
 
+`config.ts` owns generated tool configuration and credential cleanup. `store.ts`
+owns local profile persistence, directory removal and the locked pre-launch check
+before configuration generation. Keep this dependency one-way: config must not
+import store. Local credential writes and clearing also belong to store, including
+their profile/config locks. OAuth lifecycle owns invalidation decisions; protocol
+errors carry facts (code, status, request context), not cleanup policy.
+`projects.ts` resolves directory bindings; generic profile lookup stays in store.
+Launch uses the platform facade directly for process attachment.
+
 The shared lifecycle owns gateway approval, cache updates, locks, credential
 rechecks, model retention, ownership manifests, private permissions, and writes.
 Config builders return managed fields and ordered JSON sidecar descriptions;
@@ -93,9 +102,14 @@ may also report upstream support-policy notices; its tests remain enabled.
 No Apple Developer ID signing, notarization, or Windows Authenticode signing is provided.
 
 Package versions follow semantic versioning. Before 1.0, breaking behavior
-changes require a minor bump and migration notes. Local TOML, remote JSON, and
-the config.toml (including project bindings) declares version 1; unsupported versions fail instead of being
-silently interpreted. New required schema changes need migration documentation.
+changes require a minor bump and compatibility notes. Remote JSON profiles declare
+version 1. Local config.toml (including project bindings) accepts only version 3.
+Versions 1 and 2 are rejected without rewriting files or migrating credentials.
+OAuth support is currently unreleased: install an OAuth-enabled devn build before
+publishing the optional `auth` section. Released 0.6.0 and earlier reject it.
+The new binding contains only type, issuer, clientId and the complete key resource
+URL. The previous instanceId binding and shared sessions are not supported;
+old tokens are never copied into independent profile sessions.
 
 ## Release setup
 

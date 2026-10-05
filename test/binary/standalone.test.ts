@@ -42,7 +42,7 @@ test('release archive runs outside the source tree with no Bun on PATH', async (
       expect(result.stdout.toString()).toContain(expected);
     }
     await Bun.write(home + '/devn/config.toml', Bun.TOML.stringify({
-      version: 1, profiles: { smoke: { url: 'http://127.0.0.1:1/profile.json', key: 'standalone-dummy-key',
+      version: 3, profiles: { smoke: { url: 'http://127.0.0.1:1/profile.json', key: 'standalone-dummy-key',
         origins: { codex: 'http://127.0.0.1:1', claude: 'http://127.0.0.1:1', opencode: 'http://127.0.0.1:1' } } },
     }));
     await Bun.write(home + '/devn/profiles/smoke/profile.json', JSON.stringify({

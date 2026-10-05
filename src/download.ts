@@ -1,4 +1,5 @@
-import { validateProfile, type Profile } from './registry';
+import { validateProfile } from './profile';
+import type { Profile } from './types';
 import { secureURL } from './urls';
 
 export class Unavailable extends Error {}

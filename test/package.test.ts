@@ -16,8 +16,9 @@ test('published tarball installs locally and exposes devn through bunx', async (
     expect(files).toContain('package/bin/devn');
     expect(files).toContain('package/src/main.ts');
     expect(files).toContain('package/profiles/example.json');
+    expect(files).toContain('package/profiles/oauth.example.json');
     for (const file of files) {
-      expect(file).toMatch(/^package\/(?:bin\/devn|src\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.ts|profiles\/example\.json|README(?:\.zh-CN)?\.md|CHANGELOG\.md|CONTRIBUTING\.md|SECURITY\.md|LICENSE|package\.json)$/);
+      expect(file).toMatch(/^package\/(?:bin\/devn|src\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.ts|profiles\/(?:oauth\.)?example\.json|README(?:\.zh-CN)?\.md|CHANGELOG\.md|CONTRIBUTING\.md|SECURITY\.md|LICENSE|package\.json)$/);
     }
     await $`mkdir -p ${project}`.quiet();
     await Bun.write(`${project}/package.json`, JSON.stringify({

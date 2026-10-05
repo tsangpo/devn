@@ -118,9 +118,10 @@ describe('native clients through the local Bifrost gateway', () => {
     for (const directory of [repo, project, home + '/devn', repo + '/profiles']) tempFS.mkdirSync(directory, { recursive: true });
     for (const directory of ['src', 'bin']) tempFS.cpSync(tempPath.join(root, directory), tempPath.join(repo, directory), { recursive: true });
     await Bun.write(`${repo}/profiles/example.json`, Bun.file(`${root}/profiles/example.json`));
+    await Bun.write(`${repo}/profiles/oauth.example.json`, Bun.file(`${root}/profiles/oauth.example.json`));
     await Bun.write(`${repo}/package.json`, Bun.file(`${root}/package.json`));
     await Bun.write(`${repo}/profiles/smoke.json`, JSON.stringify({ version: 1, id: 'smoke', name: 'Smoke', baseUrl: `http://127.0.0.1:${server.port}`, codex: {}, claude: {} }));
-    await Bun.write(`${home}/devn/config.toml`, Bun.TOML.stringify({ version: 1, profiles: { smoke: { url: `http://127.0.0.1:${server.port}/profile.json`, key, origins: { codex: `http://127.0.0.1:${server.port}`, claude: `http://127.0.0.1:${server.port}` } } }, projects: { [realpathSync.native(project)]: 'smoke' } }));
+    await Bun.write(`${home}/devn/config.toml`, Bun.TOML.stringify({ version: 3, profiles: { smoke: { url: `http://127.0.0.1:${server.port}/profile.json`, key, origins: { codex: `http://127.0.0.1:${server.port}`, claude: `http://127.0.0.1:${server.port}` } } }, projects: { [realpathSync.native(project)]: 'smoke' } }));
     const { platform } = await import('../../src/platform');
     platform.privateFile(home + '/devn/config.toml');
   });

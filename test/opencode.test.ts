@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fixture, read, write } from './helpers';
 import { testPlatform } from './platform';
-import { validateProfile, gatewayOrigins, modelIds } from '../src/registry';
+import { validateProfile, gatewayOrigins, modelIds } from '../src/profile';
 import { openCodeArgs } from '../src/clients/opencode-runtime';
 import example from '../profiles/example.json';
 
