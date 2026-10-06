@@ -115,13 +115,13 @@ or type another name. Query parameters are ignored; the filename is URL-decoded
 and its `.json` suffix is removed (case-insensitively). If it cannot supply a valid
 local name, no default is shown and you must enter one.
 After the name and any update confirmation, devn downloads and validates the
-profile and asks you to approve its gateways before authentication. For manual profiles, `authUrl` displays
+profile and asks you to approve its AI gateway before authentication. For manual profiles, `authUrl` displays
 the full URL so you can open it to obtain a key. Terminals that recognize URLs
 can make it clickable; otherwise copy it into your browser. Then paste the key
 into the hidden prompt. This manual flow does not open a browser or fetch a key automatically.
 The URL points to a configuration document, not a model API. The download does not
-send your key. You must explicitly approve the displayed client gateway
-origins before registration is saved. Adding the same name asks before replacing
+send your key. You must explicitly approve the displayed AI gateway before registration is saved;
+devn still validates and pins every configured client origin internally. Adding the same name asks before replacing
 its URL/key and retains tool history.
 
 For platform login, use the new public CLI profile URL:
@@ -139,8 +139,8 @@ on another computer and enter the displayed user code. Use `--auth browser` or
 link; if the loopback listener cannot start, `auto` switches to device flow.
 Ctrl-C cancels authorization.
 
-Before first login, approve the issuer, client ID, complete resource URL and
-all gateway origins. Registrations pin these values; changed OAuth bindings or
+Before first login, devn validates and pins the issuer, client ID, complete resource URL and
+all gateway origins internally; the prompt displays only the AI gateway URL. Changed OAuth bindings or
 gateway origins require `profile add` again. Each profile has a random persistent
 session ID and its own tokens. Re-add with the same URL, name and binding reuses
 that profile's valid session; rejected authorization is replaced through browser

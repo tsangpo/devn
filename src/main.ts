@@ -6,12 +6,12 @@ import oauthExample from '../profiles/oauth.example.json';
 import { displayURL, secureURL } from './urls';
 import { platform } from './platform';
 import { loadConfig, getProfile, addProfile, refreshProfile, removeProfile, cachedProfile, safeId, bindProject, unbindProject } from './store';
-import { validateProfile, endpoint } from './profile';
+import { validateProfile } from './profile';
 import type { LocalConfig } from './types';
 import { findBinding, requireProfile } from './projects';
 import { choose, password, question } from './prompts';
 import { launch } from './launch';
-import { clients, configuredClients, isTool } from './clients';
+import { clients, isTool } from './clients';
 
 const PROFILE_COMMANDS = `  devn profile list                 List locally registered profiles
   devn profile add [URL] [--auth auto|browser|device|manual]
@@ -86,8 +86,7 @@ async function dispatch(config: LocalConfig, args: string[]): Promise<number> {
       if (profile.authUrl) console.error(`Open this URL to get your Bifrost key: ${profile.authUrl}`);
       return password();
     }, existing, async profile => {
-      if (!manual && profile.auth) console.error(`OAuth issuer: ${profile.auth.issuer}\nClient: ${profile.auth.clientId}\nResource: ${profile.auth.resource}`);
-      for (const client of configuredClients(profile)) console.error(`${client.label} gateway: ${displayURL(endpoint(profile, client.id))}`);
+      console.error(`AI gateway: ${displayURL(profile.baseUrl)}`);
       return /^y(es)?$/i.test(await question('Trust these gateways to receive your key? [y/N]: '));
     });
     console.log(`Added ${name}. Run devn profile use ${name} in your project.`);

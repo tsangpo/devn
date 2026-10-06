@@ -43,7 +43,11 @@ test('CLI URL add and SSH auto device login, re-add authentication and automatic
   const added = await run(f, ['profile', 'add', url], [['Profile name [team]:', 'team'], ['Trust these gateways', 'yes']]);
   assert.equal(added.code, 0, added.output);
   assert.equal(added.stage, 2);
-  assert.match(added.output, /OAuth issuer:/);
+  assert.match(added.output, new RegExp(`AI gateway: ${server.url.origin}/`));
+  assert.ok(!added.output.includes('OAuth issuer:'));
+  assert.ok(!added.output.includes('Client:'));
+  assert.ok(!added.output.includes('Resource:'));
+  assert.ok(!added.output.includes('/opaque-credential?audience=cli'));
   assert.ok(!added.output.includes('Bifrost key (hidden)'));
   assert.ok(!added.output.includes('dummy-platform-access'));
   assert.equal(ensures, 1);

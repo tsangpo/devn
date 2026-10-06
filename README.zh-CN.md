@@ -106,7 +106,7 @@ devn codex
 devn claude
 ```
 
-`profile add` 输入的 URL 是公开的 Profile JSON 地址，例如 `https://config.example.com/customer-a.json`，不是模型网关地址。请求不携带 key；key 只用于工具连接 JSON 中指定的网关。下载并校验后展示已配置客户端的网关 origin，明确确认后才保存注册信息。默认要求 HTTPS；HTTP 只允许 localhost、127.0.0.0/8 和 ::1 回环地址供本地测试。远程配置重定向最多 5 次，HTTPS 不允许降级到 HTTP。
+`profile add` 输入的 URL 是公开的 Profile JSON 地址，例如 `https://config.example.com/customer-a.json`，不是模型网关地址。请求不携带 key；key 只用于工具连接 JSON 中指定的网关。下载并校验后只展示一个 AI gateway URL，明确确认后才保存注册信息；devn 仍会在内部校验并固定每个已配置客户端的 origin。默认要求 HTTPS；HTTP 只允许 localhost、127.0.0.0/8 和 ::1 回环地址供本地测试。远程配置重定向最多 5 次，HTTPS 不允许降级到 HTTP。
 
 输入本地名称并确认更新（若有）后，devn 会先下载并校验 profile，先确认网关信任，然后进行认证。手动模式若配置了 `authUrl`，会先显示完整链接，方便打开页面获取 key；支持 URL 识别的终端可直接点击，否则可复制到浏览器。随后将 key 粘贴到隐藏输入提示中。手动模式不会自动打开浏览器或获取 key。
 
@@ -120,7 +120,7 @@ devn profile add https://platform.example.com/public/cli/team.json --auth auto
 
 `profile add` 下载 profile 后读取认证方式并自动完成登录。认证入口只有 `profile add`，不提供 login/logout 命令。每个 profile 独立持有 session，即使认证绑定完全相同也不共享 token。桌面 `auto` 使用 Authorization Code + PKCE S256，随机监听 `127.0.0.1` 端口的 `/callback`，打开浏览器进行 Slack 登录，无须粘贴 key。SSH 或无桌面环境自动使用 Device Authorization Flow：在另一台电脑打开显示的链接并输入 user code。可用 `--auth browser` 或 `--auth device` 显式选择。浏览器打开失败仍显示可用链接；自动模式监听失败会改用 device。Ctrl-C 可取消授权。
 
-首次登录前明确确认 issuer、client ID、完整 resource URL 和各网关 origin。认证绑定及网关 origin 固定，远端变更必须重新 `profile add` 确认。每个 profile 使用独立随机持久 session ID；相同 URL、本地名称及绑定重新 add 会复用自己的有效 session，失效授权在同一次 add 内重新浏览器或 device 授权。切换账号时移除该 profile 后重新 add；默认保留工具历史和项目绑定。
+首次登录前，devn 会内部校验并固定 issuer、client ID、完整 resource URL 和各网关 origin；远端变更必须重新 `profile add` 确认。交互提示只显示 AI gateway URL。每个 profile 使用独立随机持久 session ID；相同 URL、本地名称及绑定重新 add 会复用自己的有效 session，失效授权在同一次 add 内重新浏览器或 device 授权。切换账号时移除该 profile 后重新 add；默认保留工具历史和项目绑定。
 
 resource 是不透明的完整 key URL，客户端直接 GET，不解析路径，也不请求 `/me`。只有 add/re-add 遇到 `404 key_missing` 才向同一 URL POST 领取 key。成功 JSON 响应仅为 `{ "key": "..." }`，只读取 key，忽略未知可选响应字段，不实现身份查询或 budget，不接受旧 value 响应。平台路径为 `/api/instances/UUID`，客户端不解析该路径。日常启动只同步已有 key 并更新工具配置，不重建缺失 key。网络错误、超时、5xx 可使用该 profile 当前 session 的缓存；refresh 的 invalid_grant、资源端点的 403/404 会持久清除自身缓存与生成凭证，禁止回退。401 最多 refresh 后再试一次。
 
