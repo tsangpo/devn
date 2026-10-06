@@ -8,7 +8,7 @@
     "type": "oauth2",
     "issuer": "https://platform.example.com/api/auth",
     "clientId": "cli",
-    "resource": "https://platform.example.com/api/cli/instances/00000000-0000-4000-8000-000000000001/key"
+    "resource": "https://platform.example.com/api/instances/00000000-0000-4000-8000-000000000001"
   },
   "codex": {},
   "claude": {}

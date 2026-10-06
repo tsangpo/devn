@@ -63,7 +63,7 @@ If a real credential was exposed, revoke/rotate it; deleting the file is not eno
 OAuth is opt-in through a reviewed four-field `auth` binding: type, issuer,
 clientId and resource. Before authentication, devn displays the exact issuer,
 public client ID, complete resource URL and gateway origins. Local config v3 pins
-these values and caches the key subject. Re-add to approve binding changes.
+these values and binds the cached key to its independent profile session. Re-add to approve binding changes.
 Manual registrations never silently adopt OAuth. Old config versions are
 rejected without rewriting or migration; old shared tokens are never reused.
 Public profile downloads contain no platform or gateway credentials.
@@ -81,8 +81,10 @@ and explicit resource and scopes.
 The resource is a complete opaque key URL on the issuer origin. devn GETs that
 exact URL, including its query, without parsing the path or requesting `/me`.
 Only add/re-add may POST after `404 key_missing`. The client depends only on
-`value` and `user.id` in successful key responses: the first establishes subject,
-and subsequent responses must match. Response instanceId is not interpreted.
+`key` in successful JSON responses (`{"key":"..."}`); unknown optional fields
+are ignored. No user, subject, instanceId, endpoints configuration or budget
+processing is needed. Old value responses are rejected without fallback.
+The platform uses `/api/instances/UUID`, but devn does not interpret the path.
 
 Every local profile owns a random persistent session UUID, even for identical
 auth bindings. Tokens live only in private `oauth/<session-id>.json` files;
@@ -97,14 +99,19 @@ authorization still requires one, and explicitly malformed tokens are rejected.
 Re-add reuses only that profile's valid session; invalid_grant or persistent 401
 clears it before fresh authorization in the same attempt. Permission denials and
 network failures do not trigger interactive retries. Startup only synchronizes
-existing keys. Network/timeout/5xx failures may use the profile's same-subject
-cached key. Refresh-grant invalid_grant, resource 403/404, malformed sessions and subject
-mismatches persistently clear its cached/generated credentials and prohibit
+existing keys. Network/timeout/5xx failures may use the profile's current-session
+cached key. Refresh-grant invalid_grant, resource 403/404 and malformed sessions
+persistently clear its cached/generated credentials and prohibit
 fallback. Session corruption, invalid grants and account disabling also clear
 its tokens. Generic discovery/token/device endpoint 401/403/404 failures stop
 the operation without erasing cached credentials or allowing offline fallback.
-A failed fresh authorization grant does not invalidate a previously cached key;
-explicit account_disabled still invalidates credentials. One resource 401 permits at most one refresh and retry. No failure clears
+Before fresh authorization, old cached/generated credentials are cleared under
+the session lock and a new revision marks the attempt. Failure or cancellation
+cannot restore the old key. Rebinding clears the old session before new login.
+Token refresh keeps the same session; no other session can supply a fallback key.
+Returned credentials carry a revision checked again when committing profile add.
+Explicit account_disabled still invalidates credentials. One resource 401 permits
+at most one refresh and retry. No failure clears
 another profile's credentials, including profiles using the same resource.
 
 There are no public login/logout commands. Removal, rebinding and switching to

@@ -148,12 +148,15 @@ or device authorization within the same add attempt. To switch accounts, remove
 that profile and add it again. Default removal preserves history and bindings.
 
 The resource is an opaque key URL: devn GETs it directly and never requests `/me`.
-Only add/re-add may POST to that URL after a `404 key_missing`. The first key
-response establishes the subject from `user.id`; later responses must match.
-The response's `instanceId` and the resource path are not interpreted.
+Only add/re-add may POST to that URL after a `404 key_missing`. The successful
+JSON response is `{ "key": "..." }`. Only `key` is read; optional
+response fields are ignored. No identity or budget endpoint is used, and old
+`value` responses are rejected. The platform resource path is `/api/instances/UUID`;
+devn does not interpret it.
 Normal startup synchronizes existing keys and generates tool config, never
 recreating a missing key. Network errors, timeouts and 5xx may use that profile's
-same-subject cached key. Refresh `invalid_grant` and resource 403/404 clear its cached/generated
+current-session cached key. Refresh `invalid_grant` and resource 403/404 clear
+its cached/generated
 credentials and prohibit fallback; a 401 gets at most one refresh and retry.
 
 Removal, rebinding or switching to manual retires only that profile's session.
@@ -163,8 +166,12 @@ tokens and reports that remote revocation was not confirmed. The Bifrost key is
 never deleted. Stop running tools before removing profiles.
 
 Refresh responses may omit `refresh_token`; devn retains the previous token.
-Generic discovery/token/device 401/403/404 failures stop without deleting cached
-credentials or using offline fallback. Explicit account disabling still clears them.
+Generic discovery/token/device 401/403/404 failures while reusing a session stop
+without deleting its cached credentials or using offline fallback. Before any
+fresh authorization, old cached and generated credentials are cleared; failures
+cannot restore them. Rebinding clears the old session before authentication.
+Token refresh keeps the same session and may reuse only its own cached key.
+Explicit account disabling still clears credentials.
 Approved add/re-add and key rotation remove malformed generated configs with a
 warning so they can be regenerated. Personal settings in those damaged files are
 lost; separate history files remain. Rotation commits the new key only after
@@ -387,7 +394,7 @@ Configuration uses ${XDG_CONFIG_HOME:-~/.config}/devn:
         opencode/       # OPENCODE_CONFIG_DIR; isolated data/cache/state below it
 
 Local profiles and project bindings are stored together in config.toml, version 3 only, with pinned OAuth bindings, independent
-session IDs and cached subjects. Older config versions are rejected without
+session IDs and cached keys. Older config versions are rejected without
 rewriting files or migrating credentials. Old shared tokens are never reused.
 Remote profile JSON remains version 1 with the new optional OAuth binding.
 

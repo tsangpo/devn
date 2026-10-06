@@ -25,13 +25,13 @@ test('standalone OAuth profile add and automatic session retirement work without
       expect(body.get('grant_type')).toBe('urn:ietf:params:oauth:grant-type:device_code');
       return Response.json({ token_type: 'Bearer', access_token: 'dummy-binary-access', refresh_token: 'dummy-binary-refresh', expires_in: 600 });
     }
-    if (pathname.endsWith('/key')) return Response.json({ value: 'dummy-binary-key', user: { id: 'dummy-subject', email: 'dummy@example.test', name: 'Dummy' }, instanceId: id });
+    if (pathname === `/api/instances/${id}`) return Response.json({ key: 'dummy-binary-key' });
     if (pathname.endsWith('/revoke')) return new Response(null, { status: 204 });
     return new Response(null, { status: 404 });
   } });
   try {
     const origin = server.url.origin;
-    const auth = { type: 'oauth2', issuer: `${origin}/api/auth`, clientId: 'cli', resource: `${origin}/opaque/binary/key?test=1` };
+    const auth = { type: 'oauth2', issuer: `${origin}/api/auth`, clientId: 'cli', resource: `${origin}/api/instances/${id}` };
     profile = { version: 1, id: 'smoke', baseUrl: origin, auth, codex: {}, claude: {} };
     const home = path.join(temp, 'config');
     const file = path.join(home, 'devn/config.toml');

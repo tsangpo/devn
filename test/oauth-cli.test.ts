@@ -33,7 +33,7 @@ test('CLI URL add and SSH auto device login, re-add authentication and automatic
     if (pathname.endsWith('/token')) return pending ? Response.json({ error: 'authorization_pending' }, { status: 400 }) : Response.json({ access_token: `dummy-platform-access-${authorizations}`, refresh_token: `dummy-platform-refresh-${authorizations}`, token_type: 'Bearer', expires_in: 600 });
     if (pathname === '/opaque-credential') {
       if (req.method === 'POST') { present = true; ensures++; }
-      return present ? Response.json({ value: 'dummy-cli-key', user: { id: 'dummy-subject', email: 'dummy@example.test', name: 'Dummy' }, instanceId: '00000000-0000-4000-8000-000000000001' }) : Response.json({ error: 'key_missing' }, { status: 404 });
+      return present ? Response.json({ key: 'dummy-cli-key' }) : Response.json({ error: 'key_missing' }, { status: 404 });
     }
     if (pathname.endsWith('/revoke')) { revocations++; return new Response(null); }
     return new Response(null, { status: 404 });

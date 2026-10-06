@@ -26,8 +26,8 @@ export function readSession(ref: SessionRef): Tokens | undefined {
   try { value = readJson(file(ref)); validateBinding(value?.auth); } catch { throw new InvalidSession(); }
   if (!value || value.version !== 2 || value.id !== ref.id || !sameBinding(ref.auth, value.auth) || typeof value.revision !== 'string') throw new InvalidSession();
   if (value.tokens === null) return;
-  if (!value.tokens || !['access', 'refresh', 'subject'].every(k => typeof value.tokens[k] === 'string' && value.tokens[k]) ||
-    !Number.isFinite(value.tokens.expires)) throw new InvalidSession();
+  if (!value.tokens || !['access', 'refresh'].every(k => typeof value.tokens[k] === 'string' && value.tokens[k]) ||
+    Object.keys(value.tokens).some(k => !['access', 'refresh', 'expires'].includes(k)) || !Number.isFinite(value.tokens.expires)) throw new InvalidSession();
   return value.tokens;
 }
 export function saveSession(ref: SessionRef, tokens: Tokens) {

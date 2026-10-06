@@ -57,8 +57,8 @@ export async function discover(auth: OAuthBinding, signal?: AbortSignal): Promis
 export function form(url: string, values: Record<string, string>, signal?: AbortSignal, context: RequestContext = 'other') {
   return request(url, { method: 'POST', body: new URLSearchParams(values) }, signal, context);
 }
-export type Tokens = { access: string; refresh: string; expires: number; subject: string };
-export function tokens(value: any, previousRefresh?: string): Omit<Tokens, 'subject'> {
+export type Tokens = { access: string; refresh: string; expires: number };
+export function tokens(value: any, previousRefresh?: string): Tokens {
   const refresh = value?.refresh_token === undefined ? previousRefresh : value.refresh_token;
   if (typeof value?.access_token !== 'string' || !value.access_token || /\s/.test(value.access_token) ||
     typeof refresh !== 'string' || !refresh || /\s/.test(refresh) ||

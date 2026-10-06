@@ -122,11 +122,11 @@ devn profile add https://platform.example.com/public/cli/team.json --auth auto
 
 首次登录前明确确认 issuer、client ID、完整 resource URL 和各网关 origin。认证绑定及网关 origin 固定，远端变更必须重新 `profile add` 确认。每个 profile 使用独立随机持久 session ID；相同 URL、本地名称及绑定重新 add 会复用自己的有效 session，失效授权在同一次 add 内重新浏览器或 device 授权。切换账号时移除该 profile 后重新 add；默认保留工具历史和项目绑定。
 
-resource 是不透明的完整 key URL，客户端直接 GET，不解析路径，也不请求 `/me`。只有 add/re-add 遇到 `404 key_missing` 才向同一 URL POST 领取 key。首次 key 响应的 `user.id` 确定 subject，后续响应必须一致；客户端不依赖响应的 `instanceId`。日常启动只同步已有 key 并更新工具配置，不重建缺失 key。网络错误、超时、5xx 可使用该 profile 同 subject 的缓存；refresh 的 invalid_grant、资源端点的 403/404 会持久清除自身缓存与生成凭证，禁止回退。401 最多 refresh 后再试一次。
+resource 是不透明的完整 key URL，客户端直接 GET，不解析路径，也不请求 `/me`。只有 add/re-add 遇到 `404 key_missing` 才向同一 URL POST 领取 key。成功 JSON 响应仅为 `{ "key": "..." }`，只读取 key，忽略未知可选响应字段，不实现身份查询或 budget，不接受旧 value 响应。平台路径为 `/api/instances/UUID`，客户端不解析该路径。日常启动只同步已有 key 并更新工具配置，不重建缺失 key。网络错误、超时、5xx 可使用该 profile 当前 session 的缓存；refresh 的 invalid_grant、资源端点的 403/404 会持久清除自身缓存与生成凭证，禁止回退。401 最多 refresh 后再试一次。
 
 删除、改绑或切换 manual 只撤销并清理自身 session；注册失败清理自身新建 session。相同 resource 的其他 profile 也不受影响。网络失败仍清理本地，并提示远端撤销未确认；绝不删除 Bifrost key。清理前请停止已运行的工具。
 
-刷新响应省略 `refresh_token` 时保留原 token。discovery/token/device 端点的普通 401/403/404 会停止操作，不删除缓存凭证，也不离线回退；明确账户封禁仍会清理凭证。批准 add/re-add 或 key 轮换时，损坏的生成配置会在提示后删除，以便重新生成；该文件内的个人设置会丢失，独立历史文件保留。轮换先清理旧生成凭证，成功后才保存新 key。
+刷新响应省略 `refresh_token` 时保留原 token。复用已有 session 时，discovery/token/device 端点的普通 401/403/404 会停止操作，不删除缓存凭证，也不离线回退；重新授权前先清除旧缓存和生成凭证，失败也不恢复，改绑则在认证前清除旧 session；token 刷新保留同一 session，网络故障只允许使用当前 session 的缓存；明确账户封禁仍会清理凭证。批准 add/re-add 或 key 轮换时，损坏的生成配置会在提示后删除，以便重新生成；该文件内的个人设置会丢失，独立历史文件保留。轮换先清理旧生成凭证，成功后才保存新 key。
 
 `profile add --auth manual` 保留隐藏输入 key。手动注册不会在刷新或默认重新添加时自动升级 OAuth；需要显式重新 add 并指定 `--auth auto`、`browser` 或 `device`。旧 `/public/bifrost/*.json` 与 `authUrl` 保持手动语义。发布含 `auth` 的 profile 前必须升级到支持 OAuth 的 CLI（目前未发布），旧版会拒绝新字段；见 [OAuth 示例](profiles/oauth.example.json) 和 [兼容说明](CONTRIBUTING.md#compatibility)。
 
@@ -165,7 +165,7 @@ CLI 不内置任何客户 profile。远程配置不提供 `models` 时，devn �
 
 ```text
 ~/.config/devn/
-├── config.toml                  # 注册、认证绑定、缓存 key/subject、项目绑定
+├── config.toml                  # 注册、认证绑定、缓存 key、项目绑定
 ├── oauth/                       # 独立私有平台会话，绝不传给工具
 └── profiles/
     └── customer-a/
@@ -177,7 +177,7 @@ CLI 不内置任何客户 profile。远程配置不提供 `models` 时，devn �
             └── settings.json
 ```
 
-本地 profile 和项目绑定统一保存在 config.toml，仅接受 v3，保存固定认证绑定、独立 session ID 和 subject。旧版本直接报错，不改写文件，不兼容或迁移旧凭证，也不复用旧共享 token。
+本地 profile 和项目绑定统一保存在 config.toml，仅接受 v3，保存固定认证绑定、独立 session ID 和缓存 key。旧版本直接报错，不改写文件，不兼容或迁移旧凭证，也不复用旧共享 token。
 
 ```toml
 version = 3

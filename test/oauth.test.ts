@@ -16,13 +16,14 @@ import type { AuthMode } from '../src/oauth/authorize';
 import type { OAuthBinding } from '../src/types';
 import { testPlatform } from './platform';
 
-type Grant = { id: number; access: string; refresh: string; subject: string; resource: string; active: boolean; rotations: number; failure?: { status: number; error: string }; refreshError?: string };
+type Grant = { id: number; access: string; refresh: string; resource: string; active: boolean; rotations: number; failure?: { status: number; error: string }; refreshError?: string };
 let temp: string, oldHome: string | undefined, server: ReturnType<typeof Bun.serve>;
 let auth: OAuthBinding, profile: any, metadata: any;
-let key: string | undefined, nextSubject: string, pending: string[], deviceExpiry: number, transientRefresh: number, revocationFailure: boolean;
+let key: string | undefined, pending: string[], deviceExpiry: number, transientRefresh: number, revocationFailure: boolean;
 let calls: { path: string; url: string; method: string; body: URLSearchParams; bearer: string | null; time: number }[];
 let grants: Grant[], nextFailure: Grant['failure'];
 let challenge: string, redirect: string;
+let keyResponse: any;
 let nonRotating: boolean, endpointFailure: { path: string; status: number; error?: string } | undefined;
 const originalBrowser = platform.openBrowser, originalDesktop = platform.hasDesktop;
 const source = () => `${server.url.origin}/profile.json`;
@@ -41,8 +42,8 @@ function tokenResponse(g: Grant) {
 beforeEach(() => {
   temp = fs.mkdtempSync(path.join(os.tmpdir(), 'devn-oauth-'));
   oldHome = process.env.XDG_CONFIG_HOME; process.env.XDG_CONFIG_HOME = temp;
-  calls = []; grants = []; key = undefined; nextSubject = 'dummy-user-a'; pending = []; nextFailure = undefined;
-  nonRotating = false; endpointFailure = undefined;
+  calls = []; grants = []; key = undefined; pending = []; nextFailure = undefined;
+  keyResponse = undefined; nonRotating = false; endpointFailure = undefined;
   deviceExpiry = 60; transientRefresh = 0; revocationFailure = false; challenge = ''; redirect = '';
   server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
     const pathname = new URL(req.url).pathname;
@@ -80,7 +81,7 @@ beforeEach(() => {
         if (error) return Response.json({ error }, { status: 400 });
       }
       const id = grants.length + 1;
-      const g: Grant = { id, access: `dummy-access-${id}-0`, refresh: `dummy-refresh-${id}-0`, resource: body.get('resource')!, subject: nextSubject, rotations: 0, active: true, failure: nextFailure };
+      const g: Grant = { id, access: `dummy-access-${id}-0`, refresh: `dummy-refresh-${id}-0`, resource: body.get('resource')!, rotations: 0, active: true, failure: nextFailure };
       grants.push(g);
       return tokenResponse(g);
     }
@@ -97,7 +98,7 @@ beforeEach(() => {
       if (g.failure) return Response.json({ error: g.failure.error }, { status: g.failure.status });
       if (req.method === 'POST') key = 'dummy-bifrost-key';
       if (!key) return Response.json({ error: 'key_missing' }, { status: 404 });
-      return Response.json({ value: key, user: { id: g.subject }, instanceId: 'opaque-response-field-not-parsed' });
+      return Response.json(keyResponse ?? { key });
     }
     return new Response(null, { status: 404 });
   } });
@@ -129,10 +130,10 @@ afterEach(async () => {
   fs.rmSync(temp, { recursive: true, force: true });
 });
 
-test('PKCE login uses the exact opaque key resource and establishes subject without /me', async () => {
+test('PKCE login uses the exact opaque key resource without identity fields or /me', async () => {
   let approved = false;
   await addProfile('a', source(), async (_p, session) => { expect(approved).toBe(true); return loginCredentials(session!, 'browser'); }, undefined, async () => { approved = true; return true; });
-  expect((await entry()).subject).toBe('dummy-user-a');
+  expect(Object.keys(readSession(await ref())!).sort()).toEqual(['access', 'expires', 'refresh']);
   expect(await syncCredentials('a')).toBe(key);
   const keyCalls = calls.filter(c => c.url === auth.resource);
   expect(keyCalls.map(c => c.method)).toEqual(['GET', 'POST', 'GET']);
@@ -223,13 +224,22 @@ test('401 refreshes once, invalid_grant is isolated, and one re-add restores aut
   expect(await syncCredentials('b')).toBe(key);
 });
 
-test('subject is checked after first key response and an account change never affects another profile', async () => {
+test('reauthorization clears the old session cache before browser wait, without affecting other profiles', async () => {
   await register(); await register('b');
-  const g = await sessionGrant(); g.subject = 'dummy-different-subject';
-  await expect(syncCredentials('a')).rejects.toThrow('subject_mismatch');
-  expect((await entry()).key).toBe(''); expect((await entry('b')).subject).toBe('dummy-user-a');
-  nextSubject = 'dummy-user-c'; await register();
-  expect((await entry()).subject).toBe(nextSubject); expect((await entry('b')).subject).toBe('dummy-user-a');
+  const a = await ref(), b = await entry('b'), before = readSession(a)!;
+  const generated = await prepareConfig(validateProfile(profile), 'claude', key!);
+  deleteSession(a);
+  const browser = platform.openBrowser;
+  platform.openBrowser = async url => {
+    expect((await entry()).key).toBe('');
+    expect(await Bun.file(generated.file).text()).not.toContain(key!);
+    expect(await entry('b')).toEqual(b);
+    await browser(url);
+  };
+  await register();
+  expect((await ref()).id).toBe(a.id);
+  expect(readSession(a)?.access).not.toBe(before.access);
+  expect((await entry()).key).toBe(key);
 });
 
 test('remove, manual and rebinding retire only their own sessions; network revocation failure still cleans locally', async () => {
@@ -359,6 +369,7 @@ test('refresh without rotation retains the previous refresh token across success
     saveSession(a, { ...readSession(a)!, expires: 0 });
     expect(await syncCredentials('a')).toBe(key);
     expect(readSession(a)?.refresh).toBe(before.refresh);
+    expect((await ref()).id).toBe(a.id);
     expect(readSession(a)?.expires).toBeGreaterThan(Date.now());
   }
   const response = { access_token: 'dummy-access', token_type: 'Bearer', expires_in: 600 };
@@ -388,19 +399,18 @@ test('discovery and refresh HTTP failures stop without erasing cached credential
   expect(readSession(a)).toBeUndefined(); expect((await entry()).key).toBe('');
 });
 
-test('fresh authorization failures do not invalidate previously cached keys', async () => {
+test('fresh authorization failures cannot retain a previous session key', async () => {
   await register(); const a = await ref();
   const generated = await prepareConfig(validateProfile(profile), 'claude', key!);
-  // Lost token storage can still leave a cached key; a rejected new code is not
-  // evidence that this key has been revoked.
+  // Missing tokens require fresh authorization, so the old cache must be cleared first.
   deleteSession(a);
   const local = await entry(), config = await Bun.file(generated.file).text();
   for (const mode of ['browser', 'device'] as const) {
-    for (const status of [403, 404, 400]) {
+    for (const status of [403, 404, 400, 502]) {
       endpointFailure = { path: '/api/auth/oauth2/token', status, error: status === 400 ? 'invalid_grant' : undefined };
       await expect(register('a', mode)).rejects.toThrow();
-      expect(await entry()).toEqual(local);
-      expect(await Bun.file(generated.file).text()).toBe(config);
+      expect(await entry()).toEqual({ ...local, key: '' });
+      expect(await Bun.file(generated.file).text()).not.toContain(local.key);
     }
   }
 });
@@ -445,4 +455,69 @@ test('failed credential cleanup does not commit a rotated key', async () => {
   } finally { client.config.scrub = original; fs.rmSync = rm; }
   expect(await syncCredentials('a')).toBe(key);
   expect(await Bun.file(generated.file).text()).not.toContain(local.key);
+});
+
+
+test('key-only responses ignore optional fields and reject old value responses without fallback', async () => {
+  keyResponse = { key: 'dummy-key-only', future: { opaque: true } };
+  await register(); expect((await entry()).key).toBe('dummy-key-only');
+  const a = await ref();
+  keyResponse = { value: 'dummy-legacy-key' };
+  await expect(syncCredentials('a')).rejects.toThrow('invalid_key_response');
+  deleteSession(a);
+  await expect(register()).rejects.toThrow('invalid_key_response');
+  expect((await entry()).key).toBe('');
+  expect(readSession(a)).toBeUndefined();
+  expect(calls.some(c => c.path.endsWith('/me'))).toBe(false);
+});
+
+test('failed rebinding clears only the old profile cache and prevents network fallback', async () => {
+  await register(); await register('b'); const a = await ref(), b = await entry('b');
+  const generated = await prepareConfig(validateProfile(profile), 'claude', key!);
+  profile.auth = { ...auth, resource: `${server.url.origin}/api/instances/dummy-new` };
+  endpointFailure = { path: '/api/auth/oauth2/token', status: 502 };
+  await expect(register()).rejects.toThrow();
+  expect((await entry()).key).toBe(''); expect(readSession(a)).toBeUndefined();
+  expect(await Bun.file(generated.file).text()).not.toContain(key!);
+  expect(await entry('b')).toEqual(b);
+  await expect(syncCredentials('a')).rejects.toThrow('Not logged in');
+});
+
+test('a newer session revision rejects credentials returned by an earlier add attempt', async () => {
+  await register(); const existing = await entry();
+  await expect(addProfile('a', source(), async (_profile, session) => {
+    const credentials = await loginCredentials(session!, 'browser');
+    saveSession(session!, { ...readSession(session!)!, access: 'dummy-newer-access' });
+    return credentials;
+  }, existing, async () => true)).rejects.toThrow('OAuth session changed');
+  expect(await entry()).toEqual(existing);
+});
+
+
+test('cancelled reauthorization leaves no old session cache available for fallback', async () => {
+  await register(); const a = await ref();
+  const generated = await prepareConfig(validateProfile(profile), 'claude', key!);
+  deleteSession(a);
+  platform.openBrowser = async () => { process.emit('SIGINT'); };
+  await expect(register()).rejects.toThrow();
+  expect((await entry()).key).toBe(''); expect(readSession(a)).toBeUndefined();
+  expect(await Bun.file(generated.file).text()).not.toContain(key!);
+  endpointFailure = { path: '/api/auth/oauth2/token', status: 502 };
+  await expect(syncCredentials('a')).rejects.toThrow('Not logged in');
+});
+
+test('subject-bearing local data is rejected without compatibility or migration', async () => {
+  await register(); const a = await ref();
+  const file = `${configHome()}/config.toml`, config = Bun.TOML.parse(await Bun.file(file).text()) as any;
+  config.profiles.a.subject = 'dummy-old-subject';
+  const old = Bun.TOML.stringify(config);
+  await Bun.write(file, old);
+  await expect(loadConfig()).rejects.toThrow('Invalid profile registration');
+  expect(await Bun.file(file).text()).toBe(old);
+  delete config.profiles.a.subject;
+  await Bun.write(file, Bun.TOML.stringify(config));
+  const sessionFile = `${configHome()}/oauth/${a.id}.json`, session = await Bun.file(sessionFile).json();
+  session.tokens.subject = 'dummy-old-subject';
+  await Bun.write(sessionFile, JSON.stringify(session));
+  expect(() => readSession(a)).toThrow('Invalid OAuth session');
 });

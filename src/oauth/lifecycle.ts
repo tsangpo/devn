@@ -6,7 +6,7 @@ import { discover, form, tokens, request, OAuthError, type Tokens } from './prot
 import { authorize, type AuthMode } from './authorize';
 
 function invalidatesCredentials(error: OAuthError): boolean {
-  return ['subject_mismatch', 'account_disabled'].includes(error.code) ||
+  return error.code === 'account_disabled' ||
     (error.context === 'refresh' && error.code === 'invalid_grant') ||
     (error.context === 'resource' && [401, 403, 404].includes(error.status));
 }
@@ -15,7 +15,7 @@ function invalidatesCredentials(error: OAuthError): boolean {
 async function invalidate(ref: SessionRef, error: unknown) {
   if (error instanceof InvalidSession || (error instanceof OAuthError && invalidatesCredentials(error))) {
     // No other profile can own this session, even when its auth binding is identical.
-    if (error instanceof InvalidSession || ['invalid_grant', 'subject_mismatch', 'account_disabled'].includes(error.code) || error.status === 401) deleteSession(ref);
+    if (error instanceof InvalidSession || ['invalid_grant', 'account_disabled'].includes(error.code) || error.status === 401) deleteSession(ref);
     await clearProfileCredentials(ref);
   }
 }
@@ -28,11 +28,11 @@ async function refresh(ref: SessionRef, current: Tokens): Promise<Tokens> {
     if (!(error instanceof OAuthError) || !error.unavailable) throw error;
     response = await form(metadata.token_endpoint, body, undefined, 'refresh'); // Recover lost rotation response within 30 seconds.
   }
-  const result = { ...tokens(response, current.refresh), subject: current.subject };
+  const result = tokens(response, current.refresh);
   saveSession(ref, result); // Persist rotating refresh before another request can fail.
   return result;
 }
-async function keyRequest(ref: SessionRef, access: string, ensure: boolean, expectedSubject?: string): Promise<{ key: string; subject: string }> {
+async function keyRequest(ref: SessionRef, access: string, ensure: boolean): Promise<{ key: string }> {
   const headers = { Authorization: `Bearer ${access}` };
   let value;
   try { value = await request(ref.auth.resource, { headers }, undefined, 'resource'); }
@@ -40,20 +40,18 @@ async function keyRequest(ref: SessionRef, access: string, ensure: boolean, expe
     if (!ensure || !(error instanceof OAuthError) || error.status !== 404 || error.code !== 'key_missing') throw error;
     value = await request(ref.auth.resource, { method: 'POST', headers }, undefined, 'resource');
   }
-  // The resource URL and response instanceId are opaque. Only key and subject are needed.
-  if (typeof value?.value !== 'string' || !value.value.trim() || /[\r\n\x00]/.test(value.value) ||
-    typeof value.user?.id !== 'string' || !value.user.id) throw new OAuthError('invalid_key_response');
-  if (expectedSubject !== undefined && value.user.id !== expectedSubject) throw new OAuthError('subject_mismatch');
-  return { key: value.value, subject: value.user.id };
+  // The resource URL is opaque; optional response fields are ignored.
+  if (typeof value?.key !== 'string' || !value.key.trim() || /[\r\n\x00]/.test(value.key)) throw new OAuthError('invalid_key_response');
+  return { key: value.key };
 }
 async function synchronizedKey(ref: SessionRef, current: Tokens, ensure: boolean) {
   let refreshed = false;
   if (current.expires <= Date.now() + 30000) { current = await refresh(ref, current); refreshed = true; }
-  try { return await keyRequest(ref, current.access, ensure, current.subject); }
+  try { return await keyRequest(ref, current.access, ensure); }
   catch (error) {
     if (!(error instanceof OAuthError) || error.status !== 401 || refreshed) throw error;
     current = await refresh(ref, current);
-    return keyRequest(ref, current.access, ensure, current.subject);
+    return keyRequest(ref, current.access, ensure);
   }
 }
 
@@ -63,15 +61,17 @@ export async function loginCredentials(ref: SessionRef, mode: AuthMode): Promise
   try {
     try {
       const current = readSession(ref);
-      if (current) return { ...await synchronizedKey(ref, current, true), auth: ref.auth, sessionId: ref.id };
+      if (current) return { ...await synchronizedKey(ref, current, true), auth: ref.auth, sessionId: ref.id, revision: sessionRevision(ref)! };
     } catch (error) {
       await invalidate(ref, error);
       if (!(error instanceof InvalidSession) && (!(error instanceof OAuthError) ||
-        !(invalidatesCredentials(error) && (error.code === 'invalid_grant' || error.code === 'subject_mismatch' || error.status === 401)))) throw error;
+        !(invalidatesCredentials(error) && (error.code === 'invalid_grant' || error.status === 401)))) throw error;
     }
+    await clearProfileCredentials(ref);
+    deleteSession(ref); // Mark the new authorization attempt before releasing the lock.
     revision = sessionRevision(ref);
   } finally { unlock(); }
-  let fresh: Omit<Tokens, 'subject'>;
+  let fresh: Tokens;
   try {
     const metadata = await discover(ref.auth);
     fresh = tokens(await authorize(ref.auth, metadata, mode));
@@ -85,10 +85,8 @@ export async function loginCredentials(ref: SessionRef, mode: AuthMode): Promise
   try {
     if (sessionRevision(ref) !== revision) throw new Error('OAuth session changed while waiting for authorization. Re-add the profile.');
     const value = await keyRequest(ref, fresh.access, true);
-    const previous = (await loadConfig()).profiles.find(p => p.sessionId === ref.id);
-    if (previous?.subject && previous.subject !== value.subject) await clearProfileCredentials(ref);
-    saveSession(ref, { ...fresh, subject: value.subject });
-    return { ...value, auth: ref.auth, sessionId: ref.id };
+    saveSession(ref, fresh);
+    return { ...value, auth: ref.auth, sessionId: ref.id, revision: sessionRevision(ref)! };
   } catch (error) {
     // This newly issued grant was never registered. Do not leave it in a local file.
     try { await revokeToken(ref.auth, fresh.refresh); }
@@ -111,14 +109,13 @@ export async function syncCredentials(id: string): Promise<string> {
     try {
       current = readSession(ref); // Parsing failures must follow the same invalidation path.
       if (!current) { await clearProfileCredentials(ref); throw new Error(`Not logged in. Run devn profile add and re-add profile ${id}.`); }
-      if (entry.subject && entry.subject !== current.subject) throw new OAuthError('subject_mismatch');
       const value = await synchronizedKey(ref, current, false);
       await updateProfileCredentials(entry, value);
       return value.key;
     } catch (error) {
       await invalidate(ref, error);
-      if (error instanceof OAuthError && error.unavailable && current && entry.key && entry.subject === current.subject) {
-        console.error('devn: OAuth service unavailable; using this profile\'s cached key for the same account.');
+      if (error instanceof OAuthError && error.unavailable && !invalidatesCredentials(error) && current && entry.key) {
+        console.error('devn: OAuth service unavailable; using this profile\'s cached key for the current session.');
         return entry.key;
       }
       if (error instanceof InvalidSession || (error instanceof OAuthError && invalidatesCredentials(error))) throw new Error(`${error.message} Run devn profile add and re-add profile ${id}.`);

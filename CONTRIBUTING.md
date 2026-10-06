@@ -109,7 +109,9 @@ OAuth support is currently unreleased: install an OAuth-enabled devn build befor
 publishing the optional `auth` section. Released 0.6.0 and earlier reject it.
 The new binding contains only type, issuer, clientId and the complete key resource
 URL. The previous instanceId binding and shared sessions are not supported;
-old tokens are never copied into independent profile sessions.
+old tokens are never copied into independent profile sessions. The resource
+response is only `{key}`; no user/subject is stored or queried, and old value
+responses and subject-bearing local data are rejected without migration.
 
 ## Release setup
 

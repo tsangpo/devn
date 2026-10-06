@@ -22,10 +22,9 @@ export type LocalConfig = {
     origins?: Origins;
     auth?: OAuthBinding;
     sessionId?: string;
-    subject?: string;
   }>;
   projects: Record<string, string>;
 };
 
 export type SessionRef = { id: string; auth: OAuthBinding };
-export type OAuthCredentials = { key: string; auth: OAuthBinding; sessionId: string; subject: string };
+export type OAuthCredentials = { key: string; auth: OAuthBinding; sessionId: string; revision: string };

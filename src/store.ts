@@ -2,7 +2,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { validateBinding, sameBinding, validSessionId } from './oauth/binding';
 import type { SessionRef, OAuthCredentials } from './types';
-import { lockSessions, readSession, retireSession, newSession } from './oauth/session';
+import { lockSessions, readSession, retireSession, newSession, sessionRevision } from './oauth/session';
 import { platform } from './platform';
 import { acquireLock, atomicWrite, configHome, privateDir, privateFile, profileDir } from './files';
 import { gatewayOrigins, validId, validateProfile } from './profile';
@@ -23,7 +23,7 @@ export function lockProfile(id: string): Promise<() => void> {
 
 function validateLocalProfile(id: string, value: any): void {
   if (!safeId(id) || !value || typeof value !== 'object' ||
-      Object.keys(value).some(k => !['url', 'key', 'origins', 'auth', 'subject', 'sessionId'].includes(k)) ||
+      Object.keys(value).some(k => !['url', 'key', 'origins', 'auth', 'sessionId'].includes(k)) ||
       typeof value.key !== 'string' || (!value.key.trim() && !value.auth) || /[\r\n\x00]/.test(value.key)) {
     throw new Error('Invalid profile registration. Use devn profile add.');
   }
@@ -33,7 +33,6 @@ function validateLocalProfile(id: string, value: any): void {
     if (!validSessionId(value.sessionId)) throw new Error('Invalid profile session ID.');
   }
   if (value.sessionId !== undefined && !value.auth) throw new Error('Invalid authentication registration.');
-  if (value.subject !== undefined && (typeof value.subject !== 'string' || !value.subject)) throw new Error('Invalid OAuth subject.');
   if (value.origins !== undefined) {
     if (!value.origins || Array.isArray(value.origins) || typeof value.origins !== 'object' ||
         Object.keys(value.origins).some(key => !isTool(key)) ||
@@ -149,6 +148,15 @@ export async function addProfile(id: string, url: string, keyInput: string | ((p
   if (!await approve(profile)) throw new Error('Gateway approval cancelled; profile was not changed.');
   const oldSession = profileSession(expected);
   const candidate = profile.auth ? (oldSession && sameBinding(oldSession.auth, profile.auth) ? oldSession : newSession(profile.auth)) : undefined;
+  if (oldSession && candidate?.id !== oldSession.id) {
+    const release = await lockSessions([oldSession]);
+    try {
+      const current = (await loadConfig()).profiles.find(p => p.id === id);
+      if (JSON.stringify(current) !== JSON.stringify(expected)) throw new Error('Profile changed while adding it. Try again.');
+      await clearProfileCredentials(oldSession);
+      await retireSession(oldSession);
+    } finally { release(); }
+  }
   // Authentication waits hold no locks. On failure, discard only sessions that
   // belong to this add attempt; other profiles remain untouched.
   let input: string | OAuthCredentials;
@@ -158,14 +166,14 @@ export async function addProfile(id: string, url: string, keyInput: string | ((p
     try { await retireUnusedSessions([candidate]); } finally { release(); }
     throw error;
   }
-  const credentials = typeof input === 'string' ? { key: input } : input;
+  const { revision, ...credentials } = typeof input === 'string' ? { key: input, revision: undefined } : input;
   const newRef = 'auth' in credentials ? candidate : undefined;
   const affected = [oldSession, candidate];
   const sessionRelease = await lockSessions(affected);
   try {
     validateLocalProfile(id, { url, ...credentials });
     if ('auth' in credentials && (!newRef || credentials.sessionId !== newRef.id || !sameBinding(credentials.auth, newRef.auth))) throw new Error('Authentication does not match this profile session.');
-    if (newRef && readSession(newRef)?.subject !== ('subject' in credentials ? credentials.subject : undefined)) throw new Error('OAuth session changed while adding profile. Try again.');
+    if (newRef && (!readSession(newRef) || sessionRevision(newRef) !== revision)) throw new Error('OAuth session changed while adding profile. Try again.');
     const release = await lockProfile(id);
     try {
       const releaseConfig = await acquireLock(`${configHome()}/.registry.lock`);
@@ -176,9 +184,9 @@ export async function addProfile(id: string, url: string, keyInput: string | ((p
         }
         const current = config.profiles.find(p => p.id === id);
         // An account switch may clear this registration while authentication runs.
-        const clearedDuringLogin = typeof input !== 'string' && current?.auth && current.key === '' &&
-          JSON.stringify({ ...current, key: '', subject: undefined }) ===
-          JSON.stringify(expected && { ...expected, key: '', subject: undefined });
+        const clearedDuringLogin = current?.auth && current.key === '' &&
+          JSON.stringify({ ...current, key: '' }) ===
+          JSON.stringify(expected && { ...expected, key: '' });
         if (JSON.stringify(current) !== JSON.stringify(expected) && !clearedDuringLogin) {
           throw new Error('Profile changed while adding it. Run devn profile add again.');
         }
@@ -274,13 +282,13 @@ export async function clearProfileCredentials(ref: SessionRef) {
     let matched = false;
     await updateConfig(config => {
       const p = config.profiles.find(p => p.id === entry.id);
-      if (p?.sessionId === ref.id) { p.key = ''; delete p.subject; matched = true; }
+      if (p?.sessionId === ref.id) { p.key = ''; matched = true; }
     });
     if (matched) await scrubCredentials(entry.id, true);
   } finally { release(); }
 }
 
-export async function updateProfileCredentials(entry: LocalConfig['profiles'][number], value: { key: string; subject: string }) {
+export async function updateProfileCredentials(entry: LocalConfig['profiles'][number], value: { key: string }) {
   const release = await lockProfile(entry.id);
   try {
     // Scrub before publishing a rotated key; failed disk cleanup must not commit it.
@@ -288,7 +296,7 @@ export async function updateProfileCredentials(entry: LocalConfig['profiles'][nu
     await updateConfig(config => {
       const p = config.profiles.find(p => p.id === entry.id);
       if (!p || p.sessionId !== entry.sessionId || p.url !== entry.url || !sameBinding(p.auth, entry.auth)) throw new Error('Profile changed during synchronization. Try again.');
-      p.key = value.key; p.subject = value.subject;
+      p.key = value.key;
     });
   } finally { release(); }
 }
