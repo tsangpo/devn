@@ -46,6 +46,8 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   binaries:
+    # Binary distribution is temporarily disabled; keep the job for re-enabling later.
+    if: ${{ false }}
     needs: pack
     strategy:
       fail-fast: false
@@ -94,10 +96,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   publish:
-    needs: binaries
+    needs: [pack, binaries]
     if: >-
       always() && !cancelled() && github.repository == 'tsangpo/devn' &&
-      (needs.binaries.result == 'success' || github.event_name == 'workflow_dispatch')
+      needs.pack.result == 'success'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -119,17 +121,20 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm install --global npm@11.16.0
       - run: bun scripts/check-release-source.ts
+        if: ${{ false }}
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download verified release archives
         run: |
-          for artifact in npm-package binary-linux-x64 binary-linux-arm64 binary-darwin-x64 binary-darwin-arm64 binary-windows-x64; do
+          for artifact in npm-package; do
             gh run download "$ARTIFACT_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir release
           done
         env:
           GH_TOKEN: ${{ github.token }}
       - run: bun run release:prepare
+        if: ${{ false }}
       - run: bun scripts/publish-github.ts stage
+        if: ${{ false }}
         env:
           GH_TOKEN: ${{ github.token }}
       # npm authenticates using GitHub OIDC; no long-lived npm token is injected.
@@ -138,9 +143,11 @@ jobs:
           # npm otherwise hides OIDC exchange failures behind a generic publish error.
           NPM_CONFIG_LOGLEVEL: verbose
       - run: bun scripts/publish-github.ts publish
+        if: ${{ false }}
         env:
           GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@v7.0.1
+        if: ${{ false }}
         with:
           name: release-inputs
           path: |
@@ -153,7 +160,8 @@ jobs:
           if-no-files-found: error
   verify-windows-installer:
     needs: publish
-    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    # Binary distribution is disabled, so there is no installer to verify.
+    if: ${{ false }}
     runs-on: windows-2025
     steps:
       - name: Install from the public release endpoint
@@ -177,7 +185,8 @@ jobs:
           }
   verify-homebrew:
     needs: publish
-    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    # Binary distribution is disabled, so there is no Homebrew artifact to verify.
+    if: ${{ false }}
     strategy:
       fail-fast: false
       matrix:
@@ -204,7 +213,8 @@ jobs:
           HOMEBREW_DEVELOPER: '1'
   update-tap:
     needs: verify-homebrew
-    if: ${{ !cancelled() && needs.verify-homebrew.result == 'success' }}
+    # Binary distribution is disabled, so the tap is not updated.
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1

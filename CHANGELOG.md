@@ -4,6 +4,8 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+## 0.7.0 — 2026-10-06
+
 - Use an opaque instance resource URL (example `/api/instances/UUID`) returning only `{key}`. Remove user/subject dependence; bind cache reuse to each profile session, clear old credentials before reauthorization or rebinding, and check revision again at add commit. Ignore optional response fields; no value fallback, budget or migration.
 
 - Centralize local credential updates and cleanup locking in store, keep OAuth invalidation policy in lifecycle, and move generic profile lookup out of project binding resolution. Remove the process forwarding module; launch calls the platform facade directly.
