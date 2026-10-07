@@ -4,6 +4,9 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+## 0.8.4 — 2026-10-07
+- Start each test file with its own command-scoped `XDG_CONFIG_HOME` directory to prevent CI configuration races.
+
 ## 0.8.3 — 2026-10-07
 - Use a dedicated `DEVN_CONFIG_HOME` test override so tests leave `XDG_CONFIG_HOME` unchanged.
 

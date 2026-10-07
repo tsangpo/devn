@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
 import { platform } from './platform';
 
-export const configHome = () => path.resolve(process.env.DEVN_CONFIG_HOME || process.env.XDG_CONFIG_HOME || platform.defaultConfigRoot(), 'devn');
+export const configHome = () => path.resolve(process.env.XDG_CONFIG_HOME || platform.defaultConfigRoot(), 'devn');
 export const profileDir = (id: string) => path.join(configHome(), 'profiles', id);
 export const { privateDir, privateFile, atomicWrite } = platform;
 
