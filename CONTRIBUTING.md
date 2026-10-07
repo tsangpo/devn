@@ -93,8 +93,9 @@ currently omits native model instructions; Codex 0.160.0 rejects it without
 not synthesize instructions or change that example. devn's profile validation
 does not replace validation by the installed native client.
 CI validates npm packages, terminal interaction, and standalone executables.
-The binary CI baseline is macOS 15, Ubuntu 24.04 (glibc), and Windows Server 2025
-(`windows-2025`). Windows ARM64 and musl are not distributed.
+The binary CI baseline is macOS 15 and Ubuntu 24.04 (glibc), with arm64/x64
+archives. Windows uses the Bun/npm distribution only; Windows standalone binaries
+and installers are not published. Windows ARM64 and musl are not distributed.
 Hosted Linux kernels currently lack Landlock ABI 10, so
 Homebrew reports limited network isolation and applies the restrictions the
 kernel supports. We retain its sandbox and capability warning. Intel macOS
@@ -148,11 +149,11 @@ installation tests and JavaScript client entries. Development and builds use Bun
        git push origin v0.1.1
 
 The Release workflow validates the version before building. It packs npm once,
-installs that same tarball on five runners, builds and tests macOS/Linux arm64/x64
-and Windows x64 binaries, and verifies SHA-256 checksums for every archive. It then stages a
-GitHub draft Release, publishes the verified npm tarball, and publishes the
-Release. Homebrew installs/tests the released binaries on all four platforms
-before the workflow commits the generated Formula to the tap.
+installs that same tarball on four macOS/Linux runners, builds and tests macOS/Linux
+arm64/x64 binaries, and verifies SHA-256 checksums for every archive. It then stages a
+GitHub draft Release, publishes the verified npm tarball and Release, and has Homebrew
+install/test the released binaries on all four platforms before committing the generated
+Formula to the tap. Windows releases use Bun/npm only.
 
 Publishing marks the release as GitHub Latest unless the current Latest has a
 higher stable version. Retrying an already-published release also repairs this
@@ -160,31 +161,14 @@ marker. Failure to inspect Latest stops publication; a missing Latest is allowed
 
 Release assets include `devn.tgz`, `devn-vX.Y.Z-<os>-<arch>.tar.gz`, per-archive
 `.sha256` files and `SHA256SUMS`. OS names are `darwin` and `linux`; architectures
-are `arm64` and `x64`. These archives contain `devn` and `LICENSE`. Windows adds
-`devn-vX.Y.Z-windows-x64.zip` containing `devn.exe` and `LICENSE`, with the same
-checksum and publishing verification.
-
-Windows also publishes `install.ps1` and `install.ps1.sha256`; the script is included
-in `SHA256SUMS`. After building the Windows ZIP, `bun run build:installer` renders
-the PowerShell template with this release's version, archive name and ZIP checksum.
-`bun run test:installer` then exercises the generated installer using the real ZIP
-in Windows PowerShell 5.1 and PowerShell 7, including the cmd invocation, upgrades,
-rollback and PATH handling. These integration tests temporarily modify and restore
-the current user's PATH; run them serially on a disposable Windows runner. They
-use isolated installation directories, mock download transport, and simulate
-unsupported architectures and mismatched release metadata.
-
-Check and Release both run these tests before uploading the Windows artifact,
-which contains the ZIP and generated installer with their checksum files. A separate
-post-publication Windows job installs through the public latest endpoint and verifies
-`devn --version` in a new shell. When recovering an older release, it tests that tag's
-endpoint instead of changing Latest. The installer endpoint is available starting
-with the first stable release containing this feature; do not retrofit old releases.
+are `arm64` and `x64`. These archives contain `devn` and `LICENSE`. No Windows ZIP,
+PowerShell installer, or Windows standalone artifact is produced for new releases.
 
 Generated files stay in release/; they are not committed. npm continues to ship
 TypeScript with its Bun shebang and no install scripts or downloaded binaries.
-Homebrew downloads a binary from the source repository's Release, checks SHA-256,
-and installs it without Bun. The CLI never updates itself.
+Homebrew downloads macOS/Linux binaries from the source repository's Release, checks
+SHA-256, and installs them without Bun. Windows users install the npm package with
+Bun. The CLI never updates itself.
 
 ## Failed releases and retries
 
@@ -198,9 +182,8 @@ An identical already-published npm tarball is accepted; different contents for
 an existing npm version cause failure. Existing Release assets are verified and
 never overwritten; missing draft assets may be uploaded on retry. Rebuilding
 all jobs can produce different archive bytes and is not a safe retry strategy.
-Recovery reuses the original verified `install.ps1` artifact as well; never regenerate
-it from main. Missing installer artifacts or different uploaded script bytes fail
-publication. Recover releases predating the installer with their original workflow.
+Recovery reuses the original verified macOS/Linux artifacts; never regenerate them from
+main. Missing artifacts or different uploaded bytes fail publication.
 
 Publishing to npm, GitHub and the tap is not atomic. If npm succeeds but another
 step fails, fix the failure and re-run failed jobs; do not unpublish npm or move
@@ -234,6 +217,6 @@ entries, and remove the Windows test command and documentation. Business modules
 need no changes. Keep existing published assets; use the original release revision
 and artifacts when recovering a historical Windows release.
 
-Before a release, use the Check workflow's `windows-x64-verified` ZIP and checksum
-artifacts for validation. Do not use preview tags or workflow_dispatch as a dry
-run: the release workflow publishes stable tags, and dispatch is for recovery.
+Before a release, use the Check workflow's macOS/Linux binary jobs and checksums for
+validation. Do not use preview tags or workflow_dispatch as a dry run: the release
+workflow publishes stable tags, and dispatch is for recovery.

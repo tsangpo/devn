@@ -50,23 +50,14 @@ devn --version
 
 ## Windows 安装
 
-Windows x64 可在 64 位 PowerShell（Windows PowerShell 5.1 或 PowerShell 7）中安装或升级最新稳定版：
+Windows 只通过 Bun 安装 npm 包：
 
 ```powershell
-irm https://github.com/tsangpo/devn/releases/latest/download/install.ps1 | iex
+bun i -g @tsangpo/devn
+devn --version
 ```
 
-也可在 cmd 或 PowerShell 中使用：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -c "irm https://github.com/tsangpo/devn/releases/latest/download/install.ps1 | iex"
-```
-
-安装脚本校验 SHA-256，将 `devn.exe` 和许可证安装到 `%LOCALAPPDATA%\Programs\devn`，并加入用户 PATH；缺失 `LOCALAPPDATA` 时使用用户目录下的 `AppData\Local\Programs\devn`。无需管理员权限、Bun 或 Node.js。重复执行同一命令即可升级，保留 profile 和工具历史；Codex、Claude Code 和 OpenCode 仍需自行安装。
-
-使用外层 `powershell -c` 命令安装后，关闭并重新打开终端应用，再运行 `devn --version`。如果提示另一份 devn 优先执行，请调整 PATH 或使用安装目录下 EXE 的完整路径。升级前请关闭正在运行的 devn。
-
-安装入口将在包含此功能的首个稳定版本发布后可用。较早版本或指定版本仍可从 [GitHub Releases](https://github.com/tsangpo/devn/releases) 下载 `devn-vX.Y.Z-windows-x64.zip`，核对 SHA-256 后解压，将 `devn.exe` 所在目录加入 PATH。也可以安装 Bun 后使用 `bunx`，或运行 `npm install -g @tsangpo/devn` 在 PowerShell/cmd 中使用 `devn`。
+也可以使用 `bunx @tsangpo/devn` 临时运行。Codex、Claude Code 和 OpenCode 仍需自行安装。
 
 客户端支持原生 EXE 和 Codex/Claude/OpenCode 的官方 npm 安装；JavaScript 客户端入口需要 Node.js，原生入口不需要。不执行自定义 cmd/bat/ps1 包装脚本。不支持 Windows ARM64、Scoop 或 winget。
 
@@ -318,7 +309,7 @@ MIT 许可证，Copyright (c) 2026 tsangpo。参见 [LICENSE](LICENSE)、[贡献
 
 `bun run check:secrets` 检查工作区与可达 Git 历史中的已知 token/私钥特征，不输出匹配值。它无法识别全部自定义 key 或客户信息，发布前仍应检查实际 tarball 和文档。
 
-推送与 package.json 版本一致的正式 `vX.Y.Z` tag，会触发 Release 工作流：验证同一份 npm tarball 和五个平台的二进制，自动发布 npm 与 GitHub Release，验证 Homebrew 安装后更新 `tsangpo/homebrew-tap`。npm 发布使用 Trusted Publishing（OIDC），不再注入 `NPM_TOKEN`；tap 更新使用仅授权 tap 仓库 Contents 写入的 `GH_PAT`。首次无 token 新版本发布成功后，可删除旧 GitHub secret 并撤销 npm token。配置步骤见 [贡献与发布说明](CONTRIBUTING.md#release-setup)。
+推送与 package.json 版本一致的正式 `vX.Y.Z` tag，会触发 Release 工作流：验证同一份 npm tarball 和 macOS/Linux 四个平台的二进制，自动发布 npm 与 GitHub Release，验证 Homebrew 安装后更新 `tsangpo/homebrew-tap`。Windows 只通过 Bun 安装 npm 包。npm 发布使用 Trusted Publishing（OIDC），不再注入 `NPM_TOKEN`；tap 更新使用仅授权 tap 仓库 Contents 写入的 `GH_PAT`。首次无 token 新版本发布成功后，可删除旧 GitHub secret 并撤销 npm token。配置步骤见 [贡献与发布说明](CONTRIBUTING.md#release-setup)。
 
 本地构建及验证当前平台二进制：
 

@@ -77,11 +77,6 @@ test('release preparation rejects missing and tampered artifacts', async () => {
     }
     delete hashes[archiveName('linux-arm64')];
     expect(() => formula(hashes)).toThrow();
-    tempFS.unlinkSync(temp + '/install.ps1');
-    await expect(checkedAssets(temp)).rejects.toThrow();
-    await Bun.write(temp + '/install.ps1', 'tampered installer');
-    await expect(checkedAssets(temp)).rejects.toThrow('checksum mismatch');
-    await Bun.write(temp + '/install.ps1', 'test archive install.ps1');
     await Bun.write(temp + '/devn.tgz', 'tampered');
     await expect(checkedAssets(temp)).rejects.toThrow('checksum mismatch');
   } finally {
@@ -147,11 +142,6 @@ else process.exit(99);
     const edits = (await Bun.file(temp + '/edits').text()).trim().split('\n').map(line => JSON.parse(line));
     expect(edits.map(args => args.at(-1))).toEqual(['--latest=true', '--latest=true', '--latest=true', '--latest=false']);
     expect(await Bun.file(temp + '/remote/devn.tgz').text()).toBe('dummy devn.tgz');
-    expect(await Bun.file(temp + '/remote/install.ps1').text()).toBe('dummy install.ps1');
-    await Bun.write(temp + '/remote/install.ps1', 'different existing installer');
-    await expect(run('stage')).rejects.toThrow('Existing release asset differs: install.ps1');
-    expect(await Bun.file(temp + '/remote/install.ps1').text()).toBe('different existing installer');
-    await Bun.write(temp + '/remote/install.ps1', 'dummy install.ps1');
     await Bun.write(temp + '/remote/devn.tgz', 'different existing asset');
     await expect(run('stage')).rejects.toThrow();
     expect(await Bun.file(temp + '/remote/devn.tgz').text()).toBe('different existing asset');

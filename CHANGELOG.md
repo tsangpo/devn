@@ -4,6 +4,8 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+- Restore macOS/Linux standalone binaries and Homebrew publication; Windows releases use Bun/npm only.
+
 ## 0.7.0 — 2026-10-06
 
 - Use an opaque instance resource URL (example `/api/instances/UUID`) returning only `{key}`. Remove user/subject dependence; bind cache reuse to each profile session, clear old credentials before reauthorization or rebinding, and check revision again at add commit. Ignore optional response fields; no value fallback, budget or migration.

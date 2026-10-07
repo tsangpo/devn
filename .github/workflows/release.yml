@@ -46,8 +46,6 @@ jobs:
           if-no-files-found: error
           retention-days: 30
   binaries:
-    # Binary distribution is temporarily disabled; keep the job for re-enabling later.
-    if: ${{ false }}
     needs: pack
     strategy:
       fail-fast: false
@@ -61,8 +59,6 @@ jobs:
             platform: darwin-arm64
           - os: macos-15-intel
             platform: darwin-x64
-          - os: windows-2025
-            platform: windows-x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7.0.1
@@ -82,24 +78,18 @@ jobs:
           DEVN_PACKAGE_TARBALL: ${{ github.workspace }}/release/devn.tgz
       - run: bun run build:binary
       - run: bun run test:binary
-      - if: matrix.platform == 'windows-x64'
-        run: bun run build:installer
-      - if: matrix.platform == 'windows-x64'
-        run: bun run test:installer
       - uses: actions/upload-artifact@v7.0.1
         with:
           name: binary-${{ matrix.platform }}
           path: |
             release/*.tar.gz*
-            release/*.zip*
-            release/install.ps1*
           if-no-files-found: error
           retention-days: 30
   publish:
     needs: [pack, binaries]
     if: >-
       always() && !cancelled() && github.repository == 'tsangpo/devn' &&
-      needs.pack.result == 'success'
+      (needs.binaries.result == 'success' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -121,20 +111,17 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm install --global npm@11.16.0
       - run: bun scripts/check-release-source.ts
-        if: ${{ false }}
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download verified release archives
         run: |
-          for artifact in npm-package; do
+          for artifact in npm-package binary-linux-x64 binary-linux-arm64 binary-darwin-x64 binary-darwin-arm64; do
             gh run download "$ARTIFACT_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir release
           done
         env:
           GH_TOKEN: ${{ github.token }}
       - run: bun run release:prepare
-        if: ${{ false }}
       - run: bun scripts/publish-github.ts stage
-        if: ${{ false }}
         env:
           GH_TOKEN: ${{ github.token }}
       # npm authenticates using GitHub OIDC; no long-lived npm token is injected.
@@ -143,50 +130,20 @@ jobs:
           # npm otherwise hides OIDC exchange failures behind a generic publish error.
           NPM_CONFIG_LOGLEVEL: verbose
       - run: bun scripts/publish-github.ts publish
-        if: ${{ false }}
         env:
           GH_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@v7.0.1
-        if: ${{ false }}
         with:
           name: release-inputs
           path: |
             release/*.tgz*
             release/*.tar.gz*
-            release/*.zip*
-            release/install.ps1*
             release/SHA256SUMS
             release/devn.rb
           if-no-files-found: error
-  verify-windows-installer:
-    needs: publish
-    # Binary distribution is disabled, so there is no installer to verify.
-    if: ${{ false }}
-    runs-on: windows-2025
-    steps:
-      - name: Install from the public release endpoint
-        shell: powershell
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $latest = gh api repos/tsangpo/devn/releases/latest --jq .tag_name
-          if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect latest release' }
-          $url = 'https://github.com/tsangpo/devn/releases/latest/download/install.ps1'
-          if ($latest -ne $env:RELEASE_TAG) {
-            # Recovering an older release must not demote or install a newer Latest.
-            $url = 'https://github.com/tsangpo/devn/releases/download/' + $env:RELEASE_TAG + '/install.ps1'
-          }
-          irm $url | iex
-          if ((devn --version) -ne $env:RELEASE_TAG.Substring(1)) { throw 'Installed version differs from the release' }
-          # A new PowerShell process inherits the refreshed PATH from this installer session.
-          if ((& powershell.exe -NoProfile -Command 'devn --version') -ne $env:RELEASE_TAG.Substring(1)) {
-            throw 'New terminal could not find the released devn'
-          }
   verify-homebrew:
     needs: publish
-    # Binary distribution is disabled, so there is no Homebrew artifact to verify.
-    if: ${{ false }}
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -213,8 +170,7 @@ jobs:
           HOMEBREW_DEVELOPER: '1'
   update-tap:
     needs: verify-homebrew
-    # Binary distribution is disabled, so the tap is not updated.
-    if: ${{ false }}
+    if: ${{ !cancelled() && needs.verify-homebrew.result == 'success' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1

@@ -2,10 +2,12 @@ import { version } from '../package.json';
 
 export { version };
 export const repository = 'tsangpo/devn';
-import { targets, platforms, type Platform } from './platform';
-export { platforms, type Platform } from './platform';
+import { targets, platforms as allPlatforms, type Platform } from './platform';
+// Windows remains supported through Bun/npm, but standalone binary releases are macOS/Linux only.
+export const platforms = allPlatforms.filter(platform => platform !== 'windows-x64') as Platform[];
+export type { Platform } from './platform';
 export const archiveName = (platform: Platform) => 'devn-v' + version + '-' + platform + targets[platform].extension;
-export const assetNames = () => ['devn.tgz', ...platforms.map(archiveName), 'install.ps1'];
+export const assetNames = () => ['devn.tgz', ...platforms.map(archiveName)];
 
 export function releaseTag(tag = process.env.RELEASE_TAG): string {
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version) || tag !== 'v' + version) {

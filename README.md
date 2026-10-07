@@ -27,40 +27,20 @@ Homebrew installs a standalone binary with no Bun dependency:
     brew install tsangpo/tap/devn
     devn --version
 
-Binary releases cover macOS and Linux (glibc) on arm64/x64, plus Windows x64. To upgrade, use
+Binary releases cover macOS and Linux (glibc) on arm64/x64. To upgrade, use
 `brew update && brew upgrade devn`. Binaries and SHA-256 checksums are also
 available from [GitHub Releases](https://github.com/tsangpo/devn/releases).
 
-On Windows x64, install or upgrade the latest stable release from 64-bit PowerShell
-(Windows PowerShell 5.1 or PowerShell 7):
+On Windows, install Bun and use the npm package:
 
 ```powershell
-irm https://github.com/tsangpo/devn/releases/latest/download/install.ps1 | iex
+bun i -g @tsangpo/devn
+devn --version
 ```
 
-From either cmd or PowerShell:
+`bunx @tsangpo/devn` is also available for one-off use. Clients must still be installed separately.
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -c "irm https://github.com/tsangpo/devn/releases/latest/download/install.ps1 | iex"
-```
-
-The installer checks SHA-256, installs `devn.exe` and its license into
-`%LOCALAPPDATA%\Programs\devn` (falling back to `AppData\Local\Programs\devn`
-under your user directory), and adds that directory to your user PATH. No administrator
-rights, Bun or Node.js are needed. Re-run the same command to upgrade; profiles and
-tool history are preserved. Clients must still be installed separately.
-When using the outer `powershell -c` command, close and reopen your terminal application,
-then run `devn --version`. If another devn installation takes precedence, adjust PATH
-or use the installed EXE's full path. Close running devn processes before upgrading.
-
-The installer endpoint becomes available with the first stable release containing this
-feature. For earlier releases or a specific version, download
-`devn-vX.Y.Z-windows-x64.zip` from GitHub Releases, verify its SHA-256 checksum,
-extract it, and add the directory containing `devn.exe` to PATH.
-npm/Bun installations still require Bun;
-`npm install -g @tsangpo/devn` installs the `devn` command for PowerShell and cmd.
-
-Windows supports native client EXEs and official npm installations of Codex/Claude/OpenCode.
+Windows supports Bun/npm installations of devn and native client EXEs or official npm installations of Codex/Claude/OpenCode.
 JavaScript client entries require Node.js; native entries do not. Custom cmd/bat/ps1
 wrappers are not executed. Use an official installation when an entry cannot be resolved.
 Scoop, winget and Windows ARM64 are not supported.
@@ -443,8 +423,8 @@ with a local fake gateway and dummy keys. See CONTRIBUTING.md for versions and
 schema compatibility.
 
 Pushing a stable `vX.Y.Z` tag matching package.json triggers the Release workflow.
-It validates the npm package and five native binaries, publishes npm and GitHub
-Release assets, tests Homebrew installation, then updates `tsangpo/homebrew-tap`.
+It validates the npm package and four macOS/Linux native binaries, publishes npm and
+GitHub Release assets, tests Homebrew installation, then updates `tsangpo/homebrew-tap`.
 npm publishing uses Trusted Publishing (OIDC), without an npm token. See
 [release setup](CONTRIBUTING.md#release-setup) before pushing a tag.
 
