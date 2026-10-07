@@ -81,34 +81,6 @@ The selected profile refreshes before each launch. Temporary network errors and 
 
 Omit model lists to keep each client's native defaults. If you publish a central model list, use the native format and map its IDs to real Bifrost routes. The repository example is documentation only and is never registered automatically.
 
-## OpenCode v2
-
-Add an optional `opencode` section to a version-1 remote profile:
-
-```json
-"opencode": {
-  "model": "coding",
-  "models": {
-    "coding": {
-      "modelID": "openai/your-model",
-      "name": "Coding model",
-      "capabilities": { "tools": true, "input": ["text"], "output": ["text"] },
-      "limit": { "context": 128000, "output": 16000 }
-    }
-  }
-}
-```
-
-The model map must be non-empty and `model` must name one of its entries. devn supplies a fixed `bifrost` provider over the OpenAI-compatible Responses API at `<baseUrl>/openai/v1/responses`; the gateway must support streaming Responses. Provider packages, credentials, headers and configuration substitutions cannot come from the remote profile.
-
-```sh
-devn opencode
-devn opencode run --model bifrost/coding "Explain this project"
-devn opencode models
-```
-
-OpenCode configuration, sessions, cache, state and temporary files live under the profile directory. Project config and automatic global skill discovery are disabled for this managed client. This is configuration separation, not an operating-system sandbox. See the [OpenCode provider](https://opencode.ai/v2/docs/providers) and [CLI](https://opencode.ai/v2/docs/cli) documentation.
-
 ## Local data and limits
 
 Data is stored under `${XDG_CONFIG_HOME:-~/.config}/devn` on Unix and `%LOCALAPPDATA%/devn` on Windows. Each profile contains its cached JSON and separate Codex, Claude and OpenCode directories. Managed credentials are written to client config files with private permissions; they are local plaintext secrets, not encryption. Removing a profile scrubs devn-managed credentials; `--purge` also deletes its profile data.

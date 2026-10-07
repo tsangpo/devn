@@ -81,34 +81,6 @@ devn profile unbind
 
 不提供模型列表时，客户端保留自己的默认值。发布模型列表时请使用客户端原生格式，并将模型 ID 映射到真实的 Bifrost 路由。仓库中的示例仅供参考，不会自动注册。
 
-## OpenCode v2
-
-在 version 1 的远程 profile 中添加可选的 `opencode`：
-
-```json
-"opencode": {
-  "model": "coding",
-  "models": {
-    "coding": {
-      "modelID": "openai/your-model",
-      "name": "Coding model",
-      "capabilities": { "tools": true, "input": ["text"], "output": ["text"] },
-      "limit": { "context": 128000, "output": 16000 }
-    }
-  }
-}
-```
-
-`models` 不能为空，`model` 必须引用其中的键。devn 固定使用 `bifrost` provider，通过 OpenAI 兼容 Responses API 请求 `<baseUrl>/openai/v1/responses`；网关必须支持流式 Responses。远程 profile 不能指定 provider 包、凭证、请求头或配置变量替换。
-
-```sh
-devn opencode
-devn opencode run --model bifrost/coding "Explain this project"
-devn opencode models
-```
-
-OpenCode 的配置、会话、缓存、状态和临时文件都在 profile 目录中。托管模式会禁用项目配置和全局 skill 自动发现。这是配置隔离，不是操作系统沙箱。详见 [OpenCode provider](https://opencode.ai/v2/docs/providers) 和 [CLI](https://opencode.ai/v2/docs/cli) 文档。
-
 ## 本地数据与限制
 
 Unix 数据目录为 `${XDG_CONFIG_HOME:-~/.config}/devn`，Windows 为 `%LOCALAPPDATA%/devn`。每个 profile 保存远程 JSON 缓存以及独立的 Codex、Claude、OpenCode 目录。托管凭证写入私有权限的客户端配置文件；它们是本地明文 secret，不是加密存储。删除 profile 会清理 devn 管理的凭证，`--purge` 还会删除 profile 数据。
