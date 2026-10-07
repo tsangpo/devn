@@ -20,12 +20,16 @@ test('binding, ancestor inheritance, nested override, and paths with spaces', t 
   assert.deepEqual(fs.readdirSync(f.project), []);
   testPlatform.assertPrivate(path.join(f.home, 'devn/config.toml'), 0o600);
   const sub = path.join(f.project, 'packages', 'app'); fs.mkdirSync(sub, { recursive: true });
-  assert.equal(f.run(['codex', 'exec', 'a prompt with spaces'], { cwd: sub }).status, 0);
+  const codex = f.run(['codex', 'exec', 'a prompt with spaces'], { cwd: sub });
+  assert.equal(codex.status, 0);
+  assert.equal(codex.stderr, '');
   assert.equal(read(f.capture).cwd, sub);
   assert.equal(read(f.capture).codex, path.join(f.home, 'devn/profiles/a/codex'));
   assert.equal(f.run(['profile', 'use', 'b'], { cwd: sub }).status, 0);
   assert.deepEqual(projects(f), { [f.project]: 'a', [sub]: 'b' });
-  assert.equal(f.run(['claude', '-p', 'hello'], { cwd: sub }).status, 0);
+  const claude = f.run(['claude', '-p', 'hello'], { cwd: sub });
+  assert.equal(claude.status, 0);
+  assert.equal(claude.stderr, '');
   assert.equal(read(f.capture).claude, path.join(f.home, 'devn/profiles/b/claude'));
   assert.match(f.run(['profile', 'list'], { cwd: sub }).stdout, /\* b/);
   assert.equal(f.run(['codex'], { cwd: f.project }).status, 0);
@@ -122,7 +126,7 @@ test('regeneration retains user settings and selected models, refreshes menus an
   f.a.baseUrl = 'https://a.example.test/new';
   write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
   for (const tool of ['codex', 'claude']) {
-    const result = f.run([tool]); assert.equal(result.status, 0); assert.match(result.stderr, /no longer listed/);
+    const result = f.run([tool]); assert.equal(result.status, 0); assert.equal(result.stderr, '');
   }
   assert.equal(parse(fs.readFileSync(codexFile, 'utf8')).model, 'a/codex-one');
   assert.equal(read(claudeFile).modelPicker.options.length, 1);

@@ -1,7 +1,6 @@
 import { clients, getClient } from './clients';
 import { profileDir } from './files';
 import { prepareConfig } from './store';
-import { endpoint } from './profile';
 import type { Profile, Tool } from './types';
 import { platform } from './platform';
 
@@ -13,7 +12,6 @@ export async function launch(profile: Profile, tool: Tool, args: string[], apiKe
   const env = { ...process.env };
   for (const entry of clients) entry.clearEnvironment?.(env);
   const result = client.prepareLaunch({ profile, root: profileDir(profile.id), generated, prepared, env });
-  console.error(`devn: ${profile.id} → ${tool} (${endpoint(profile, tool)})`);
   if (result.kind === 'output') {
     console.log(result.text);
     return 0;

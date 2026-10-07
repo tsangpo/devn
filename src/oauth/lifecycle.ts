@@ -115,7 +115,6 @@ export async function syncCredentials(id: string): Promise<string> {
     } catch (error) {
       await invalidate(ref, error);
       if (error instanceof OAuthError && error.unavailable && !invalidatesCredentials(error) && current && entry.key) {
-        console.error('devn: OAuth service unavailable; using this profile\'s cached key for the current session.');
         return entry.key;
       }
       if (error instanceof InvalidSession || (error instanceof OAuthError && invalidatesCredentials(error))) throw new Error(`${error.message} Run devn profile add and re-add profile ${id}.`);

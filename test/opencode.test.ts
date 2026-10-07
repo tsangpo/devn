@@ -74,6 +74,7 @@ test('OpenCode launches with private paths, managed gateway, preserved arguments
     OPENAI_API_KEY: 'external', ANTHROPIC_AUTH_TOKEN: 'external', OPENCODE_DISABLE_MOUSE: '1',
   } });
   assert.equal(result.status, 7, result.stderr);
+  assert.equal(result.stderr, '');
   const capture = read(f.capture), dir = path.join(f.home, 'devn/profiles/a/opencode');
   assert.deepEqual(capture.args, ['run', '--standalone', '--model', 'bifrost/gpt-6.1-sol', prompt]);
   assert.equal(capture.cwd, f.project);
@@ -119,7 +120,7 @@ test('OpenCode refresh replaces owned provider settings and preserves local cust
   next = read(file); assert.equal(next.model, 'bifrost/gpt-6.1-sol');
   assert.equal(next.providers.bifrost.models.second, undefined);
   assert.equal(next.providers.bifrost.settings.baseURL, f.a.opencode.baseUrl);
-  assert.match(result.stderr, /no longer listed/);
+  assert.equal(result.stderr, '');
   assert.equal(f.run(['opencode', '--model=bifrost/gpt-6.1-sol']).status, 0);
   assert.deepEqual(JSON.parse(read(f.capture).env.OPENCODE_CONFIG_CONTENT), { model: 'bifrost/gpt-6.1-sol' });
 });

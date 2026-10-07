@@ -224,7 +224,6 @@ export async function refreshProfile(id: string): Promise<{ profile: Profile; ke
       try { profile = await cachedProfile(id); }
       catch { throw new Error(`Profile ${id} is unavailable and has no valid cache.`); }
       assertTrusted(entry, profile);
-      console.error(`devn: ${error.message} Using cached profile ${id}.`);
       return { profile, key: entry.key };
     }
     assertTrusted(entry, profile);

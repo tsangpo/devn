@@ -63,7 +63,6 @@ export async function generateConfig(profile: Profile, tool: Tool, apiKey: strin
   const model = ids
     ? (ids.includes(existing.model) ? existing.model : defaultModel)
     : undefined;
-  if (ids && existing.model && model !== existing.model) console.error(`devn: saved ${tool} model is no longer listed; using ${model}.`);
   const { managed, files = [] } = client.config.build({ profile, dir, endpoint: endpoint(profile, tool), apiKey, existing, model });
   const manifest = path.join(dir, '.devn-managed.json');
   const prior = fs.existsSync(manifest) ? readJson(manifest) : { paths: [] };
@@ -107,7 +106,6 @@ export async function scrubCredentials(id: string, invalidate = false): Promise<
       // An invalidated or replaced credential must not survive in a malformed generated config.
       // Histories remain separate; do not create a backup containing the secret.
       fs.rmSync(file);
-      console.error(`devn: Removed malformed ${tool} configuration while replacing or clearing credentials; history retained.`);
     }
   }
   for (const update of updates) atomicWrite(update.file, update.content + '\n');
