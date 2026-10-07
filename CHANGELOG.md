@@ -4,7 +4,10 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+## 0.8.0 — 2026-10-07
+
 - Restore macOS/Linux standalone binaries and Homebrew publication; Windows releases use Bun/npm only.
+- Make `devn codex`, `devn claude`, and `devn opencode` silent for devn status and fallback notices while preserving client output and errors.
 
 ## 0.7.0 — 2026-10-06
 
