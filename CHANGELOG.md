@@ -4,6 +4,9 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+## 0.8.1 — 2026-10-07
+- Run the shared test suite serially to prevent temporary configuration races on macOS CI.
+
 ## 0.8.0 — 2026-10-07
 
 - Restore macOS/Linux standalone binaries and Homebrew publication; Windows releases use Bun/npm only.
