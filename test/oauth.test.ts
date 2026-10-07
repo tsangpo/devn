@@ -252,7 +252,7 @@ test('remove, manual and rebinding retire only their own sessions; network revoc
   expect(readSession(newA)).toBeUndefined(); expect(readSession(b)).toBeDefined();
   await bindProject(temp, 'b'); await Bun.write(`${profileDir('b')}/codex/history.jsonl`, 'dummy-history');
   revocationFailure = true; await removeProfile('b');
-  expect(readSession(b)).toBeUndefined(); expect((await loadConfig()).projects[temp]).toBe('b');
+  expect(readSession(b)).toBeUndefined(); expect((await loadConfig()).projects[platform.projectPath(temp)]).toBe('b');
   expect(await Bun.file(`${profileDir('b')}/codex/history.jsonl`).text()).toBe('dummy-history');
 });
 
