@@ -4,6 +4,9 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+## 0.8.2 — 2026-10-07
+- Run each test file in an isolated Bun process so shared temporary configuration cannot race on CI.
+
 ## 0.8.1 — 2026-10-07
 - Run the shared test suite serially to prevent temporary configuration races on macOS CI.
 

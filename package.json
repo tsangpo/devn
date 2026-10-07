@@ -1,6 +1,6 @@
 {
   "name": "@tsangpo/devn",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Project-aware Codex, Claude Code and OpenCode v2 launcher for Bifrost",
   "bin": {
     "devn": "bin/devn"
@@ -10,7 +10,7 @@
   },
   "scripts": {
     "validate": "bun bin/devn --validate-example",
-    "test": "bun test ./test/*.test.ts --timeout 180000 --max-concurrency 1",
+    "test": "for file in ./test/*.test.ts; do bun test \"$file\" --timeout 180000 || exit 1; done",
     "test:windows": "bun test ./test/windows/*.test.ts --timeout 180000",
     "test:native": "bun test ./test/native/*.test.ts --timeout 180000",
     "check": "bun run test && bun run validate",
