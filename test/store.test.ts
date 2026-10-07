@@ -20,8 +20,8 @@ const source = () => `http://127.0.0.1:${server.port}/profile.json`;
 
 beforeEach(async () => {
   temp = tempFS.realpathSync.native(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
-  oldConfigHome = process.env.XDG_CONFIG_HOME;
-  process.env.XDG_CONFIG_HOME = temp;
+  oldConfigHome = process.env.DEVN_CONFIG_HOME;
+  process.env.DEVN_CONFIG_HOME = temp;
   respond = undefined;
   status = 200; payload = structuredClone(definition); delay = 0; authorization = null;
   server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
@@ -33,8 +33,8 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   await server.stop(true);
-  if (oldConfigHome === undefined) delete process.env.XDG_CONFIG_HOME;
-  else process.env.XDG_CONFIG_HOME = oldConfigHome;
+  if (oldConfigHome === undefined) delete process.env.DEVN_CONFIG_HOME;
+  else process.env.DEVN_CONFIG_HOME = oldConfigHome;
   tempFS.rmSync(temp, { recursive: true, force: true });
 });
 

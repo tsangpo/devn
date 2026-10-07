@@ -41,7 +41,7 @@ function tokenResponse(g: Grant) {
 }
 beforeEach(() => {
   temp = fs.mkdtempSync(path.join(os.tmpdir(), 'devn-oauth-'));
-  oldHome = process.env.XDG_CONFIG_HOME; process.env.XDG_CONFIG_HOME = temp;
+  oldHome = process.env.DEVN_CONFIG_HOME; process.env.DEVN_CONFIG_HOME = temp;
   calls = []; grants = []; key = undefined; pending = []; nextFailure = undefined;
   keyResponse = undefined; nonRotating = false; endpointFailure = undefined;
   deviceExpiry = 60; transientRefresh = 0; revocationFailure = false; challenge = ''; redirect = '';
@@ -126,7 +126,7 @@ beforeEach(() => {
 afterEach(async () => {
   platform.openBrowser = originalBrowser; platform.hasDesktop = originalDesktop;
   await server.stop(true);
-  if (oldHome === undefined) delete process.env.XDG_CONFIG_HOME; else process.env.XDG_CONFIG_HOME = oldHome;
+  if (oldHome === undefined) delete process.env.DEVN_CONFIG_HOME; else process.env.DEVN_CONFIG_HOME = oldHome;
   fs.rmSync(temp, { recursive: true, force: true });
 });
 
