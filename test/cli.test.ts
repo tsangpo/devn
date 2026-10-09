@@ -99,6 +99,28 @@ test('native model definitions are copied without injecting or rewriting fields'
   assert.equal(settings.env.ANTHROPIC_DEFAULT_HAIKU_MODEL, option.model);
 });
 
+test('claude env switches are written, cannot outlive the profile, and work without a model list', t => {
+  const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
+  const profileFile = path.join(f.home, 'devn/profiles/a/profile.json');
+  const claudeFile = path.join(f.home, 'devn/profiles/a/claude/settings.json');
+  f.a.claude.env = { CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: '1', CLAUDE_CODE_PROMPT_CACHE_TTL: '1h' };
+  write(profileFile, f.a);
+  assert.equal(f.run(['claude']).status, 0);
+  const settings = read(claudeFile);
+  assert.equal(settings.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS, '1');
+  assert.equal(settings.env.CLAUDE_CODE_PROMPT_CACHE_TTL, '1h');
+  assert.equal(settings.env.ANTHROPIC_AUTH_TOKEN, 'secret-a');
+  settings.env.MY_SETTING = 'preserve'; write(claudeFile, settings);
+  f.a.claude = { env: { CLAUDE_CODE_PROMPT_CACHE_TTL: '5m' } };
+  write(profileFile, f.a);
+  assert.equal(f.run(['claude']).status, 0);
+  const next = read(claudeFile);
+  assert.equal(next.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS, undefined);
+  assert.equal(next.env.CLAUDE_CODE_PROMPT_CACHE_TTL, '5m');
+  assert.equal(next.env.MY_SETTING, 'preserve');
+  assert.equal(next.modelPicker, undefined);
+});
+
 test('regeneration retains user settings and selected models, refreshes menus and credentials', t => {
   const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
   for (const tool of ['codex', 'claude']) assert.equal(f.run([tool]).status, 0);
@@ -176,6 +198,13 @@ test('profile validation rejects unsafe IDs, mismatched defaults, slots, and dup
     p => { p.claude.modelPicker.options = []; },
     p => { p.claude.modelPicker.options[0].hooks = {}; },
     p => { p.claude.env = { ANTHROPIC_AUTH_TOKEN: 'remote-key' }; },
+    p => { p.claude.env = { ANTHROPIC_BASE_URL: 'https://other.example.test' }; },
+    p => { p.claude.env = { CLAUDE_CODE_EXTRA_BODY: '{}' }; },
+    p => { p.claude.env = { CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: '{env:HOME}' }; },
+    p => { p.claude.env = { CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: 1 }; },
+    p => { p.claude.env = { CLAUDE_CODE_PROMPT_CACHE_TTL: '2h' }; },
+    p => { p.claude.env = { constructor: '1' }; },
+    p => { p.claude.env = ['CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS']; },
     p => { p.codex.defaultModel = p.codex.model; },
     p => { p.claude.models = []; },
     p => { delete p.codex.models[0].slug; },

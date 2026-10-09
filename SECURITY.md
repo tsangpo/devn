@@ -29,6 +29,9 @@ a promised backport policy.
   must be added again. Paths within an approved origin may change automatically.
 - Trusting a profile also trusts its administrator's model and routing updates.
   Origin pinning cannot protect a compromised gateway at the same origin.
+- A profile may set Claude Code environment switches only from a fixed list of
+  names and enumerated values. It cannot set gateway URLs, credentials, custom
+  headers or request-body overrides.
 - Keys are plaintext in local config.toml and generated tool configuration, with
   mode 0600 and directories 0700 on POSIX. Windows applies a protected DACL
   granting only the current user and SYSTEM, removing inherited and unrelated

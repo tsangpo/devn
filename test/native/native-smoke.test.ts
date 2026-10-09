@@ -175,4 +175,15 @@ describe('native clients through the local Bifrost gateway', () => {
       expect(result.stdout + result.stderr).not.toContain("isn't described by this version's model catalog");
     }
   }, 50000);
+
+  test.serial('Claude honors profile env switches and still marks the prompt cache', async () => {
+    const profilePath = `${repo}/profiles/smoke.json`;
+    const profile = await Bun.file(profilePath).json();
+    profile.claude = { env: { CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: '1' } };
+    await Bun.write(profilePath, JSON.stringify(profile));
+    const { request } = await client('claude', ['-p', 'Reply with DEVN_NATIVE_OK. Do not use tools.']);
+    expect((request.body.tools || []).some((tool: any) => 'defer_loading' in tool)).toBe(false);
+    expect(request.body.context_management).toBeUndefined();
+    expect(JSON.stringify(request.body.system)).toContain('cache_control');
+  }, 50000);
 });

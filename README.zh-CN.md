@@ -81,6 +81,22 @@ devn profile unbind
 
 不提供模型列表时，客户端保留自己的默认值。发布模型列表时请使用客户端原生格式，并将模型 ID 映射到真实的 Bifrost 路由。仓库中的示例仅供参考，不会自动注册。
 
+### Claude Code 网关开关
+
+`claude.env` 可选，用于设置 Claude Code 面向网关的兼容开关。只接受下表中的名称和取值，其他内容会使 profile 校验失败。默认使用最新版 Claude Code。
+
+| 名称 | 取值 | 用途 |
+|---|---|---|
+| `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` | `1` | 上游（如 Bedrock）以 `Extra inputs are not permitted` 拒绝请求时，停止发送预发布 beta 头及配套字段（`defer_loading`、`context_management`）。同时关闭 MCP tool search。 |
+| `CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS` | `1` | 只去掉结构化输出的 format 字段。 |
+| `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING` | `0`、`1` | 经网关流式传输工具参数；自定义 base URL 下默认关闭。 |
+| `CLAUDE_CODE_PROMPT_CACHE_TTL` | `5m`、`1h` | 主对话的 prompt cache 有效期。 |
+| `CLAUDE_CODE_GATEWAY_HINT_HEADERS` | `0`、`1` | 向网关发送 `x-claude-code-*` 路由提示头。 |
+
+从 profile 中删除某个名称后，下次启动会从生成的配置中移除它。发布 `claude.env` 前请先升级 devn：旧版本会拒绝该字段。
+
+通过 Bifrost 使用 Bedrock 时，图片和 prompt cache 还取决于网关：放行全部客户端请求头（至少 `anthropic-beta` 和 `anthropic-version`），并使用在 Bedrock 路由上保留 Anthropic `image`、`tool_result` 和 `cache_control` 块的 Bifrost 版本。缓存失效不会报错，请在网关日志中确认第二轮起 `cache_read_input_tokens` 不为 0。
+
 ## 本地数据与限制
 
 Unix 数据目录为 `${XDG_CONFIG_HOME:-~/.config}/devn`，Windows 为 `%LOCALAPPDATA%/devn`。每个 profile 保存远程 JSON 缓存以及独立的 Codex、Claude、OpenCode 目录。托管凭证写入私有权限的客户端配置文件；它们是本地明文 secret，不是加密存储。删除 profile 会清理 devn 管理的凭证，`--purge` 还会删除 profile 数据。

@@ -4,6 +4,8 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+- Add optional `claude.env` to remote profiles: an allowlist of Claude Code gateway switches (`CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS`, `CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS`, `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING`, `CLAUDE_CODE_PROMPT_CACHE_TTL`, `CLAUDE_CODE_GATEWAY_HINT_HEADERS`) with enumerated values. Removed names are dropped from generated settings on the next launch. Upgrade devn before publishing `claude.env`; older releases reject it.
+
 ## 0.8.5 — 2026-10-09
 
 - Accept Codex profile models without `context_window`, `default_reasoning_level`, or `supported_reasoning_levels`. When present, they are still validated; an empty reasoning list is treated as absent, and a default must match a listed level.

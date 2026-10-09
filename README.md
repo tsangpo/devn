@@ -81,6 +81,22 @@ The selected profile refreshes before each launch. Temporary network errors and 
 
 Omit model lists to keep each client's native defaults. If you publish a central model list, use the native format and map its IDs to real Bifrost routes. The repository example is documentation only and is never registered automatically.
 
+### Claude Code gateway switches
+
+`claude.env` optionally sets Claude Code compatibility switches for the gateway. Only these names and values are accepted; anything else rejects the profile. The latest Claude Code release is assumed.
+
+| Name | Values | Use |
+|---|---|---|
+| `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` | `1` | Stop pre-release beta headers and their body fields (`defer_loading`, `context_management`) when the upstream, such as Bedrock, rejects them with `Extra inputs are not permitted`. Also turns off MCP tool search. |
+| `CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS` | `1` | Drop only the structured-output format field. |
+| `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING` | `0`, `1` | Stream tool inputs through the gateway; off by default behind a custom base URL. |
+| `CLAUDE_CODE_PROMPT_CACHE_TTL` | `5m`, `1h` | Prompt cache lifetime for the main conversation. |
+| `CLAUDE_CODE_GATEWAY_HINT_HEADERS` | `0`, `1` | Send `x-claude-code-*` routing hints to the gateway. |
+
+Removing a name from the profile removes it from the generated settings on the next launch. Upgrade devn before publishing `claude.env`: older releases reject the field.
+
+For Bedrock behind Bifrost, images and prompt caching also depend on the gateway: allow all client headers (or at least `anthropic-beta` and `anthropic-version`), and run a Bifrost release that keeps Anthropic `image`, `tool_result` and `cache_control` blocks on the Bedrock route. Caching failures are silent; confirm `cache_read_input_tokens` is non-zero from the second turn in the gateway logs.
+
 ## Local data and limits
 
 Data is stored under `${XDG_CONFIG_HOME:-~/.config}/devn` on Unix and `%LOCALAPPDATA%/devn` on Windows. Each profile contains its cached JSON and separate Codex, Claude and OpenCode directories. Managed credentials are written to client config files with private permissions; they are local plaintext secrets, not encryption. Removing a profile scrubs devn-managed credentials; `--purge` also deletes its profile data.

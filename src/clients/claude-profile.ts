@@ -5,13 +5,31 @@ export type ClaudeProfile = {
   model?: string; baseUrl?: string;
   modelPicker?: { replaceBuiltInOptions: boolean; options: ClaudeModel[] };
   slots?: Partial<Record<'sonnet' | 'opus' | 'haiku', string>>;
+  env?: Record<string, string>;
+};
+
+// Gateway-compatibility switches only. Names and values are both enumerated so a
+// remote profile cannot inject free-form headers, bodies or gateway credentials.
+export const claudeEnv: Record<string, string[]> = {
+  CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: ['1'],
+  CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS: ['1'],
+  CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING: ['0', '1'],
+  CLAUDE_CODE_PROMPT_CACHE_TTL: ['5m', '1h'],
+  CLAUDE_CODE_GATEWAY_HINT_HEADERS: ['0', '1'],
 };
 
 export function validateClaude(config: unknown): asserts config is ClaudeProfile {
   requireValue(object(config), 'claude configuration is required.');
   requireValue(config.defaultModel === undefined && config.models === undefined,
     'Legacy model format: use model, native codex.models entries, and claude.modelPicker (see profiles/example.json).');
-  keys(config, ['model', 'baseUrl', 'modelPicker', 'slots'], 'claude');
+  keys(config, ['model', 'baseUrl', 'modelPicker', 'slots', 'env'], 'claude');
+  if (config.env !== undefined) {
+    requireValue(object(config.env), 'Claude env must be an object.');
+    for (const [name, value] of Object.entries(config.env)) {
+      requireValue(Object.hasOwn(claudeEnv, name), `Unsupported claude env variable: ${name}.`);
+      requireValue(typeof value === 'string' && claudeEnv[name].includes(value), `Unsupported value for claude env ${name}.`);
+    }
+  }
   if (config.baseUrl !== undefined) url(config.baseUrl);
   if (config.modelPicker !== undefined) {
     requireValue(object(config.modelPicker), 'Claude modelPicker must be an object.');
