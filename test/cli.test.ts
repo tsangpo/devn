@@ -188,6 +188,27 @@ test('profile validation rejects unsafe IDs, mismatched defaults, slots, and dup
   }
 });
 
+test('codex reasoning levels, default, and context window are optional but checked when present', t => {
+  const f = fixture(t);
+  for (const reasoning of [{}, { default_reasoning_level: null, supported_reasoning_levels: null }, { default_reasoning_level: null, supported_reasoning_levels: [] }]) {
+    const candidate = structuredClone(f.a);
+    Object.assign(candidate.codex.models[0], reasoning);
+    assert.doesNotThrow(() => validateProfile(candidate));
+  }
+  const withoutContext = structuredClone(f.a); delete withoutContext.codex.models[0].context_window;
+  assert.doesNotThrow(() => validateProfile(withoutContext));
+  for (const modify of [
+    m => { m.supported_reasoning_levels = [{ effort: 'medium' }]; },
+    m => { m.supported_reasoning_levels = []; m.default_reasoning_level = 'high'; },
+    m => { m.default_reasoning_level = 'high'; delete m.supported_reasoning_levels; },
+    m => { m.supported_reasoning_levels = 'medium'; },
+    m => { m.context_window = 0; },
+  ]) {
+    const candidate = structuredClone(f.a); modify(candidate.codex.models[0]);
+    assert.throws(() => validateProfile(candidate));
+  }
+});
+
 test('arguments, exit codes and stale environment are handled without shell evaluation', t => {
   const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
   const prompt = 'literal $(touch SHOULD_NOT_EXIST) `nope` "quotes"';

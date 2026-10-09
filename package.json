@@ -1,6 +1,6 @@
 {
   "name": "@tsangpo/devn",
-  "version": "0.8.0",
+  "version": "0.8.5",
   "description": "Project-aware Codex, Claude Code and OpenCode v2 launcher for Bifrost",
   "bin": {
     "devn": "bin/devn"

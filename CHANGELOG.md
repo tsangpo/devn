@@ -4,6 +4,10 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+## 0.8.5 — 2026-10-09
+
+- Accept Codex profile models without `context_window`, `default_reasoning_level`, or `supported_reasoning_levels`. When present, they are still validated; an empty reasoning list is treated as absent, and a default must match a listed level.
+
 ## 0.8.0 — 2026-10-07
 
 - Restore macOS/Linux standalone binaries and Homebrew publication; Windows releases use Bun/npm only.
