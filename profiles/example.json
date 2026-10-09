@@ -20,6 +20,14 @@
         "shell_type": "unified_exec",
         "support_verbosity": false,
         "apply_patch_tool_type": "freeform",
+        "supports_reasoning_summary_parameter": true,
+        "supports_parallel_tool_calls": true,
+        "use_responses_lite": false,
+        "input_modalities": ["text", "image"],
+        "supports_image_detail_original": true,
+        "model_messages": {
+          "instructions_template": "You are Codex, a coding agent."
+        },
         "truncation_policy": { "mode": "tokens", "limit": 10000 },
         "experimental_supported_tools": [],
         "visibility": "list",
@@ -40,6 +48,14 @@
         "shell_type": "unified_exec",
         "support_verbosity": false,
         "apply_patch_tool_type": "freeform",
+        "supports_reasoning_summary_parameter": true,
+        "supports_parallel_tool_calls": true,
+        "use_responses_lite": false,
+        "input_modalities": ["text", "image"],
+        "supports_image_detail_original": true,
+        "model_messages": {
+          "instructions_template": "You are Codex, a coding agent."
+        },
         "truncation_policy": { "mode": "tokens", "limit": 10000 },
         "experimental_supported_tools": [],
         "visibility": "list",
@@ -60,6 +76,14 @@
         "shell_type": "unified_exec",
         "support_verbosity": false,
         "apply_patch_tool_type": "freeform",
+        "supports_reasoning_summary_parameter": true,
+        "supports_parallel_tool_calls": true,
+        "use_responses_lite": false,
+        "input_modalities": ["text", "image"],
+        "supports_image_detail_original": true,
+        "model_messages": {
+          "instructions_template": "You are Codex, a coding agent."
+        },
         "truncation_policy": { "mode": "tokens", "limit": 10000 },
         "experimental_supported_tools": [],
         "visibility": "list",
@@ -74,6 +98,9 @@
       "opus": "bedrock/global.anthropic.claude-opus-5-5",
       "sonnet": "bedrock/global.anthropic.claude-sonnet-5-5",
       "haiku": "bedrock/global.anthropic.claude-sonnet-5-5"
+    },
+    "env": {
+      "CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS": "1"
     },
     "modelPicker": {
       "replaceBuiltInOptions": true,
