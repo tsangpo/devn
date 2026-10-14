@@ -36,6 +36,7 @@ test('CLI URL add and SSH auto device login, re-add authentication and automatic
       return present ? Response.json({ key: 'dummy-cli-key' }) : Response.json({ error: 'key_missing' }, { status: 404 });
     }
     if (pathname.endsWith('/revoke')) { revocations++; return new Response(null); }
+    if (pathname === '/v1/models') return req.headers.get('authorization') === 'Bearer dummy-cli-key' ? Response.json({ data: [{ id: 'gateway/model' }] }) : new Response(null, { status: 401 });
     return new Response(null, { status: 404 });
   } });
   t.after(() => server.stop(true));

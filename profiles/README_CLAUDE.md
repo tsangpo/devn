@@ -87,8 +87,12 @@ natively, so check on your version whether the 400 still occurs before disabling
 
 ## The profile's `claude` section
 
-Every field is optional. The smallest configuration is `"claude": {}`, which keeps Claude
-Code's own default models. Unknown fields reject the profile.
+Every field is optional. The smallest configuration is `"claude": {}`. devn then lists the
+key's models from `<baseUrl>/v1/models` on each launch and generates `modelPicker`, `slots` and
+`model`. Each tier takes the newest ID containing `claude` and `opus`, `sonnet` or `haiku`; a missing
+tier borrows another one. With both Opus and Sonnet, `opusplan` is added first and becomes the
+default (see "Model discovery" in the README).
+Unknown fields reject the profile.
 
 | Field | Description |
 |---|---|

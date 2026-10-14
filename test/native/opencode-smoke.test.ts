@@ -119,3 +119,65 @@ test('OpenCode v2 uses the isolated catalog, bearer key, upstream model and Resp
     await logs;
   }
 });
+
+test('OpenCode v2 runs a model discovered from the gateway', { timeout: 120000 }, async t => {
+  const f = fixture(t);
+  const requests: { url: string; key: string | null; model?: string }[] = [];
+  const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
+    const url = new URL(req.url).pathname;
+    if (url === '/v1/models') {
+      requests.push({ url, key: req.headers.get('authorization') });
+      return Response.json({ data: [
+        { id: 'bedrock/global.anthropic.claude-smoke', name: 'Claude smoke', context_length: 200000, max_output_tokens: 8192 },
+        { id: 'bedrock/global.openai.gpt-smoke', name: 'GPT smoke' },
+      ] });
+    }
+    const body = await req.json();
+    requests.push({ url, key: req.headers.get('authorization'), model: body.model });
+    const item = { id: 'msg_test', type: 'message', role: 'assistant', status: 'completed',
+      content: [{ type: 'output_text', text: 'DEVN_OPENCODE_OK', annotations: [] }] };
+    const result = { id: 'resp_test', object: 'response', created_at: 1, model: body.model, status: 'completed',
+      output: [item], usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 } };
+    let sequence = 0;
+    const event = (type: string, data: object) => `event: ${type}\ndata: ${JSON.stringify({ type, sequence_number: sequence++, ...data })}\n\n`;
+    const location = { item_id: item.id, output_index: 0, content_index: 0 };
+    return new Response([
+      event('response.created', { response: { ...result, status: 'in_progress', output: [] } }),
+      event('response.output_item.added', { output_index: 0, item: { ...item, status: 'in_progress', content: [] } }),
+      event('response.content_part.added', { ...location, part: { type: 'output_text', text: '', annotations: [] } }),
+      event('response.output_text.delta', { ...location, delta: 'DEVN_OPENCODE_OK' }),
+      event('response.output_text.done', { ...location, text: 'DEVN_OPENCODE_OK' }),
+      event('response.content_part.done', { ...location, part: item.content[0] }),
+      event('response.output_item.done', { output_index: 0, item }),
+      event('response.completed', { response: result }),
+    ].join(''), { headers: { 'content-type': 'text/event-stream' } });
+  } });
+  t.after(() => server.stop(true));
+  f.a.baseUrl = `http://127.0.0.1:${server.port}`;
+  f.a.opencode = {};
+  write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
+  f.init('a', 'devn-opencode-dummy-key');
+  assert.equal(f.run(['profile', 'use', 'a']).status, 0);
+  // Async spawn: a synchronous child would block this process's gateway.
+  async function run(args: string[]) {
+    const child = f.start(['opencode', ...args]);
+    const timer = setTimeout(() => child.kill('SIGKILL'), 45000);
+    t.after(() => child.kill('SIGKILL'));
+    let stdout = '', stderr = '';
+    child.stdout.on('data', data => { stdout += data; }); child.stderr.on('data', data => { stderr += data; });
+    child.stdin.end();
+    const status = await new Promise(resolve => child.on('close', resolve));
+    clearTimeout(timer);
+    return { status, stdout, stderr };
+  }
+  const models = await run(['models']);
+  assert.equal(models.status, 0, models.stderr);
+  assert.deepEqual(models.stdout.trim().split(/\r?\n/), ['bifrost/bedrock/global.anthropic.claude-smoke', 'bifrost/bedrock/global.openai.gpt-smoke']);
+  const result = await run(['run', '--model', 'bifrost/bedrock/global.anthropic.claude-smoke', 'Reply DEVN_OPENCODE_OK. Do not use tools.']);
+  assert.equal(result.status, 0, result.stderr.replaceAll('devn-opencode-dummy-key', '[redacted]').slice(-5000));
+  assert.match(result.stdout, /DEVN_OPENCODE_OK/);
+  const responses = requests.filter(r => r.url === '/openai/v1/responses');
+  assert.ok(responses.length > 0);
+  for (const req of requests) assert.equal(req.key, 'Bearer devn-opencode-dummy-key');
+  assert.ok(responses.every(r => r.model === 'bedrock/global.anthropic.claude-smoke'));
+});

@@ -48,10 +48,16 @@ test('release archive runs outside the source tree with no Bun on PATH', async (
     await Bun.write(home + '/devn/profiles/smoke/profile.json', JSON.stringify({
       version: 1, id: 'smoke', baseUrl: 'http://127.0.0.1:1', codex: {}, claude: {}, opencode: { model: 'coding', models: { coding: {} } },
     }));
+    // The gateway is unreachable, so model discovery falls back to this cached list.
+    await Bun.write(home + '/devn/profiles/smoke/models.json', JSON.stringify({ version: 1, models: [{ id: 'cached/model' }] }));
     expect(run(['profile', 'use', 'smoke']).exitCode).toBe(0);
     expect(Bun.TOML.parse(await Bun.file(home + '/devn/config.toml').text()).projects[realpathSync.native(project)]).toBe('smoke');
     for (const tool of ['codex', 'claude']) {
       await writeStandalone(path.join(bin, tool), `
+if (process.argv.slice(2).join(' ') === 'debug models --bundled') {
+  console.log(JSON.stringify({ models: [{ slug: 'gpt-test', display_name: 'GPT', description: 'Bundled', visibility: 'list', base_instructions: 'Bundled' }] }));
+  process.exit(0);
+}
 console.log(process.cwd());
 console.log(process.env.CODEX_HOME || '');
 console.log(process.env.CLAUDE_CONFIG_DIR || '');

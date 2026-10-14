@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fixture, read, write } from './helpers';
+import { fixture, read, write, gateway } from './helpers';
 import { testPlatform } from './platform';
 import { validateProfile, gatewayOrigins, modelIds } from '../src/profile';
 import { openCodeArgs } from '../src/clients/opencode-runtime';
@@ -27,9 +27,11 @@ test('OpenCode profile validates native model metadata without accepting executa
   input.opencode = { model: 'coding', models: { coding: {}, reasoning: {} } } as typeof input.opencode;
   const profile = validateProfile(input);
   assert.deepEqual(modelIds(profile, 'opencode'), ['bifrost/coding', 'bifrost/reasoning']);
+  // An empty section asks devn to discover models from the gateway at launch.
+  assert.equal(modelIds(validateProfile({ ...structuredClone(example), opencode: {} }), 'opencode'), undefined);
   assert.equal(gatewayOrigins(profile).opencode, 'https://bifrost.example.invalid');
   for (const change of [
-    p => { p.opencode = {}; }, p => { p.opencode.models = {}; },
+    p => { p.opencode = { model: 'gpt-6.1-sol' }; }, p => { p.opencode.models = {}; },
     p => { p.opencode.model = 'missing'; }, p => { p.opencode.models['gpt-6.1-sol'].package = 'evil'; },
     p => { p.opencode.models['gpt-6.1-sol'].settings = { baseURL: 'https://evil.test' }; },
     p => { p.opencode.models['gpt-6.1-sol'].headers = { Authorization: 'evil' }; },
@@ -184,4 +186,41 @@ test('OpenCode receives forwarded terminal signals', { skip: !testPlatform.posix
   child.stdout.on('data', chunk => { if (chunk.toString().includes('READY')) child.kill('SIGINT'); });
   const code = await new Promise(resolve => child.on('exit', resolve));
   clearTimeout(timer); assert.equal(code, 130);
+});
+
+test('OpenCode discovered models follow the gateway on every launch', async t => {
+  const f = fixture(t);
+  const server = await gateway(t, [
+    { id: 'bedrock/global.openai.gpt-a', name: 'GPT A', context_length: 1000, max_output_tokens: 100 },
+    { id: 'bedrock/global.anthropic.claude-b' },
+  ]);
+  f.a.baseUrl = server.url; f.a.opencode = {};
+  write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
+  f.init('a'); f.run(['profile', 'use', 'a']); mock(f);
+  const file = path.join(f.home, 'devn/profiles/a/opencode/opencode.json');
+  assert.equal(f.run(['opencode']).status, 0);
+  let config = read(file);
+  assert.deepEqual(config.providers.bifrost.models, {
+    'bedrock/global.openai.gpt-a': { name: 'GPT A', limit: { context: 1000, output: 100 } },
+    'bedrock/global.anthropic.claude-b': {},
+  });
+  assert.equal(config.model, 'bifrost/bedrock/global.openai.gpt-a');
+  // The user's choice survives while offered; withdrawn models disappear, new ones appear.
+  config.model = 'bifrost/bedrock/global.anthropic.claude-b'; write(file, config);
+  server.set({ data: [{ id: 'bedrock/global.anthropic.claude-b' }, { id: 'bedrock/global.openai.gpt-c' }] });
+  assert.equal(f.run(['opencode']).status, 0);
+  config = read(file);
+  assert.deepEqual(Object.keys(config.providers.bifrost.models), ['bedrock/global.anthropic.claude-b', 'bedrock/global.openai.gpt-c']);
+  assert.equal(config.model, 'bifrost/bedrock/global.anthropic.claude-b');
+  assert.deepEqual(f.run(['opencode', 'models']).stdout.trim().split(/\r?\n/),
+    ['bifrost/bedrock/global.anthropic.claude-b', 'bifrost/bedrock/global.openai.gpt-c']);
+  server.set({ data: [{ id: 'bedrock/global.openai.gpt-d' }] });
+  assert.equal(f.run(['opencode']).status, 0);
+  config = read(file);
+  assert.deepEqual(Object.keys(config.providers.bifrost.models), ['bedrock/global.openai.gpt-d']);
+  assert.equal(config.model, 'bifrost/bedrock/global.openai.gpt-d');
+  // An outage keeps the last list instead of failing.
+  server.set({ status: 503 });
+  assert.equal(f.run(['opencode']).status, 0);
+  assert.deepEqual(Object.keys(read(file).providers.bifrost.models), ['bedrock/global.openai.gpt-d']);
 });

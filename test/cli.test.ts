@@ -1,12 +1,13 @@
 import { testPlatform } from './platform';
 import { validateProfile } from '../src/profile';
+import { withDiscoveredModels } from '../src/discovery';
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { once } = require('node:events');
 const { parse, stringify } = Bun.TOML;
-import { fixture, write, read } from './helpers';
+import { fixture, write, read, gateway } from './helpers';
 
 const projects = f => Bun.TOML.parse(fs.readFileSync(path.join(f.home, 'devn/config.toml'), 'utf8')).projects;
 
@@ -99,8 +100,11 @@ test('native model definitions are copied without injecting or rewriting fields'
   assert.equal(settings.env.ANTHROPIC_DEFAULT_HAIKU_MODEL, option.model);
 });
 
-test('claude env switches are written, cannot outlive the profile, and work without a model list', t => {
-  const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
+test('claude env switches are written, cannot outlive the profile, and work without a model list', async t => {
+  const f = fixture(t);
+  const server = await gateway(t, [{ id: 'bedrock/claude-discovered', name: 'Discovered Claude' }]);
+  f.a.baseUrl = server.url; write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
+  f.init('a'); f.run(['profile', 'use', 'a']);
   const profileFile = path.join(f.home, 'devn/profiles/a/profile.json');
   const claudeFile = path.join(f.home, 'devn/profiles/a/claude/settings.json');
   f.a.claude.env = { CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: '1', CLAUDE_CODE_PROMPT_CACHE_TTL: '1h' };
@@ -118,7 +122,8 @@ test('claude env switches are written, cannot outlive the profile, and work with
   assert.equal(next.env.CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS, undefined);
   assert.equal(next.env.CLAUDE_CODE_PROMPT_CACHE_TTL, '5m');
   assert.equal(next.env.MY_SETTING, 'preserve');
-  assert.equal(next.modelPicker, undefined);
+  // Without a profile list, the menu comes from the gateway.
+  assert.deepEqual(next.modelPicker.options.map(o => o.model), ['bedrock/claude-discovered']);
 });
 
 test('regeneration retains user settings and selected models, refreshes menus and credentials', t => {
@@ -128,7 +133,8 @@ test('regeneration retains user settings and selected models, refreshes menus an
   const claudeFile = path.join(f.home, 'devn/profiles/a/claude/settings.json');
   const codex = parse(fs.readFileSync(codexFile, 'utf8'));
   assert.equal(codex.web_search, 'disabled');
-  codex.web_search = 'live';
+  assert.deepEqual(codex.features, { daemon_auto_start: false });
+  codex.web_search = 'live'; codex.features = { daemon_auto_start: true, shell_snapshot: true };
   codex.model = 'a/codex-two'; codex.mcp_servers = { custom: { command: 'test-mcp' } };
   fs.writeFileSync(codexFile, stringify(codex));
   const claude = read(claudeFile); claude.model = 'a/claude-two'; claude.theme = 'dark';
@@ -139,6 +145,8 @@ test('regeneration retains user settings and selected models, refreshes menus an
   assert.equal(parse(fs.readFileSync(codexFile, 'utf8')).model, 'a/codex-two');
   assert.equal(parse(fs.readFileSync(codexFile, 'utf8')).web_search, 'live');
   assert.equal(parse(fs.readFileSync(codexFile, 'utf8')).mcp_servers.custom.command, 'test-mcp');
+  // Other feature flags are personal settings; the shared daemon stays disabled.
+  assert.deepEqual(parse(fs.readFileSync(codexFile, 'utf8')).features, { daemon_auto_start: false, shell_snapshot: true });
   assert.equal(read(claudeFile).model, 'a/claude-two');
   assert.equal(read(claudeFile).theme, 'dark');
   assert.deepEqual(read(claudeFile).permissions, { allow: ['Read'] });
@@ -154,6 +162,33 @@ test('regeneration retains user settings and selected models, refreshes menus an
   assert.equal(read(claudeFile).modelPicker.options.length, 1);
   assert.equal(read(claudeFile).env.ANTHROPIC_BASE_URL, 'https://a.example.test/new/anthropic');
   assert.equal(read(path.join(f.home, 'devn/profiles/a/codex/models.json')).models.length, 1);
+});
+
+test('interactive codex sessions do not attach to a running shared daemon', t => {
+  const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
+  const launch = args => { assert.equal(f.run(['codex', ...args]).status, 0); return read(f.capture).args; };
+  for (const args of [[], ['fix the bug'], ['resume', '--last'], ['fork'], ['-m', 'a/codex-two', '-c', 'tui.theme="x"', 'resume'],
+    ['--image', 'a.png', 'b.png'], ['--', 'exec']]) {
+    const forwarded = launch(args);
+    assert.equal(forwarded.filter(arg => arg === '--no-daemon').length, 1, args.join(' '));
+    // A root option: it must precede the subcommand and the user's arguments.
+    assert.deepEqual(forwarded.slice(forwarded.indexOf('--no-daemon') + 1), args);
+  }
+  assert.equal(launch(['--no-daemon']).filter(arg => arg === '--no-daemon').length, 1);
+  for (const args of [['exec', 'prompt'], ['e', 'prompt'], ['-s', 'read-only', 'exec', 'resume'], ['review'], ['mcp', 'list'], ['features', 'list']]) {
+    assert.ok(!launch(args).includes('--no-daemon'), args.join(' '));
+  }
+});
+
+test('codex arguments cannot re-enable the shared daemon', t => {
+  const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
+  for (const args of [['--enable', 'daemon_auto_start'], ['--enable=daemon_auto_start'],
+    ['-c', 'features.daemon_auto_start=true'], ['-c', 'features={daemon_auto_start=true}']]) {
+    const result = f.run(['codex', ...args]);
+    assert.equal(result.status, 1, args.join(' '));
+    assert.ok(!fs.existsSync(f.capture));
+  }
+  assert.equal(f.run(['codex', '--enable', 'shell_snapshot', '-c', 'features.shell_snapshot=true']).status, 0);
 });
 
 test('previously managed fields are cleaned; unrelated user fields remain', t => {
@@ -298,40 +333,110 @@ test('SIGINT reaches a running tool and returns 130', { skip: !testPlatform.posi
   clearTimeout(timer);
 });
 
-test('URL-only profiles leave native default models and menus untouched', t => {
-  const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
-  f.a.codex = {}; f.a.claude = {};
+test('URL-only profiles discover gateway models for every client', async t => {
+  const f = fixture(t);
+  const server = await gateway(t, [
+    { id: 'bedrock/global.anthropic.claude-x', name: 'Claude X', context_length: 200000 },
+    { id: 'bedrock/global.openai.gpt-test', description: 'Gateway GPT' },
+    { id: 'old/deprecated', is_deprecated: true },
+    { id: 'bad id with spaces' }, { id: 'evil/{env:HOME}' }, { id: 'bedrock/global.openai.gpt-test' },
+  ]);
+  f.a.baseUrl = server.url; f.a.codex = {}; f.a.claude = {};
   write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
-  for (const tool of ['codex', 'claude']) {
-    const result = f.run([tool]); assert.equal(result.status, 0, result.stderr);
-    const capture = read(f.capture);
-    assert.ok(!capture.args.includes('--model'));
-    const config = tool === 'codex' ? parse(capture.config) : JSON.parse(capture.config);
-    assert.equal(config.model, undefined);
-    assert.equal(config.model_catalog_json, undefined);
-    assert.equal(config.modelPicker, undefined);
-    if (tool === 'claude') assert.equal(config.env.ANTHROPIC_DEFAULT_SONNET_MODEL, undefined);
-  }
-  // Native --model is unrestricted when the administrator publishes no list.
-  assert.equal(f.run(['codex', '--model', 'a-new-native-model']).status, 0);
+  f.init('a'); f.run(['profile', 'use', 'a']);
+  const ids = ['bedrock/global.anthropic.claude-x', 'bedrock/global.openai.gpt-test'];
+
+  assert.equal(f.run(['codex']).status, 0);
+  let capture = read(f.capture);
+  assert.equal(capture.args[capture.args.indexOf('--model') + 1], 'bedrock/global.openai.gpt-test');
+  const catalog = read(path.join(f.home, 'devn/profiles/a/codex/models.json')).models;
+  assert.deepEqual(catalog.map(m => m.slug), ids);
+  // Matching bundled slugs inherit Codex settings; others keep instructions but no reasoning claims.
+  assert.equal(catalog[1].base_instructions, 'Bundled instructions');
+  assert.equal(catalog[1].description, 'Gateway GPT');
+  assert.equal(catalog[1].supported_reasoning_levels.length, 1);
+  assert.equal(catalog[1].service_tiers, undefined);
+  assert.equal(catalog[0].base_instructions, 'Bundled instructions');
+  assert.deepEqual(catalog[0].supported_reasoning_levels, []);
+  assert.equal(catalog[0].context_window, 200000);
+  for (const request of server.requests()) assert.equal(request.authorization, 'Bearer secret-a');
+
+  assert.equal(f.run(['claude']).status, 0);
+  const claude = JSON.parse(read(f.capture).config);
+  assert.equal(claude.model, 'bedrock/global.anthropic.claude-x');
+  assert.deepEqual(claude.modelPicker.options.map(o => o.model), ids);
+  assert.equal(claude.env.ANTHROPIC_DEFAULT_OPUS_MODEL, 'bedrock/global.anthropic.claude-x');
+
+  assert.match(f.run(['codex', '--model', 'not-offered']).stderr, /Model must be one of the codex models/);
+  assert.equal(f.run(['claude', '--model', 'bedrock/global.openai.gpt-test']).status, 0);
+
+  // A saved choice survives while offered; a model withdrawn upstream disappears.
   const codexFile = path.join(f.home, 'devn/profiles/a/codex/config.toml');
-  const config = parse(fs.readFileSync(codexFile, 'utf8')); config.model = 'native-saved-choice';
+  const config = parse(fs.readFileSync(codexFile, 'utf8')); config.model = ids[0];
   fs.writeFileSync(codexFile, stringify(config));
-  f.run(['codex']);
-  assert.equal(parse(read(f.capture).config).model, 'native-saved-choice');
+  assert.equal(f.run(['codex']).status, 0);
+  assert.equal(parse(read(f.capture).config).model, ids[0]);
+  server.set({ data: [{ id: 'bedrock/global.openai.gpt-test' }] });
+  assert.equal(f.run(['codex']).status, 0);
+  capture = read(f.capture);
+  assert.equal(parse(capture.config).model, 'bedrock/global.openai.gpt-test');
+  assert.deepEqual(read(path.join(f.home, 'devn/profiles/a/codex/models.json')).models.map(m => m.slug), ['bedrock/global.openai.gpt-test']);
+
+  // Outages reuse the cached list; rejections and redirects stop the launch.
+  server.set({ status: 503 });
+  assert.equal(f.run(['claude']).status, 0);
+  assert.deepEqual(JSON.parse(read(f.capture).config).modelPicker.options.map(o => o.model), ['bedrock/global.openai.gpt-test']);
+  server.set({ status: 401 });
+  const rejected = f.run(['claude']);
+  assert.equal(rejected.status, 1);
+  assert.match(rejected.stderr, /HTTP 401; launch cancelled/);
+  assert.ok(!rejected.stderr.includes('secret-a'));
+  const trap = await gateway(t, [{ id: 'trap' }]);
+  server.set({ status: 307, location: `${trap.url}/v1/models` });
+  assert.equal(f.run(['claude']).status, 1);
+  assert.deepEqual(trap.requests(), []);
+  server.set({ data: [] });
+  assert.match(f.run(['claude']).stderr, /no usable models/);
 });
 
-test('removing central models restores native menus while retaining saved choice', t => {
-  const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
+test('model discovery never sends the key to an unapproved origin', async t => {
+  const f = fixture(t);
+  const server = await gateway(t, [{ id: 'model' }]);
+  f.a.baseUrl = server.url; f.a.codex = { baseUrl: 'https://approved.example.test/openai/v1' };
+  f.a.claude = { baseUrl: 'https://approved.example.test/anthropic' }; delete f.a.opencode;
+  write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
+  f.init('a'); f.run(['profile', 'use', 'a']);
+  assert.match(f.run(['claude']).stderr, /baseUrl origin to be an approved gateway/);
+  assert.deepEqual(server.requests(), []);
+});
+
+test('profiles with explicit model lists do not query the gateway', async t => {
+  const f = fixture(t);
+  const server = await gateway(t, [{ id: 'model' }]);
+  f.a.baseUrl = server.url; write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
+  f.init('a'); f.run(['profile', 'use', 'a']);
+  for (const tool of ['codex', 'claude']) assert.equal(f.run([tool]).status, 0);
+  // Only the launched client's section decides; an empty codex section does not affect Claude.
+  f.a.codex = {}; write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
+  assert.equal(f.run(['claude']).status, 0);
+  assert.deepEqual(server.requests(), []);
+});
+
+test('removing central models switches to gateway models while retaining an offered choice', async t => {
+  const f = fixture(t);
+  const server = await gateway(t, [{ id: 'a/claude-one' }, { id: 'a/codex-one' }]);
+  f.a.baseUrl = server.url; write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
+  f.init('a'); f.run(['profile', 'use', 'a']);
   f.run(['codex']); f.run(['claude']);
   f.a.codex = {}; f.a.claude = {}; write(path.join(f.home, 'devn/profiles/a/profile.json'), f.a);
   assert.equal(f.run(['codex']).status, 0);
   const codex = parse(read(f.capture).config);
-  assert.equal(codex.model, 'a/codex-one'); assert.equal(codex.model_catalog_json, undefined);
+  assert.equal(codex.model, 'a/codex-one');
+  assert.deepEqual(read(path.join(f.home, 'devn/profiles/a/codex/models.json')).models.map(m => m.slug), ['a/claude-one', 'a/codex-one']);
   assert.equal(f.run(['claude']).status, 0);
   const claude = JSON.parse(read(f.capture).config);
-  assert.equal(claude.model, 'a/claude-one'); assert.equal(claude.modelPicker, undefined);
-  assert.equal(claude.env.ANTHROPIC_DEFAULT_HAIKU_MODEL, undefined);
+  assert.equal(claude.model, 'a/claude-one');
+  assert.deepEqual(claude.modelPicker.options.map(o => o.model), ['a/claude-one', 'a/codex-one']);
 });
 
 test('repository definitions and legacy credentials do not register profiles', t => {
@@ -359,4 +464,26 @@ test('version works without local config and profile show redacts the key and UR
   const output = result.stdout + result.stderr;
   for (const secret of ['private-test-key', 'private-path', 'signed-token']) assert.ok(!output.includes(secret));
   assert.equal(JSON.parse(result.stdout).key, '[redacted]');
+});
+
+test('discovered Claude models fill the opus, sonnet and haiku tiers and offer opusplan', () => {
+  const base = { ...validateProfile({ version: 1, baseUrl: 'https://gw.example.test', codex: {}, claude: {} }), id: 'a' };
+  const claude = ids => withDiscoveredModels(base, ids.map(id => ({ id }))).claude;
+  const full = claude([
+    'bedrock/global.openai.gpt-6.1-sol', 'bedrock/global.anthropic.claude-sonnet-4-5-20250929-v1:0',
+    'bedrock/global.anthropic.claude-opus-5-5', 'bedrock/us.anthropic.claude-opus-5-5', 'bedrock/global.anthropic.claude-sonnet-5-5',
+    'anthropic/claude-3-5-haiku-20241022', 'bedrock/global.anthropic.claude-haiku-4-5', 'bedrock/global.anthropic.claude-opus-4-1',
+  ]);
+  assert.deepEqual(full.slots, { opus: 'bedrock/global.anthropic.claude-opus-5-5', sonnet: 'bedrock/global.anthropic.claude-sonnet-5-5', haiku: 'bedrock/global.anthropic.claude-haiku-4-5' });
+  assert.equal(full.model, 'opusplan');
+  assert.deepEqual(full.modelPicker.options[0], { model: 'opusplan', label: 'Opus Plan', description: 'Opus in plan mode, Sonnet for implementation. Recommended default' });
+  assert.equal(full.modelPicker.options.length, 9);
+  // Without both opus and sonnet there is no opusplan; missing tiers borrow a real model.
+  const sonnetOnly = claude(['gpt-x', 'anthropic/claude-sonnet-5-5']);
+  assert.equal(sonnetOnly.model, 'anthropic/claude-sonnet-5-5');
+  assert.deepEqual(sonnetOnly.slots, { opus: 'anthropic/claude-sonnet-5-5', sonnet: 'anthropic/claude-sonnet-5-5', haiku: 'anthropic/claude-sonnet-5-5' });
+  assert.ok(!sonnetOnly.modelPicker.options.some(o => o.model === 'opusplan'));
+  assert.deepEqual(claude(['a/opus-5', 'a/claude-haiku-4']).slots, { opus: 'a/claude-haiku-4', sonnet: 'a/claude-haiku-4', haiku: 'a/claude-haiku-4' });
+  const none = claude(['gpt-x', 'gemini-y']);
+  assert.equal(none.slots, undefined); assert.equal(none.model, 'gpt-x');
 });

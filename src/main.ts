@@ -12,6 +12,7 @@ import { findBinding, requireProfile } from './projects';
 import { choose, password, question } from './prompts';
 import { launch } from './launch';
 import { clients, isTool } from './clients';
+import { codexBundledCatalog, discoverModels, withDiscoveredModels } from './discovery';
 
 const PROFILE_COMMANDS = `  devn profile list                 List locally registered profiles
   devn profile add [URL] [--auth auto|browser|device|manual]
@@ -50,7 +51,9 @@ async function dispatch(config: LocalConfig, args: string[]): Promise<number> {
     const entry = requireProfile(config);
     const { profile } = await refreshProfile(entry.id);
     const key = await syncCredentials(entry.id);
-    return launch(profile, args[0], args.slice(1), key);
+    const models = await discoverModels(profile, args[0], entry, key);
+    const bundled = args[0] === 'codex' && models.length && !profile.codex.models ? codexBundledCatalog(profile.id) : undefined;
+    return launch(withDiscoveredModels(profile, models, bundled), args[0], args.slice(1), key);
   }
   if (args[0] !== 'profile') throw new Error('Unknown command. Run devn --help.');
   const [, action, id, ...extra] = args;

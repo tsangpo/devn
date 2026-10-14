@@ -42,6 +42,7 @@ function fixture(t) {
   }
   for (const tool of ['codex', 'claude']) {
     testPlatform.writeExecutable(path.join(bin, tool), `const fs=require('node:fs'), path=require('node:path');
+if(process.argv.slice(2).join(' ')==='debug models --bundled'){console.log(JSON.stringify(${JSON.stringify(bundledCatalog)}));process.exit(0);}
 fs.writeFileSync(process.env.TEST_CAPTURE, JSON.stringify({
   tool:${JSON.stringify(tool)}, args:process.argv.slice(2), cwd:process.cwd(),
   codex:process.env.CODEX_HOME, claude:process.env.CLAUDE_CONFIG_DIR,
@@ -79,4 +80,44 @@ function write(file, value) {
   fs.writeFileSync(file, JSON.stringify(value, null, 2));
 }
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
-export { fixture, write, read, root };
+
+// Minimal stand-in for `codex debug models --bundled`.
+const bundledCatalog = { models: [
+  { slug: 'gpt-test', display_name: 'GPT test', description: 'Bundled', visibility: 'list', priority: 1,
+    base_instructions: 'Bundled instructions', default_reasoning_level: 'medium',
+    supported_reasoning_levels: [{ effort: 'medium', description: 'Balanced' }], service_tiers: [{ id: 'priority' }],
+    context_window: 272000, shell_type: 'unified_exec' },
+  { slug: 'gpt-hidden', display_name: 'Hidden', description: 'Hidden', visibility: 'hide', priority: 0, base_instructions: 'x' },
+] };
+
+// A Bifrost stand-in in its own process, so synchronous CLI runs cannot block it.
+// Tests edit state.json ({ status, data }) between runs; requests.jsonl records each call.
+function gateway(t, data) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'devn-gateway-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const state = path.join(dir, 'state.json'), log = path.join(dir, 'requests.jsonl');
+  write(state, { status: 200, data });
+  const script = `const fs=require('node:fs');
+const server=Bun.serve({hostname:'127.0.0.1',port:0,fetch(req){
+  const s=JSON.parse(fs.readFileSync(${JSON.stringify(state)},'utf8'));const url=new URL(req.url);
+  fs.appendFileSync(${JSON.stringify(log)},JSON.stringify({path:url.pathname,query:url.search,authorization:req.headers.get('authorization')})+'\\n');
+  if(url.pathname!=='/v1/models')return new Response('{}',{status:404});
+  if(s.status!==200)return new Response('{}',{status:s.status,headers:s.location?{location:s.location}:{}});
+  return Response.json({data:s.data});
+}});
+console.log(server.url.origin);`;
+  const child = spawn(process.execPath, ['-e', script], { stdio: ['ignore', 'pipe', 'inherit'] });
+  t.after(() => child.kill('SIGKILL'));
+  return new Promise(resolve => {
+    let out = '';
+    child.stdout.on('data', chunk => {
+      out += chunk;
+      if (out.includes('\n')) resolve({
+        url: out.trim(),
+        set(value) { write(state, { status: 200, data, ...value }); },
+        requests: () => fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : [],
+      });
+    });
+  });
+}
+export { fixture, write, read, root, gateway, bundledCatalog };

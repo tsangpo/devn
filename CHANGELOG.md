@@ -4,6 +4,9 @@ Changes are recorded here before each npm release.
 
 ## Unreleased
 
+- With discovered models, set the Claude Code `opus`, `sonnet` and `haiku` tiers to the newest matching gateway models, and add `opusplan` as the default `/model` option when both Opus and Sonnet are available.
+- Disable the Codex shared background daemon in generated configuration (`[features] daemon_auto_start = false`) and reject `--enable daemon_auto_start` and `-c features...` overrides of it. Other user feature flags are preserved. Interactive Codex sessions (`devn codex`, a prompt, `resume`, `fork`) also start with `--no-daemon`, so they never attach to a shared daemon that is already running.
+- Discover models from the gateway. When a `codex`, `claude` or `opencode` section has no model list, each launch of that client fetches `<baseUrl>/v1/models` with the user's key, only from the approved `baseUrl` origin and without following redirects. devn then generates the Codex catalog (from the installed Codex's bundled catalog), Claude Code `/model` options and slots, and OpenCode models. On network errors or HTTP 5xx devn uses the last cached list; HTTP 4xx, invalid responses and empty lists stop the launch. Explicit profile lists still win. Profiles with `codex: {}` or `claude: {}` no longer keep the client's native default models. `"opencode": {}` is now valid; upgrade devn before publishing it, because older releases reject it.
 - Add optional `claude.env` to remote profiles: an allowlist of Claude Code gateway switches (`CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS`, `CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS`, `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING`, `CLAUDE_CODE_PROMPT_CACHE_TTL`, `CLAUDE_CODE_GATEWAY_HINT_HEADERS`) with enumerated values. Removed names are dropped from generated settings on the next launch. Upgrade devn before publishing `claude.env`; older releases reject it.
 
 ## 0.8.5 — 2026-10-09

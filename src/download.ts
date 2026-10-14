@@ -5,6 +5,34 @@ import { secureURL } from './urls';
 export class Unavailable extends Error {}
 export const MAX_PROFILE_BYTES = 1024 * 1024;
 
+// Bounded JSON body reader shared by profile downloads and gateway model discovery.
+export async function readLimitedJson(response: Response, label: string): Promise<unknown> {
+  if (Number(response.headers.get('content-length')) > MAX_PROFILE_BYTES) {
+    await response.body?.cancel();
+    throw new Error(`${label} exceeds the 1 MiB download limit.`);
+  }
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error(`${label} response is empty.`);
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    while (true) {
+      let part: ReadableStreamReadResult<Uint8Array>;
+      try { part = await reader.read(); }
+      catch { throw new Unavailable(`${label} download failed or timed out.`); }
+      if (part.done) break;
+      length += part.value.byteLength;
+      if (length > MAX_PROFILE_BYTES) throw new Error(`${label} exceeds the 1 MiB download limit.`);
+      chunks.push(part.value);
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+  try { return JSON.parse(await new Blob(chunks).text()); }
+  catch { throw new Error(`${label} server returned invalid JSON.`); }
+}
+
 export async function downloadProfile(source: string, id: string): Promise<Profile> {
   let url = secureURL(source);
   const signal = AbortSignal.timeout(10000);
@@ -29,31 +57,7 @@ export async function downloadProfile(source: string, id: string): Promise<Profi
     if (response.status >= 500) throw new Unavailable(`Profile server returned HTTP ${response.status}.`);
     throw new Error(`Profile server returned HTTP ${response.status}; launch cancelled.`);
   }
-  if (Number(response.headers.get('content-length')) > MAX_PROFILE_BYTES) {
-    await response.body?.cancel();
-    throw new Error('Profile exceeds the 1 MiB download limit.');
-  }
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error('Profile response is empty.');
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  try {
-    while (true) {
-      let part: ReadableStreamReadResult<Uint8Array>;
-      try { part = await reader.read(); }
-      catch { throw new Unavailable('Profile download failed or timed out.'); }
-      if (part.done) break;
-      length += part.value.byteLength;
-      if (length > MAX_PROFILE_BYTES) throw new Error('Profile exceeds the 1 MiB download limit.');
-      chunks.push(part.value);
-    }
-  } finally {
-    await reader.cancel().catch(() => {});
-    reader.releaseLock();
-  }
-  let value: unknown;
-  try { value = JSON.parse(await new Blob(chunks).text()); }
-  catch { throw new Error('Profile server returned invalid JSON.'); }
+  const value = await readLimitedJson(response, 'Profile');
   let profile: Profile;
   try { profile = validateProfile(value, id); }
   catch { throw new Error('Profile server returned an invalid profile definition.'); }

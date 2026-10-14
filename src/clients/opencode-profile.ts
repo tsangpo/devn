@@ -6,10 +6,11 @@ export type OpenCodeModel = {
   limit?: { context?: number; input?: number; output?: number };
   cost?: { input: number; output: number; cache?: { read?: number; write?: number } };
 };
-export type OpenCodeProfile = { baseUrl?: string; model: string; models: Record<string, OpenCodeModel> };
+// Omitting model and models asks devn to discover them from the gateway at launch.
+export type OpenCodeProfile = { baseUrl?: string; model?: string; models?: Record<string, OpenCodeModel> };
 
 export function openCodeModels(profile?: OpenCodeProfile): string[] | undefined {
-  return profile && Object.keys(profile.models).map(id => `bifrost/${id}`);
+  return profile?.models && Object.keys(profile.models).map(id => `bifrost/${id}`);
 }
 
 function requireValue(condition: unknown, message: string): asserts condition {
@@ -29,6 +30,10 @@ export function validateOpenCode(value: unknown): asserts value is OpenCodeProfi
   requireValue(!/\{(?:env|file):/.test(JSON.stringify(value)), 'configuration substitutions are not allowed in remote profiles.');
   if (value.baseUrl !== undefined) {
     requireValue(typeof value.baseUrl === 'string' && !secureURL(value.baseUrl).search, 'baseUrl must be a URL without a query.');
+  }
+  if (value.models === undefined) {
+    requireValue(value.model === undefined, 'model requires an explicit models list.');
+    return;
   }
   object(value.models);
   requireValue(Object.keys(value.models).length > 0, 'models must not be empty.');

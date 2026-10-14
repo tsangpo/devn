@@ -11,5 +11,6 @@
     "resource": "https://platform.example.com/api/instances/00000000-0000-4000-8000-000000000001"
   },
   "codex": {},
-  "claude": {}
+  "claude": {},
+  "opencode": {}
 }

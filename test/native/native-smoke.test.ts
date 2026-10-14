@@ -15,6 +15,13 @@ let server: ReturnType<typeof Bun.serve>;
 const requests: { url: string; authorization: string | null; body: Record<string, any> }[] = [];
 const children = new Set<ReturnType<typeof Bun.spawn>>();
 const key = 'devn-local-smoke-test-only';
+// Bifrost /v1/models shape: provider-prefixed IDs plus optional metadata.
+const discovered: Record<string, unknown>[] = [
+  { id: 'bedrock/global.anthropic.claude-smoke', name: 'Claude smoke', context_length: 200000, max_output_tokens: 8192 },
+  { id: 'bedrock/global.openai.gpt-smoke', name: 'GPT smoke', context_length: 128000, architecture: { input_modalities: ['text', 'image'] } },
+  // Matches a slug in the Codex bundled catalog, so it inherits that model's settings.
+  { id: 'bedrock/global.openai.gpt-6.1-sol' },
+];
 
 function event(response, type, body) {
   response.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...body })}\n\n`);
@@ -30,6 +37,7 @@ function startGateway() { return Bun.serve({
       return Response.json(await Bun.file(`${repo}/profiles/smoke.json`).json());
     }
     requests.push({ url: request.url, authorization: req.headers.get('authorization'), body });
+    if (request.url === '/v1/models') return Response.json({ data: discovered });
     const chunks: string[] = [];
     const headers = new Headers();
     const response = {
@@ -134,12 +142,31 @@ describe('native clients through the local Bifrost gateway', () => {
     if (temp) tempFS.rmSync(temp, { recursive: true, force: true });
   });
 
-  test.serial('Codex uses its native default model and bearer authentication', async () => {
-    await client('codex', codexArgs);
+  test.serial('Codex uses a model discovered from the gateway', async () => {
+    const { request } = await client('codex', codexArgs);
+    expect(request.body.model).toBe('bedrock/global.openai.gpt-smoke');
+    expect(requests.find(r => r.url === '/v1/models')!.authorization).toBe(`Bearer ${key}`);
+    // Codex itself must read the generated switch that keeps its shared daemon off.
+    const features = Bun.spawnSync(['codex', 'features', 'list'], { cwd: project,
+      env: { ...testPlatform.environment(), CODEX_HOME: `${home}/devn/profiles/smoke/codex` }, stdout: 'pipe', stderr: 'pipe' });
+    expect(features.stdout.toString()).toMatch(/^daemon_auto_start\s+\S+\s+false$/m);
   }, 50000);
 
-  test.serial('Claude uses its native default model and bearer authentication', async () => {
-    await client('claude', ['-p', 'Reply with DEVN_NATIVE_OK. Do not use tools.']);
+  test.serial('Codex accepts bundled-catalog and non-OpenAI discovered models', async () => {
+    for (const model of ['bedrock/global.openai.gpt-6.1-sol', 'bedrock/global.anthropic.claude-smoke']) {
+      const { request } = await client('codex', ['-m', model, ...codexArgs]);
+      expect(request.body.model).toBe(model);
+    }
+    const catalog = await Bun.file(`${home}/devn/profiles/smoke/codex/models.json`).json();
+    const known = catalog.models.find((m: any) => m.slug === 'bedrock/global.openai.gpt-6.1-sol');
+    expect(known.supported_reasoning_levels.length).toBeGreaterThan(0);
+    expect(catalog.models.find((m: any) => m.slug === 'bedrock/global.anthropic.claude-smoke').supported_reasoning_levels).toEqual([]);
+  }, 50000);
+
+  test.serial('Claude uses a model discovered from the gateway', async () => {
+    const { request, stdout, stderr } = await client('claude', ['-p', 'Reply with DEVN_NATIVE_OK. Do not use tools.']);
+    expect(request.body.model).toBe('bedrock/global.anthropic.claude-smoke');
+    expect(stdout + stderr).not.toContain("isn't described by this version's model catalog");
   }, 50000);
 
   test.serial('Codex loads the centrally configured model catalog', async () => {
@@ -162,6 +189,22 @@ describe('native clients through the local Bifrost gateway', () => {
     await client('codex', codexArgs);
     expect(requests.find(request => request.url.startsWith('/openai/v1/responses'))!.body.model)
       .toBe(profile.codex.model);
+  }, 50000);
+
+  test.serial('Claude maps discovered tiers and runs opusplan by default', async () => {
+    const original = discovered.splice(0, discovered.length,
+      { id: 'bedrock/global.anthropic.claude-opus-5-5' }, { id: 'bedrock/global.anthropic.claude-sonnet-5-5' },
+      { id: 'bedrock/global.anthropic.claude-haiku-4-5' }) as typeof discovered;
+    try {
+      for (const [mode, model] of [['default', 'bedrock/global.anthropic.claude-sonnet-5-5'], ['plan', 'bedrock/global.anthropic.claude-opus-5-5']]) {
+        const result = await client('claude', ['--permission-mode', mode, '-p', 'Reply with DEVN_NATIVE_OK. Do not use tools.']);
+        expect(result.request.body.model).toBe(model);
+        expect(result.stdout + result.stderr).not.toContain("isn't described by this version's model catalog");
+      }
+      const settings = await Bun.file(`${home}/devn/profiles/smoke/claude/settings.json`).json();
+      expect(settings.model).toBe('opusplan');
+      expect(settings.env.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe('bedrock/global.anthropic.claude-haiku-4-5');
+    } finally { discovered.splice(0, discovered.length, ...original); }
   }, 50000);
 
   test.serial('Claude loads centrally configured native model settings', async () => {

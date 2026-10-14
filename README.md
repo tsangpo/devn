@@ -50,7 +50,7 @@ devn claude
 devn opencode
 ```
 
-Arguments are forwarded to the native client. Managed provider, profile and working-directory overrides are rejected; use `cd` and `devn profile use` instead.
+Arguments are forwarded to the native client. Managed provider, profile and working-directory overrides are rejected; use `cd` and `devn profile use` instead. Codex runs with its shared background daemon disabled (`daemon_auto_start = false`), and interactive sessions add `--no-daemon` so they never attach to one that is already running.
 
 ## Project binding
 
@@ -79,7 +79,19 @@ The smallest useful profile is:
 
 The selected profile refreshes before each launch. Temporary network errors and HTTP 5xx can use a valid cache; invalid definitions, unsafe redirects, HTTP 4xx responses and changed gateway origins stop the launch. Re-run `profile add` to approve an origin change.
 
-Omit model lists to keep each client's native defaults. If you publish a central model list, use the native format and map its IDs to real Bifrost routes. The repository example is documentation only and is never registered automatically.
+### Model discovery
+
+When a client section has no model list (`"codex": {}`, `"claude": {}` or `"opencode": {}`), devn asks the gateway on each launch of that client: `GET <baseUrl>/v1/models` with the user's key. Every model the key may use is offered to the client, and devn generates its configuration:
+
+- Codex: a `models.json` catalog. Each entry is built from the catalog bundled with the installed Codex (`codex debug models --bundled`). An ID ending in a bundled slug, such as `bedrock/global.openai.gpt-6.1-sol`, inherits that model's settings. Other models keep Codex's instructions but claim no reasoning levels. Hosted-only search, service tiers and experimental tools are removed.
+- Claude Code: `/model` options and the `ANTHROPIC_DEFAULT_OPUS_MODEL`, `_SONNET_MODEL` and `_HAIKU_MODEL` tiers. A tier is the newest ID containing `claude` and `opus`, `sonnet` or `haiku` (release dates and `-v1:0` suffixes are ignored). A missing tier borrows another tier's model. When both Opus and Sonnet exist, an `opusplan` option (Opus while planning, Sonnet otherwise) is added first and becomes the default; otherwise the Sonnet tier is the default.
+- OpenCode: `bifrost/<id>` models with the context and output limits the gateway reports.
+
+The first OpenAI/GPT model becomes the Codex and OpenCode default. Without Claude tiers, the first Anthropic/Claude model becomes the Claude default. A model the user picked earlier is kept while the gateway still offers it. Deprecated entries and IDs with whitespace, control characters or `{env:`/`{file:` templates are skipped.
+
+The key is sent only to the approved `baseUrl` origin, and redirects are not followed. If the gateway is unreachable or returns HTTP 5xx, devn uses the last list it received. HTTP 4xx, invalid responses and an empty list stop the launch. An explicit list in the profile always wins and skips discovery. Upgrade devn before publishing `"opencode": {}`, because older releases reject it.
+
+If you publish a central model list, use the native format and map its IDs to real Bifrost routes. The repository example is documentation only and is never registered automatically.
 
 ### Claude Code gateway switches
 

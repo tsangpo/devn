@@ -14,6 +14,13 @@ models on Amazon Bedrock through Bifrost. The latest Codex release is assumed.
 - `supports_websockets = false`: requests use HTTPS, which non-OpenAI upstreams require.
 - `web_search = "disabled"` unless the user already set it. Gateway model support does not
   imply hosted search support.
+- `[features] daemon_auto_start = false`: Codex does not start its shared background
+  daemon, which outlives the session and is not bound to the profile. Other feature flags
+  stay under the user's control. `--enable daemon_auto_start` and `-c` overrides of it are
+  rejected.
+- Interactive sessions (no subcommand, a prompt, `resume` or `fork`) also get `--no-daemon`,
+  so they do not attach to a shared daemon that is already running. `exec`, `review` and other
+  subcommands reject that flag and do not use the daemon, so they run unchanged.
 
 Because devn uses a named provider rather than `openai_base_url`, Codex does not send the
 client-side `web` namespace tool that Bedrock rejects with a namespace collision.
@@ -122,8 +129,11 @@ retention mode to `none`, which rejects `store=true` outright.
 
 ## The profile's `codex` section
 
-Every field is optional. The smallest configuration is `"codex": {}`, which keeps Codex's
-own default model. Unknown fields reject the profile.
+Every field is optional. The smallest configuration is `"codex": {}`. devn then lists the
+key's models from `<baseUrl>/v1/models` on each launch and builds each catalog entry from the
+installed Codex's bundled catalog (see "Model discovery" in the README). An ID ending in a bundled
+slug inherits that entry. Other models get Codex's instructions without reasoning levels, so publish
+an explicit `models` list when they need reasoning settings. Unknown fields reject the profile.
 
 | Field | Description |
 |---|---|

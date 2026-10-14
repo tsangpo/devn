@@ -15,8 +15,9 @@ Supported: run, mini, models, session, stats, debug, acp, mcp, plugin, reload.`,
     if (/\{(?:env|file):/.test(baseUrl)) throw new Error('OpenCode gateway URLs must not contain configuration substitutions.');
   },
   models(profile) {
-    if (!profile.opencode) throw new Error('Add an opencode section with model and models to the remote profile first.');
-    return { ids: openCodeModels(profile.opencode), defaultModel: `bifrost/${profile.opencode.model}` };
+    if (!profile.opencode) throw new Error('Add an opencode section to the remote profile first.');
+    const ids = openCodeModels(profile.opencode);
+    return { ids, defaultModel: ids && `bifrost/${profile.opencode.model}` };
   },
   config: {
     ...jsonConfig, filename: 'opencode.json', replacePaths: ['providers.bifrost'],

@@ -4,7 +4,7 @@ import type { ClientCommand, Environment } from '../platform/types';
 // Native config contains personal settings unknown to devn. Remote sections have
 // separate, explicit types and validators; never copy arbitrary remote fields here.
 export type ConfigData = Record<string, any>;
-export type PreparedArgs = { args: string[]; hasModel?: boolean; model?: string };
+export type PreparedArgs = { args: string[]; hasModel?: boolean; model?: string; interactive?: boolean };
 export type ConfigFile = { name: string; data: ConfigData; ifMissing?: boolean };
 export type LaunchResult =
   | { kind: 'process'; command: ClientCommand; args: string[]; env: Environment }

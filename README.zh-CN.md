@@ -50,7 +50,7 @@ devn claude
 devn opencode
 ```
 
-参数会转发给原生客户端。被 devn 管理的 provider、profile 和工作目录参数不能覆盖；请使用 `cd` 和 `devn profile use`。
+参数会转发给原生客户端。被 devn 管理的 provider、profile 和工作目录参数不能覆盖；请使用 `cd` 和 `devn profile use`。Codex 运行时禁用共享后台 daemon（`daemon_auto_start = false`），交互会话还会加上 `--no-daemon`，不会连接已在运行的 daemon。
 
 ## 项目绑定
 
@@ -79,7 +79,19 @@ devn profile unbind
 
 每次启动前都会刷新 profile。临时网络错误和 HTTP 5xx 可以使用有效缓存；无效配置、不安全重定向、HTTP 4xx 或网关 origin 变化会停止启动。origin 变化时重新执行 `profile add` 批准即可。
 
-不提供模型列表时，客户端保留自己的默认值。发布模型列表时请使用客户端原生格式，并将模型 ID 映射到真实的 Bifrost 路由。仓库中的示例仅供参考，不会自动注册。
+### 模型发现
+
+客户端段没有模型列表时（`"codex": {}`、`"claude": {}` 或 `"opencode": {}`），每次启动该客户端，devn 都会用用户的 key 请求网关的 `GET <baseUrl>/v1/models`。该 key 可用的所有模型都会提供给客户端，devn 据此生成配置：
+
+- Codex：生成 `models.json` 目录。每个条目以已安装 Codex 自带的目录（`codex debug models --bundled`）为基础。以自带 slug 结尾的 ID（例如 `bedrock/global.openai.gpt-6.1-sol`）继承该模型的设置。其他模型保留 Codex 的指令，但不声明推理级别。托管专用的搜索、服务层级和实验工具会被移除。
+- Claude Code：生成 `/model` 选项，以及 `ANTHROPIC_DEFAULT_OPUS_MODEL`、`_SONNET_MODEL`、`_HAIKU_MODEL` 三档。每档取 ID 同时含 `claude` 和 `opus`/`sonnet`/`haiku` 的最新版本（忽略发布日期和 `-v1:0` 后缀）。缺少的档位借用其他档位的模型。同时有 Opus 和 Sonnet 时，在最前面加入 `opusplan` 选项（规划时用 Opus，其余用 Sonnet）并设为默认；否则默认用 Sonnet 档。
+- OpenCode：生成 `bifrost/<id>` 模型，并带上网关报告的上下文和输出上限。
+
+第一个 OpenAI/GPT 模型作为 Codex 和 OpenCode 的默认模型。没有识别到 Claude 档位时，第一个 Anthropic/Claude 模型作为 Claude 的默认模型。用户之前选择的模型只要网关仍提供就会保留。已弃用的条目，以及含空白、控制字符或 `{env:`/`{file:` 模板的 ID 会被跳过。
+
+key 只发送到已批准的 `baseUrl` origin，不跟随重定向。网关不可达或返回 HTTP 5xx 时，使用上一次获取的列表。HTTP 4xx、无效响应或空列表会停止启动。profile 中显式提供的列表始终优先，此时不会请求网关。发布 `"opencode": {}` 前请先升级 devn，旧版本会拒绝该写法。
+
+发布中央模型列表时请使用客户端原生格式，并将模型 ID 映射到真实的 Bifrost 路由。仓库中的示例仅供参考，不会自动注册。
 
 ### Claude Code 网关开关
 

@@ -13,7 +13,7 @@ const forbidden = new Set(['--server', '--attach', '--directory', '--cwd', '--cd
 
 // Inspect option values separately: a prompt whose text is "--server" is not an override.
 export function openCodeArgs(args: string[], profile: Profile): { args: string[]; model?: string } {
-  if (!profile.opencode) throw new Error('Add an opencode section with model and models to the remote profile first.');
+  if (!profile.opencode) throw new Error('Add an opencode section to the remote profile first.');
   const command = args[0] && !args[0].startsWith('-') ? args[0] : '';
   if (command && !commands.has(command)) throw new Error('Unsupported OpenCode command or directory override. Start devn in the bound project; manage installations and shared services outside devn.');
   // v2's client-side plugin discovery does not honor the server's project-config

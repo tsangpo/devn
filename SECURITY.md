@@ -27,6 +27,12 @@ a promised backport policy.
   Refreshes cannot change an approved origin. Re-run "profile add" to review
   changes, including scheme or port changes. Older registrations lacking approval
   must be added again. Paths within an approved origin may change automatically.
+- When a client section has no model list, devn sends the user's key to
+  `<baseUrl>/v1/models`, but only if that origin is already approved, and never
+  follows redirects. Only an allowlist of fields is read from the response
+  (ID, name, description, token limits, image input and deprecation). IDs
+  containing whitespace, control characters or `{env:`/`{file:` templates are
+  skipped. The generated sections pass the same validators as published profiles.
 - Trusting a profile also trusts its administrator's model and routing updates.
   Origin pinning cannot protect a compromised gateway at the same origin.
 - A profile may set Claude Code environment switches only from a fixed list of
