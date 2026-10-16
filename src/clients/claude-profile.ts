@@ -6,7 +6,12 @@ export type ClaudeProfile = {
   modelPicker?: { replaceBuiltInOptions: boolean; options: ClaudeModel[] };
   slots?: Partial<Record<'sonnet' | 'opus' | 'haiku', string>>;
   env?: Record<string, string>;
+  disabledTools?: string[];
 };
+
+// Tools a gateway cannot serve. WebSearch needs Anthropic's server-side search,
+// which a gateway routing to other upstreams never runs.
+export const claudeDisableableTools = ['WebSearch'];
 
 // Gateway-compatibility switches only. Names and values are both enumerated so a
 // remote profile cannot inject free-form headers, bodies or gateway credentials.
@@ -22,7 +27,14 @@ export function validateClaude(config: unknown): asserts config is ClaudeProfile
   requireValue(object(config), 'claude configuration is required.');
   requireValue(config.defaultModel === undefined && config.models === undefined,
     'Legacy model format: use model, native codex.models entries, and claude.modelPicker (see profiles/example.json).');
-  keys(config, ['model', 'baseUrl', 'modelPicker', 'slots', 'env'], 'claude');
+  keys(config, ['model', 'baseUrl', 'modelPicker', 'slots', 'env', 'disabledTools'], 'claude');
+  if (config.disabledTools !== undefined) {
+    requireValue(Array.isArray(config.disabledTools), 'Claude disabledTools must be an array.');
+    for (const tool of config.disabledTools) {
+      requireValue(typeof tool === 'string' && claudeDisableableTools.includes(tool), `Unsupported claude disabled tool: ${String(tool)}.`);
+    }
+    requireValue(new Set(config.disabledTools).size === config.disabledTools.length, 'Duplicate claude disabled tool.');
+  }
   if (config.env !== undefined) {
     requireValue(object(config.env), 'Claude env must be an object.');
     for (const [name, value] of Object.entries(config.env)) {

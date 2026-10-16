@@ -116,6 +116,8 @@ key 只发送到已批准的 `baseUrl` origin，不跟随重定向。网关不�
 
 从 profile 中删除某个名称后，下次启动会从生成的配置中移除它。发布 `claude.env` 前请先升级 devn：旧版本会拒绝该字段。
 
+`claude.disabledTools` 可选，用于关闭网关无法提供的 Claude Code 工具。目前只接受 `WebSearch`：它依赖 Anthropic 服务端执行搜索，网关转发到 Bedrock、OpenAI 或 Gemini 时不会执行，模型只会得到“没有搜索工具”的回复。devn 会把这些名称加入生成配置的 `permissions.deny`，并保留你自己的其他 deny 规则；从 profile 中删除后，下次启动会移除。发布该字段前请先升级 devn：旧版本会拒绝它。
+
 通过 Bifrost 使用 Bedrock 时，图片和 prompt cache 还取决于网关：放行全部客户端请求头（至少 `anthropic-beta` 和 `anthropic-version`），并使用在 Bedrock 路由上保留 Anthropic `image`、`tool_result` 和 `cache_control` 块的 Bifrost 版本。缓存失效不会报错，请在网关日志中确认第二轮起 `cache_read_input_tokens` 不为 0。
 
 ## 本地数据与限制

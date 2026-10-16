@@ -1,10 +1,18 @@
 import type { Profile } from '../types';
 import { jsonConfig, type Client, type PreparedArgs } from './types';
-import { validateClaude } from './claude-profile';
+import { claudeDisableableTools, validateClaude } from './claude-profile';
 import { clearEnvironment, codexClaudeEnvironment } from './environment';
 
 export const claudeCommand = { name: 'claude', npmPackage: '@anthropic-ai/claude-code' };
 const models = (profile: Profile) => ({ ids: profile.claude.modelPicker?.options.map(m => m.model), defaultModel: profile.claude.model });
+
+// devn owns only the disableable tool names in permissions.deny: the user's other rules
+// are kept, and a tool the profile stops disabling is removed.
+function deny(existing: any, disabled: string[] = []) {
+  const current = Array.isArray(existing?.permissions?.deny) ? existing.permissions.deny : [];
+  const rules = [...current.filter((rule: unknown) => !claudeDisableableTools.includes(rule as string)), ...disabled];
+  return rules.length ? { permissions: { deny: rules } } : {};
+}
 
 function checkArgs(args: string[], profile: Profile): PreparedArgs {
   const ids = models(profile).ids;
@@ -30,7 +38,7 @@ export const claude: Client = {
   validateProfile: validateClaude, models, checkArgs,
   config: {
     ...jsonConfig, filename: 'settings.json', replacePaths: ['modelPicker'],
-    build({ profile, endpoint, apiKey, model }) {
+    build({ profile, endpoint, apiKey, model, existing }) {
       return { managed: {
         ...(model ? { model } : {}),
         env: {
@@ -44,6 +52,7 @@ export const claude: Client = {
           } : {}),
         },
         ...(profile.claude.modelPicker ? { modelPicker: profile.claude.modelPicker } : {}),
+        ...deny(existing, profile.claude.disabledTools),
       } };
     },
     scrub(config) {

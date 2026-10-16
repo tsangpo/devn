@@ -116,6 +116,8 @@ If you publish a central model list, use the native format and map its IDs to re
 
 Removing a name from the profile removes it from the generated settings on the next launch. Upgrade devn before publishing `claude.env`: older releases reject the field.
 
+`claude.disabledTools` optionally turns off Claude Code tools the gateway cannot serve. Only `WebSearch` is accepted: it needs Anthropic's server-side search, which a gateway routing to Bedrock, OpenAI or Gemini never runs, so the model gets a "no search tool" answer instead of results. devn adds the names to `permissions.deny` in the generated settings and keeps your other deny rules; removing a name from the profile removes it on the next launch. Upgrade devn before publishing the field: older releases reject it.
+
 For Bedrock behind Bifrost, images and prompt caching also depend on the gateway: allow all client headers (or at least `anthropic-beta` and `anthropic-version`), and run a Bifrost release that keeps Anthropic `image`, `tool_result` and `cache_control` blocks on the Bedrock route. Caching failures are silent; confirm `cache_read_input_tokens` is non-zero from the second turn in the gateway logs.
 
 ## Local data and limits

@@ -126,6 +126,23 @@ test('claude env switches are written, cannot outlive the profile, and work with
   assert.deepEqual(next.modelPicker.options.map(o => o.model), ['bedrock/claude-discovered']);
 });
 
+test('claude disabledTools adds deny rules, keeps the user rules, and goes away with the profile', t => {
+  const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
+  const profileFile = path.join(f.home, 'devn/profiles/a/profile.json');
+  const claudeFile = path.join(f.home, 'devn/profiles/a/claude/settings.json');
+  assert.equal(f.run(['claude']).status, 0);
+  assert.equal(read(claudeFile).permissions, undefined);
+  const settings = read(claudeFile); settings.permissions = { allow: ['Read'], deny: ['Bash(rm:*)'] }; write(claudeFile, settings);
+  f.a.claude.disabledTools = ['WebSearch']; write(profileFile, f.a);
+  assert.equal(f.run(['claude']).status, 0);
+  assert.deepEqual(read(claudeFile).permissions, { allow: ['Read'], deny: ['Bash(rm:*)', 'WebSearch'] });
+  assert.equal(f.run(['claude']).status, 0);
+  assert.deepEqual(read(claudeFile).permissions.deny, ['Bash(rm:*)', 'WebSearch']);
+  delete f.a.claude.disabledTools; write(profileFile, f.a);
+  assert.equal(f.run(['claude']).status, 0);
+  assert.deepEqual(read(claudeFile).permissions, { allow: ['Read'], deny: ['Bash(rm:*)'] });
+});
+
 test('regeneration retains user settings and selected models, refreshes menus and credentials', t => {
   const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']);
   for (const tool of ['codex', 'claude']) assert.equal(f.run([tool]).status, 0);
@@ -240,6 +257,9 @@ test('profile validation rejects unsafe IDs, mismatched defaults, slots, and dup
     p => { p.claude.env = { CLAUDE_CODE_PROMPT_CACHE_TTL: '2h' }; },
     p => { p.claude.env = { constructor: '1' }; },
     p => { p.claude.env = ['CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS']; },
+    p => { p.claude.disabledTools = ['Bash']; },
+    p => { p.claude.disabledTools = ['WebSearch', 'WebSearch']; },
+    p => { p.claude.disabledTools = 'WebSearch'; },
     p => { p.codex.defaultModel = p.codex.model; },
     p => { p.claude.models = []; },
     p => { delete p.codex.models[0].slug; },
