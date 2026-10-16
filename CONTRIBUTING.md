@@ -3,15 +3,13 @@
 Repository: https://github.com/tsangpo/devn
 
 Use Bun 1.4.2 or newer on Linux, macOS, or Windows x64. Keep runtime and development package
-dependencies empty. TypeScript runs directly for npm/source users. Standalone
-binaries are built only for distribution and tests, in the ignored release/
-directory. There is no dist directory.
+dependencies empty. TypeScript runs directly for npm/source users; Homebrew compiles
+the same package into a standalone executable during installation. Release packing writes only to
+the ignored release/ directory. There is no dist directory.
 
     bun run check
     bun run check:secrets
     bun run test:native
-    bun run build:binary
-    bun run test:binary
     bun run test:windows  # Windows-specific integration tests
 
 The native smoke command requires installed Codex, Claude Code and OpenCode v2; it uses dummy keys
@@ -64,8 +62,8 @@ facade. Platform adapters resolve actual package bin metadata and enforce path
 containment; they do not maintain a list of client names. Keep runtime OS selection
 in the existing facade. Add lifecycle and argument regressions, a real-client smoke
 using a loopback gateway and dummy credentials, and Windows package-resolution
-coverage. Verify npm packaging and the standalone binary, including any client
-helpers imported from nested directories. Record the actual client versions and
+coverage. Verify npm packaging, including any client helpers imported from
+nested directories. Record the actual client versions and
 operating systems tested; source tests do not establish Windows runtime support.
 
 ## Compatibility
@@ -92,11 +90,10 @@ currently omits native model instructions; Codex 0.160.0 rejects it without
 `base_instructions` or `model_messages.instructions_template`. The refactor does
 not synthesize instructions or change that example. devn's profile validation
 does not replace validation by the installed native client.
-CI validates npm packages, terminal interaction, and standalone executables.
-The binary CI baseline is macOS 15 and Ubuntu 24.04 (glibc), with arm64/x64
-archives. Windows uses the Bun/npm distribution only; Windows standalone binaries
-and installers are not published. Windows ARM64 and musl are not distributed.
-Hosted Linux kernels currently lack Landlock ABI 10, so
+CI validates npm packages, terminal interaction, and Homebrew installation.
+The release CI baseline is macOS 15 and Ubuntu 24.04 (glibc) on arm64/x64.
+Windows uses the Bun/npm distribution. No standalone binaries or installers
+are published. Hosted Linux kernels currently lack Landlock ABI 10, so
 Homebrew reports limited network isolation and applies the restrictions the
 kernel supports. We retain its sandbox and capability warning. Intel macOS
 may also report upstream support-policy notices; its tests remain enabled.
@@ -141,33 +138,37 @@ installation tests and JavaScript client entries. Development and builds use Bun
 ## Publishing a release
 
 1. Update package.json version and CHANGELOG.md; only stable X.Y.Z versions are
-   supported. Run checks, native smoke, and local binary tests.
+   supported. Run checks and native smoke tests.
 2. Review the package contents and sensitive information, then commit and push.
 3. Create and push the matching tag, for example:
 
        git tag v0.1.1
        git push origin v0.1.1
 
-The Release workflow validates the version before building. It packs npm once,
-installs that same tarball on four macOS/Linux runners, builds and tests macOS/Linux
-arm64/x64 binaries, and verifies SHA-256 checksums for every archive. It then stages a
-GitHub draft Release, publishes the verified npm tarball and Release, and has Homebrew
-install/test the released binaries on all four platforms before committing the generated
-Formula to the tap. Windows releases use Bun/npm only.
+The Release workflow validates the version before packing. It packs npm once and
+installs and tests that same tarball, with its SHA-256 checksum, on four macOS/Linux
+arm64/x64 runners. It then stages a GitHub draft Release, publishes the verified npm
+tarball and Release, and has Homebrew install/test the released package on all four
+platforms before committing the generated Formula to the tap. Windows releases use
+Bun/npm only.
 
 Publishing marks the release as GitHub Latest unless the current Latest has a
 higher stable version. Retrying an already-published release also repairs this
 marker. Failure to inspect Latest stops publication; a missing Latest is allowed.
 
-Release assets include `devn.tgz`, `devn-vX.Y.Z-<os>-<arch>.tar.gz`, per-archive
-`.sha256` files and `SHA256SUMS`. OS names are `darwin` and `linux`; architectures
-are `arm64` and `x64`. These archives contain `devn` and `LICENSE`. No Windows ZIP,
-PowerShell installer, or Windows standalone artifact is produced for new releases.
+Release assets are `devn.tgz`, `devn.tgz.sha256` and `SHA256SUMS`. Standalone
+binary archives, Windows ZIPs and PowerShell installers are no longer produced;
+assets of earlier releases are kept.
 
 Generated files stay in release/; they are not committed. npm continues to ship
 TypeScript with its Bun shebang and no install scripts or downloaded binaries.
-Homebrew downloads macOS/Linux binaries from the source repository's Release, checks
-SHA-256, and installs them without Bun. Windows users install the npm package with
+Homebrew downloads `devn.tgz` from the source repository's Release, checks SHA-256,
+and runs `bun build --compile` with every `--no-compile-autoload-*` flag, so the
+executable never loads the caller's `.env`, `bunfig.toml`, `tsconfig.json` or
+`package.json`. `bun` is a build-only dependency. On Linux the executable inherits
+the ICU linkage of Homebrew's `bun`: `homebrewIcu` in `scripts/release-lib.ts` must
+match it, and the Formula refuses to build after Homebrew bumps bun's ICU until a
+release updates that constant. Windows users install the npm package with
 Bun. The CLI never updates itself.
 
 ## Failed releases and retries
@@ -176,14 +177,13 @@ Re-run **failed jobs**, retaining the original artifacts (available for 30 days)
 If a publishing-script fix is needed, commit it to main and manually dispatch
 the Release workflow from main with the original `tag` and `artifact_run_id`.
 This recovery path skips builds, verifies the original run belongs to that tag
-and passed all configured binary jobs, and reuses its artifacts. The main branch must
+and passed all configured package verification jobs, and reuses its artifacts. The main branch must
 still have the same package version. Never move the release tag.
 An identical already-published npm tarball is accepted; different contents for
 an existing npm version cause failure. Existing Release assets are verified and
 never overwritten; missing draft assets may be uploaded on retry. Rebuilding
 all jobs can produce different archive bytes and is not a safe retry strategy.
-Recovery reuses the original verified macOS/Linux artifacts; never regenerate them from
-main. Missing artifacts or different uploaded bytes fail publication.
+Recovery reuses the original verified npm tarball; never regenerate it from main. Missing artifacts or different uploaded bytes fail publication.
 
 Publishing to npm, GitHub and the tap is not atomic. If npm succeeds but another
 step fails, fix the failure and re-run failed jobs; do not unpublish npm or move
@@ -204,19 +204,16 @@ Windows ACL, process and path handling lives in `src/platform/windows/`. Imports
 must not launch helpers or mutate configuration. Keep the adapter as ordinary
 functions; do not add a plugin registry or dependency injection framework.
 
-Build targets and archive interfaces live in `scripts/platform/index.ts`; ZIP
-helpers live in `scripts/platform/windows/`. Windows test fixtures and integration
+Windows test fixtures and integration
 scenarios live in `test/windows/`, selected by `test/platform.ts`. Shared tests
 retain behavior assertions, using platform fixtures for executables, permissions
 and links. POSIX signal and executable-symlink tests have Windows equivalents.
 
 To remove Windows support: delete the runtime/build/test Windows directories,
-select POSIX directly in the two runtime/test selectors, remove the Windows build
-target and ZIP import, remove the Windows Check job and Release matrix/artifact
-entries, and remove the Windows test command and documentation. Business modules
+select POSIX directly in the two runtime/test selectors, remove the Windows Check
+job, and remove the Windows test command and documentation. Business modules
 need no changes. Keep existing published assets; use the original release revision
 and artifacts when recovering a historical Windows release.
 
-Before a release, use the Check workflow's macOS/Linux binary jobs and checksums for
-validation. Do not use preview tags or workflow_dispatch as a dry run: the release
+Before a release, use the Check workflow for validation. Do not use preview tags or workflow_dispatch as a dry run: the release
 workflow publishes stable tags, and dispatch is for recovery.

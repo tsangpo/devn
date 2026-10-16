@@ -45,7 +45,7 @@ jobs:
           path: release/devn.tgz*
           if-no-files-found: error
           retention-days: 30
-  binaries:
+  verify-package:
     needs: pack
     strategy:
       fail-fast: false
@@ -76,20 +76,11 @@ jobs:
       - run: bun test ./test/package.test.ts
         env:
           DEVN_PACKAGE_TARBALL: ${{ github.workspace }}/release/devn.tgz
-      - run: bun run build:binary
-      - run: bun run test:binary
-      - uses: actions/upload-artifact@v7.0.1
-        with:
-          name: binary-${{ matrix.platform }}
-          path: |
-            release/*.tar.gz*
-          if-no-files-found: error
-          retention-days: 30
   publish:
-    needs: [pack, binaries]
+    needs: [pack, verify-package]
     if: >-
       always() && !cancelled() && github.repository == 'tsangpo/devn' &&
-      (needs.binaries.result == 'success' || github.event_name == 'workflow_dispatch')
+      (needs.verify-package.result == 'success' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -113,11 +104,8 @@ jobs:
       - run: bun scripts/check-release-source.ts
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Download verified release archives
-        run: |
-          for artifact in npm-package binary-linux-x64 binary-linux-arm64 binary-darwin-x64 binary-darwin-arm64; do
-            gh run download "$ARTIFACT_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir release
-          done
+      - name: Download verified npm package
+        run: gh run download "$ARTIFACT_RUN_ID" --repo "$GITHUB_REPOSITORY" --name npm-package --dir release
         env:
           GH_TOKEN: ${{ github.token }}
       - run: bun run release:prepare
@@ -137,7 +125,6 @@ jobs:
           name: release-inputs
           path: |
             release/*.tgz*
-            release/*.tar.gz*
             release/SHA256SUMS
             release/devn.rb
           if-no-files-found: error
@@ -157,7 +144,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - uses: Homebrew/actions/setup-homebrew@e99025eb970cfa124b8284a35463d87426917478
-      - name: Install and test the released binary via a temporary tap
+      - name: Install and test the released package via a temporary tap
         shell: bash
         run: |
           brew tap-new --no-git devn-ci/release

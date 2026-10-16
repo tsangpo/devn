@@ -58,8 +58,10 @@ instructions there rather than duplicating them here.
 - Run `bun run check` for behavior changes. For client integration changes, also
   run the affected real-client test; the complete `bun run test:native` requires
   all supported clients to be installed. Use dummy keys and loopback gateways.
-- Validate standalone delivery with `bun run build:binary` followed by
-  `bun run test:binary`; source execution alone does not verify packaging.
+- Validate Homebrew delivery by installing the generated Formula from a local
+  temporary tap (`brew install` then `brew test`) against a `bun run release:pack`
+  tarball. The compile step must keep every `--no-compile-autoload-*` flag;
+  source execution alone does not verify packaging.
 - Report exactly which native clients and operating systems were exercised.
   POSIX mocks of Windows behavior do not establish Windows runtime support.
   Bun execution is not a static TypeScript type check.

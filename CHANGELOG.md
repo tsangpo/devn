@@ -2,6 +2,10 @@
 
 Changes are recorded here before each npm release.
 
+## Unreleased
+
+- Homebrew now builds devn from the npm source package during installation: `bun build --compile` with Homebrew's `bun` as a build-only dependency (Linux also needs the matching `icu4c`). As before, the executable does not load the caller's `.env`, `bunfig.toml`, `tsconfig.json` or `package.json`. Prebuilt macOS/Linux binaries are no longer attached to releases; existing Homebrew users get the new build with `brew upgrade`.
+
 ## 0.9.0 — 2026-10-16
 
 - Copy OpenCode profile model entries into OpenCode's configuration as written instead of allowing only `name`, `modelID`, `family`, `capabilities`, `limit` and `cost`. A model may set `package` (bundled `@opencode/ai/providers/...` only) and `settings`; a `settings.baseURL` must use the OpenCode gateway origin, devn adds the key to model settings, and credentials or `{env:`/`{file:` substitutions are still rejected. This lets Claude models use Bifrost's Anthropic endpoint, avoiding Bifrost's Responses conversion that OpenCode rejects. Upgrade devn before publishing such profiles; older releases reject them.

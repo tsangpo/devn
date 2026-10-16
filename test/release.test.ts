@@ -4,43 +4,7 @@ import * as tempPath from 'node:path';
 import { testPlatform, prependPath } from './platform';
 import { $ } from 'bun';
 import { expect, test } from 'bun:test';
-import { archiveName, assertNoDowngrade, assetNames, checkedAssets, digest, formula, platforms, releaseTag, shouldPromoteRelease, version } from '../scripts/release-lib';
-import { renderInstaller } from '../scripts/build-installer';
-
-test('installer generation pins the release archive and rejects invalid checksums', async () => {
-  const hash = 'a'.repeat(64);
-  const installer = await renderInstaller(hash);
-  expect(installer).toContain("$version = '" + version + "'");
-  expect(installer).toContain("$archiveName = '" + archiveName('windows-x64') + "'");
-  expect(installer).toContain("$expectedHash = '" + hash + "'");
-  expect(installer).not.toContain('@@');
-  expect(await renderInstaller(hash)).toBe(installer);
-  await expect(renderInstaller('bad hash')).rejects.toThrow('Invalid Windows archive');
-});
-
-test('installer build verifies its input and writes a reproducible checksummed asset', async () => {
-  const temp = tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-installer-build-'));
-  try {
-    const archive = tempPath.join(temp, 'release', archiveName('windows-x64'));
-    await Bun.write(archive, 'fixture archive');
-    const hash = await digest(archive);
-    await Bun.write(archive + '.sha256', hash + '\n');
-    const build = () => Bun.spawnSync([process.execPath, tempPath.resolve(import.meta.dir, '../scripts/build-installer.ts')], {
-      cwd: temp, stdout: 'pipe', stderr: 'pipe',
-    });
-    const result = build();
-    expect(result.exitCode, result.stderr.toString()).toBe(0);
-    const output = tempPath.join(temp, 'release/install.ps1');
-    const original = await Bun.file(output).text();
-    expect(original).toBe(await renderInstaller(hash));
-    expect((await Bun.file(output + '.sha256').text()).trim()).toBe(await digest(output));
-    expect(build().exitCode).toBe(0);
-    expect(await Bun.file(output).text()).toBe(original);
-    await Bun.write(archive, 'tampered archive');
-    expect(build().exitCode).not.toBe(0);
-    expect(await Bun.file(output).text()).toBe(original);
-  } finally { tempFS.rmSync(temp, { recursive: true, force: true }); }
-});
+import { assertNoDowngrade, assetNames, homebrewIcu, checkedAssets, digest, formula, releaseTag, shouldPromoteRelease, version } from '../scripts/release-lib';
 
 test('release tags must match the stable package version', () => {
   expect(releaseTag('v' + version)).toBe('v' + version);
@@ -67,16 +31,16 @@ test('release preparation rejects missing and tampered artifacts', async () => {
     }
     const hashes = await checkedAssets(temp);
     expect(Object.keys(hashes).length).toBe(assetNames().length);
+    expect(assetNames()).toEqual(['devn.tgz']);
     const output = formula(hashes);
-    expect(output).toContain('bin.install "devn"');
-    expect(output).not.toContain('depends_on "bun"');
-    for (const platform of platforms.filter(p => p.startsWith('darwin-') || p.startsWith('linux-'))) {
-      const name = archiveName(platform);
-      expect(output).toContain('/releases/download/v' + version + '/' + name);
-      expect(output).toContain('sha256 "' + hashes[name] + '"');
-    }
-    delete hashes[archiveName('linux-arm64')];
-    expect(() => formula(hashes)).toThrow();
+    expect(output).toContain('url "https://github.com/tsangpo/devn/releases/download/v' + version + '/devn.tgz"');
+    expect(output).toContain('sha256 "' + hashes['devn.tgz'] + '"');
+    expect(output).toContain('depends_on "bun" => :build');
+    expect(output).toContain('depends_on "' + homebrewIcu + '"');
+    // The compiled executable must not load the caller's project runtime files.
+    for (const file of ['dotenv', 'bunfig', 'tsconfig', 'package-json']) expect(output).toContain('"--no-compile-autoload-' + file + '"');
+    expect(output).not.toContain('on_macos');
+    expect(() => formula({})).toThrow('Missing checksum');
     await Bun.write(temp + '/devn.tgz', 'tampered');
     await expect(checkedAssets(temp)).rejects.toThrow('checksum mismatch');
   } finally {

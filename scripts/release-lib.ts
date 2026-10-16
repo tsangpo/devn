@@ -2,12 +2,10 @@ import { version } from '../package.json';
 
 export { version };
 export const repository = 'tsangpo/devn';
-import { targets, platforms as allPlatforms, type Platform } from './platform';
-// Windows remains supported through Bun/npm, but standalone binary releases are macOS/Linux only.
-export const platforms = allPlatforms.filter(platform => platform !== 'windows-x64') as Platform[];
-export type { Platform } from './platform';
-export const archiveName = (platform: Platform) => 'devn-v' + version + '-' + platform + targets[platform].extension;
-export const assetNames = () => ['devn.tgz', ...platforms.map(archiveName)];
+// Every channel ships the same Bun source package; Homebrew compiles it during install.
+export const assetNames = () => ['devn.tgz'];
+// Must match the ICU that Homebrew's bun links on Linux; the Formula refuses to build otherwise.
+export const homebrewIcu = 'icu4c@78';
 
 export function releaseTag(tag = process.env.RELEASE_TAG): string {
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version) || tag !== 'v' + version) {
@@ -50,32 +48,54 @@ export async function checkedAssets(directory: string): Promise<Record<string, s
 }
 
 export function formula(hashes: Record<string, string>): string {
-  const lines = [
+  const hash = hashes['devn.tgz'];
+  if (!/^[a-f0-9]{64}$/.test(hash || '')) throw new Error('Missing checksum for devn.tgz');
+  return [
     'class Devn < Formula',
     '  desc "Project-aware Codex, Claude Code and OpenCode launcher for Bifrost"',
     '  homepage "https://github.com/' + repository + '"',
+    '  url "https://github.com/' + repository + '/releases/download/v' + version + '/devn.tgz"',
     '  version "' + version + '"',
+    '  sha256 "' + hash + '"',
     '  license "MIT"',
-  ];
-  for (const os of ['darwin', 'linux']) {
-    lines.push('', '  on_' + (os === 'darwin' ? 'macos' : 'linux') + ' do');
-    for (const arch of ['arm64', 'x64']) {
-      const name = archiveName((os + '-' + arch) as Platform);
-      const hash = hashes[name];
-      if (!/^[a-f0-9]{64}$/.test(hash || '')) throw new Error('Missing checksum for ' + name);
-      lines.push('    on_' + (arch === 'arm64' ? 'arm' : 'intel') + ' do',
-        '      url "https://github.com/' + repository + '/releases/download/v' + version + '/' + name + '"',
-        '      sha256 "' + hash + '"', '    end');
-    }
-    lines.push('  end');
-  }
-  lines.push('', '  def install', '    bin.install "devn"', '  end', '', '  test do',
+    '',
+    '  depends_on "bun" => :build',
+    '',
+    '  on_linux do',
+    '    # `bun build --compile` embeds the runtime, so the output inherits bun\'s ICU linkage.',
+    '    depends_on "' + homebrewIcu + '"',
+    '  end',
+    '',
+    '  def install',
+    '    if OS.linux?',
+    '      bun_icu = Formula["bun"].deps.find { |dep| dep.name.start_with?("icu4c") }.to_formula',
+    '      icu = deps.find { |dep| dep.name.start_with?("icu4c") }.to_formula',
+    '      odie "Update icu4c dependency!" if bun_icu.name != icu.name',
+    '    end',
+    '',
+    '    # The caller\'s project must not inject a preload, environment file or config.',
+    '    system "bun", "build", "src/main.ts", "--compile", "--minify",',
+    '           "--no-compile-autoload-dotenv", "--no-compile-autoload-bunfig",',
+    '           "--no-compile-autoload-tsconfig", "--no-compile-autoload-package-json",',
+    '           "--outfile", bin/"devn"',
+    '  end',
+    '',
+    '  test do',
     '    assert_equal version.to_s, shell_output("#{bin}/devn --version").strip',
     '    assert_match "devn profile add", shell_output("#{bin}/devn --help")',
     '    ENV["XDG_CONFIG_HOME"] = (testpath/"config").to_s',
-    '    assert_match "No profiles registered", shell_output("#{bin}/devn profile list")',
-    '  end', 'end', '');
-  return lines.join('\n');
+    '    (testpath/"project").mkpath',
+    '    cd testpath/"project" do',
+    '      # A caller-owned preload must not run inside devn.',
+    '      (testpath/"project/evil.ts").write "await Bun.write(\'#{testpath}/preloaded\', \'x\')\\n"',
+    '      (testpath/"project/bunfig.toml").write "preload = [\\"./evil.ts\\"]\\n"',
+    '      assert_match "No profiles registered", shell_output("#{bin}/devn profile list")',
+    '    end',
+    '    refute_path_exists testpath/"preloaded"',
+    '  end',
+    'end',
+    '',
+  ].join('\n');
 }
 
 export function assertNoDowngrade(existing: string, next = version): void {

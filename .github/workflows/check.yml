@@ -20,8 +20,6 @@ jobs:
           bun-version: 1.4.2
       - run: bun run check
       - run: bun run check:secrets
-      - run: bun run build:binary
-      - run: bun run test:binary
   windows:
     name: Windows x64 (${{ matrix.suite }})
     strategy:

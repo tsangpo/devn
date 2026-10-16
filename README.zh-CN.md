@@ -21,13 +21,13 @@ bun i -g @tsangpo/devn
 devn --version
 ```
 
-一次性运行可使用 `bunx @tsangpo/devn ...`。Homebrew 可安装不依赖 Bun 的 macOS/Linux 二进制：
+一次性运行可使用 `bunx @tsangpo/devn ...`。在 macOS/Linux 上，Homebrew 安装时用 Homebrew 的 `bun` 把同一份源码包编译成独立的 `devn` 可执行文件：
 
 ```sh
 brew install tsangpo/tap/devn
 ```
 
-Windows 使用 Bun/npm 包。源码和 npm 包要求 Bun >=1.4.2；二进制不要求。二进制平台和校验值见[发布页](https://github.com/tsangpo/devn/releases)。
+Windows 使用 Bun/npm 包。Bun/npm 包要求 Bun >=1.4.2；Homebrew 只在构建时需要 `bun`。校验值见[发布页](https://github.com/tsangpo/devn/releases)。
 
 ## Profile
 
@@ -130,8 +130,6 @@ devn 隔离配置和客户端状态，但不是操作系统级沙箱。使用不
 bun run check
 bun run test:native       # 需要已安装客户端和本地测试网关
 bun run check:secrets
-bun run build:binary
-bun run test:binary
 ```
 
 原生测试使用虚拟 key 和回环网关。发布流程、兼容范围、已测试客户端版本和 Windows 细节见 [CONTRIBUTING.md](CONTRIBUTING.md)。

@@ -21,13 +21,13 @@ bun i -g @tsangpo/devn
 devn --version
 ```
 
-Use `bunx @tsangpo/devn ...` for one-off commands. Homebrew provides a standalone macOS/Linux binary:
+Use `bunx @tsangpo/devn ...` for one-off commands. On macOS/Linux, Homebrew compiles the same source package into a standalone `devn` executable with Homebrew's `bun` during installation:
 
 ```sh
 brew install tsangpo/tap/devn
 ```
 
-Windows uses the Bun/npm package. The source and npm distributions require Bun >=1.4.2; standalone binaries do not. See [releases](https://github.com/tsangpo/devn/releases) for checksums and supported binary platforms.
+Windows uses the Bun/npm package. The Bun/npm package requires Bun >=1.4.2; Homebrew needs `bun` only to build. See [releases](https://github.com/tsangpo/devn/releases) for checksums.
 
 ## Profiles
 
@@ -130,8 +130,6 @@ devn separates configuration and client state, but it is not an OS sandbox. Revi
 bun run check
 bun run test:native       # requires installed clients and a local test gateway
 bun run check:secrets
-bun run build:binary
-bun run test:binary
 ```
 
 Native tests use dummy keys and a loopback gateway. Release and compatibility procedures, including tested client versions and Windows details, are in [CONTRIBUTING.md](CONTRIBUTING.md).

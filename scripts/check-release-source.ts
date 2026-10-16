@@ -1,6 +1,8 @@
 import { $ } from 'bun';
-import { platforms, releaseTag, repository } from './release-lib';
+import { releaseTag, repository } from './release-lib';
 const tag = releaseTag();
+// Must match the verify-package matrix in .github/workflows/release.yml.
+const verifiedPlatforms = ['linux-x64', 'linux-arm64', 'darwin-arm64', 'darwin-x64'];
 const id = process.env.ARTIFACT_RUN_ID || '';
 if (!/^\d+$/.test(id)) throw new Error('Expected a numeric artifact run ID.');
 const run = JSON.parse(await $`gh run view ${id} --repo ${repository} --json event,headSha,headBranch,workflowName,jobs`.text());
@@ -10,7 +12,7 @@ if (run.event !== 'push' || run.headBranch !== tag || run.headSha !== revision |
 }
 const successful = run.jobs.filter((job: { conclusion: string }) => job.conclusion === 'success');
 if (!successful.some((job: { name: string }) => job.name === 'pack') ||
-    !platforms.every(platform => successful.some((job: { name: string }) => job.name.startsWith('binaries (') && job.name.endsWith(', ' + platform + ')')))) {
-  throw new Error('The source run must have passed npm packing and all configured native binary jobs.');
+    !verifiedPlatforms.every(platform => successful.some((job: { name: string }) => job.name.startsWith('verify-package (') && job.name.endsWith(', ' + platform + ')')))) {
+  throw new Error('The source run must have passed npm packing and all configured package verification jobs.');
 }
 console.log('Verified release artifacts source: ' + revision);
