@@ -2,7 +2,7 @@
 
 Changes are recorded here before each npm release.
 
-## Unreleased
+## 0.9.0 — 2026-10-16
 
 - Copy OpenCode profile model entries into OpenCode's configuration as written instead of allowing only `name`, `modelID`, `family`, `capabilities`, `limit` and `cost`. A model may set `package` (bundled `@opencode/ai/providers/...` only) and `settings`; a `settings.baseURL` must use the OpenCode gateway origin, devn adds the key to model settings, and credentials or `{env:`/`{file:` substitutions are still rejected. This lets Claude models use Bifrost's Anthropic endpoint, avoiding Bifrost's Responses conversion that OpenCode rejects. Upgrade devn before publishing such profiles; older releases reject them.
 - With discovered models, set the Claude Code `opus`, `sonnet` and `haiku` tiers to the newest matching gateway models, and add `opusplan` as the default `/model` option when both Opus and Sonnet are available.
