@@ -77,6 +77,15 @@ The smallest useful profile is:
 
 `baseUrl` defaults to `/openai/v1` for Codex and `/anthropic` for Claude. Client-specific `baseUrl` values may override those paths. Keep profiles free of real keys. HTTPS is required except for loopback addresses used in local testing; downloads are size- and time-limited.
 
+OpenCode model entries are copied into OpenCode's configuration as written, so any v2 model field works (`limit`, `cost`, `variants`, `headers`, …). A model may pick another bundled protocol with `package` (only `@opencode/ai/providers/...`) and its own `settings.baseURL`, which must use the OpenCode gateway origin; devn adds the key to those settings. Credentials in model settings and `{env:`/`{file:` substitutions are rejected. For example, to send Claude through Bifrost's Anthropic endpoint:
+
+```json
+"bedrock/global.anthropic.claude-haiku-5-5": {
+  "package": "@opencode/ai/providers/anthropic-compatible",
+  "settings": { "baseURL": "https://gateway.example.com/anthropic/v1" }
+}
+```
+
 The selected profile refreshes before each launch. Temporary network errors and HTTP 5xx can use a valid cache; invalid definitions, unsafe redirects, HTTP 4xx responses and changed gateway origins stop the launch. Re-run `profile add` to approve an origin change.
 
 ### Model discovery

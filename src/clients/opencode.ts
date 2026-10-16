@@ -11,7 +11,7 @@ export const opencode: Client = {
 directory overrides, service/pair/serve, auth/api and installation management are unsupported.
 Supported: run, mini, models, session, stats, debug, acp, mcp, plugin, reload.`,
   validateProfile(value, baseUrl) {
-    validateOpenCode(value);
+    validateOpenCode(value, baseUrl);
     if (/\{(?:env|file):/.test(baseUrl)) throw new Error('OpenCode gateway URLs must not contain configuration substitutions.');
   },
   models(profile) {
@@ -36,7 +36,10 @@ Supported: run, mini, models, session, stats, debug, acp, mcp, plugin, reload.`,
           providers: { bifrost: {
             // v2.0.20 bundles this entry; openai-compatible/responses is not in its native loader.
             name: 'Bifrost', package: '@opencode/ai/providers/openai/responses',
-            env: [], settings: { baseURL: endpoint, apiKey }, models: profile.opencode!.models,
+            env: [], settings: { baseURL: endpoint, apiKey },
+            // Model settings replace the provider's, so models with their own settings need the key too.
+            models: profile.opencode!.models && Object.fromEntries(Object.entries(profile.opencode!.models)
+              .map(([id, m]) => [id, m.settings ? { ...m, settings: { ...m.settings, apiKey } } : m])),
           } },
           plugins: [...(existing.plugins || []).filter((p: unknown) => p !== '-opencode.config.compatibility'), '-opencode.config.compatibility'],
           experimental: { policies: [
@@ -51,7 +54,10 @@ Supported: run, mini, models, session, stats, debug, acp, mcp, plugin, reload.`,
         ],
       };
     },
-    scrub(config) { delete config.providers?.bifrost?.settings?.apiKey; },
+    scrub(config) {
+      delete config.providers?.bifrost?.settings?.apiKey;
+      for (const model of Object.values<any>(config.providers?.bifrost?.models || {})) delete model?.settings?.apiKey;
+    },
   },
   checkArgs: openCodeArgs,
   prepareLaunch({ profile, root, prepared, env }) {

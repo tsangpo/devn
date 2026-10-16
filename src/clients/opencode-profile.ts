@@ -1,10 +1,9 @@
 import { secureURL } from '../urls';
 
-export type OpenCodeModel = {
-  name?: string; modelID?: string; family?: string;
-  capabilities?: { tools: boolean; input: string[]; output: string[] };
-  limit?: { context?: number; input?: number; output?: number };
-  cost?: { input: number; output: number; cache?: { read?: number; write?: number } };
+// Model entries are copied into opencode.json as written; see validateOpenCode for the few limits.
+export type OpenCodeModel = Record<string, any> & {
+  package?: string;
+  settings?: Record<string, unknown> & { baseURL?: string };
 };
 // Omitting model and models asks devn to discover them from the gateway at launch.
 export type OpenCodeProfile = { baseUrl?: string; model?: string; models?: Record<string, OpenCodeModel> };
@@ -24,7 +23,13 @@ function identifier(value: unknown): value is string {
   return typeof value === 'string' && !!value && !/[\s\x00-\x1f\x7f-\x9f#{}]/.test(value);
 }
 
-export function validateOpenCode(value: unknown): asserts value is OpenCodeProfile {
+// Only bundled providers: OpenCode would otherwise install and run an arbitrary npm package.
+const bundledPackage = /^@opencode\/ai\/providers\/[a-z0-9][a-z0-9/-]*$/;
+
+// Model entries pass through to OpenCode unchanged, except for what could leak the key
+// or run code: devn adds the key to every model with its own settings, so a model
+// baseURL must stay on the approved OpenCode gateway origin.
+export function validateOpenCode(value: unknown, baseUrl: string): asserts value is OpenCodeProfile {
   object(value, ['baseUrl', 'model', 'models']);
   // OpenCode expands these strings before validating config, even in model labels.
   requireValue(!/\{(?:env|file):/.test(JSON.stringify(value)), 'configuration substitutions are not allowed in remote profiles.');
@@ -37,30 +42,17 @@ export function validateOpenCode(value: unknown): asserts value is OpenCodeProfi
   }
   object(value.models);
   requireValue(Object.keys(value.models).length > 0, 'models must not be empty.');
+  const origin = secureURL(value.baseUrl ?? baseUrl).origin;
   for (const [id, model] of Object.entries(value.models)) {
     requireValue(identifier(id), 'invalid model ID.');
-    object(model, ['name', 'modelID', 'family', 'capabilities', 'limit', 'cost']);
-    for (const field of ['name', 'family']) {
-      requireValue(model[field] === undefined || (typeof model[field] === 'string' && model[field].trim()), `${field} must be nonempty.`);
-    }
-    requireValue(model.modelID === undefined || identifier(model.modelID), 'invalid upstream modelID.');
-    if (model.capabilities !== undefined) {
-      object(model.capabilities, ['tools', 'input', 'output']);
-      requireValue(typeof model.capabilities.tools === 'boolean', 'capabilities.tools must be Boolean.');
-      for (const field of ['input', 'output']) requireValue(Array.isArray(model.capabilities[field]) && model.capabilities[field].every((v: unknown) => typeof v === 'string' && v.trim()), `capabilities.${field} must be an array of media types.`);
-    }
-    if (model.limit !== undefined) {
-      object(model.limit, ['context', 'input', 'output']);
-      requireValue(Object.values(model.limit).every(v => Number.isSafeInteger(v) && (v as number) > 0), 'model limits must be positive integers.');
-    }
-    if (model.cost !== undefined) {
-      object(model.cost, ['input', 'output', 'cache']);
-      const amounts = [model.cost.input, model.cost.output];
-      if (model.cost.cache !== undefined) {
-        object(model.cost.cache, ['read', 'write']);
-        amounts.push(...Object.values(model.cost.cache));
-      }
-      requireValue(amounts.every(v => typeof v === 'number' && Number.isFinite(v) && v >= 0), 'costs must be finite, nonnegative numbers.');
+    object(model);
+    requireValue(model.package === undefined || (typeof model.package === 'string' && bundledPackage.test(model.package)),
+      'package must be a bundled @opencode/ai/providers/... provider.');
+    if (model.settings !== undefined) {
+      object(model.settings);
+      requireValue(model.settings.baseURL === undefined || secureURL(model.settings.baseURL).origin === origin,
+        'model settings.baseURL must use the OpenCode gateway origin.');
+      requireValue(!['apiKey', 'authToken', 'auth'].some(key => key in model.settings), 'model settings must not contain credentials.');
     }
   }
   requireValue(identifier(value.model) && Object.hasOwn(value.models, value.model), 'model must appear in models.');

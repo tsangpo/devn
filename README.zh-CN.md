@@ -77,6 +77,15 @@ devn profile unbind
 
 `baseUrl` 默认给 Codex 追加 `/openai/v1`，给 Claude 追加 `/anthropic`；也可以用客户端自己的 `baseUrl` 覆盖。JSON 中不要放真实 key。除本地测试的回环地址外必须使用 HTTPS；下载有大小和超时限制。
 
+OpenCode 的模型条目会原样写入 OpenCode 配置，因此可以使用 v2 的任意模型字段（`limit`、`cost`、`variants`、`headers` 等）。模型可以用 `package` 换成另一个内置协议（只允许 `@opencode/ai/providers/...`），并用自己的 `settings.baseURL`，但它必须使用 OpenCode 网关的 origin；devn 会把 key 加进这些 settings。模型 settings 里不能写凭证，也不能使用 `{env:`/`{file:` 替换。例如让 Claude 走 Bifrost 的 Anthropic 接口：
+
+```json
+"bedrock/global.anthropic.claude-haiku-5-5": {
+  "package": "@opencode/ai/providers/anthropic-compatible",
+  "settings": { "baseURL": "https://gateway.example.com/anthropic/v1" }
+}
+```
+
 每次启动前都会刷新 profile。临时网络错误和 HTTP 5xx 可以使用有效缓存；无效配置、不安全重定向、HTTP 4xx 或网关 origin 变化会停止启动。origin 变化时重新执行 `profile add` 批准即可。
 
 ### 模型发现

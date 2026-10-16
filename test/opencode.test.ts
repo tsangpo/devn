@@ -34,19 +34,25 @@ test('OpenCode profile validates native model metadata without accepting executa
     p => { p.opencode = { model: 'gpt-6.1-sol' }; }, p => { p.opencode.models = {}; },
     p => { p.opencode.model = 'missing'; }, p => { p.opencode.models['gpt-6.1-sol'].package = 'evil'; },
     p => { p.opencode.models['gpt-6.1-sol'].settings = { baseURL: 'https://evil.test' }; },
-    p => { p.opencode.models['gpt-6.1-sol'].headers = { Authorization: 'evil' }; },
-    p => { p.opencode.models['gpt-6.1-sol'].limit.context = 0; },
-    p => { p.opencode.models['gpt-6.1-sol'].capabilities = { tools: 'true', input: ['text'], output: ['text'] }; },
-    p => { p.opencode.models['gpt-6.1-sol'].cost = { input: -1, output: 1 }; },
+    p => { p.opencode.models['gpt-6.1-sol'].package = 'opencode-evil-provider'; },
+    p => { p.opencode.models['gpt-6.1-sol'].settings = { apiKey: 'remote-key' }; },
+    p => { p.opencode.models['gpt-6.1-sol'].settings = 'https://bifrost.example.invalid'; },
     p => { p.opencode.models['gpt-6.1-sol'].name = '{file:/tmp/secret}'; },
     p => { p.baseUrl = 'https://gateway.example.test/{file:/tmp/secret}'; },
-    p => { p.opencode.models['gpt-6.1-sol'].modelID = 'bad#variant'; },
     p => { p.opencode.models.constructor = {}; },
     p => { p.opencode.baseUrl = 'http://remote.example.test'; },
   ]) {
     const invalid: any = structuredClone(example); change(invalid);
     assert.throws(() => validateProfile(invalid));
   }
+  // Everything else in a model entry is OpenCode's business and is copied as written.
+  const native: any = structuredClone(example);
+  native.opencode.models['claude-sonnet-5-5'] = {
+    name: 'Sonnet', package: '@opencode/ai/providers/anthropic-compatible',
+    settings: { baseURL: 'https://bifrost.example.invalid/anthropic/v1' },
+    headers: { 'x-team': 'a' }, variants: { high: { thinking: { budgetTokens: 1 } } }, future: true,
+  };
+  assert.deepEqual(validateProfile(structuredClone(native)).opencode!.models!['claude-sonnet-5-5'], native.opencode.models['claude-sonnet-5-5']);
   const old: any = structuredClone(example); delete old.opencode;
   assert.equal(validateProfile(old).opencode, undefined);
   assert.equal(gatewayOrigins(validateProfile(old)).opencode, undefined);
@@ -99,6 +105,8 @@ test('OpenCode launches with private paths, managed gateway, preserved arguments
 test('OpenCode refresh replaces owned provider settings and preserves local customization', t => {
   const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']); mock(f);
   f.a.opencode.models.second = { name: 'Second', modelID: 'upstream/second' };
+  // Model-level settings replace the provider's, so devn adds the key to them.
+  f.a.opencode.models.anthropic = { package: '@opencode/ai/providers/anthropic-compatible', settings: { baseURL: 'https://a.example.test/anthropic/v1' } };
   const profile = path.join(f.home, 'devn/profiles/a/profile.json'); write(profile, f.a);
   assert.equal(f.run(['opencode']).status, 0);
   const file = path.join(f.home, 'devn/profiles/a/opencode/opencode.json');
@@ -116,6 +124,7 @@ test('OpenCode refresh replaces owned provider settings and preserves local cust
   assert.equal(next.providers.bifrost.headers, undefined);
   assert.equal(next.providers.bifrost.package, '@opencode/ai/providers/openai/responses');
   assert.equal(next.providers.bifrost.settings.apiKey, 'rotated-key');
+  assert.equal(next.providers.bifrost.models.anthropic.settings.apiKey, 'rotated-key');
   assert.equal(next.experimental.policies.length, 3);
   delete f.a.opencode.models.second; f.a.opencode.baseUrl = 'https://a.example.test/updated/v1'; write(profile, f.a);
   const result = f.run(['opencode']); assert.equal(result.status, 0, result.stderr);

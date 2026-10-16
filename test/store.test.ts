@@ -207,7 +207,9 @@ test('removal scrubs generated credentials, preserves history, and purge removes
   }));
   await Bun.write(`${root}/codex/history.jsonl`, 'history');
   await Bun.write(`${root}/opencode/opencode.json`, JSON.stringify({
-    providers: { bifrost: { settings: { apiKey: 'secret', baseURL: definition.baseUrl } } },
+    providers: { bifrost: { settings: { apiKey: 'secret', baseURL: definition.baseUrl }, models: {
+      claude: { package: '@opencode/ai/providers/anthropic-compatible', settings: { apiKey: 'secret', baseURL: definition.baseUrl } },
+    } } },
     agents: { custom: { description: 'Local agent' } },
   }));
   await Bun.write(`${root}/opencode/data/opencode/opencode.db`, 'saved sessions');
