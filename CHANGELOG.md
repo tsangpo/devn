@@ -2,7 +2,7 @@
 
 Changes are recorded here before each npm release.
 
-## Unreleased
+## 0.9.2 — 2026-10-26
 
 - Add optional root `telemetry: false` to disable telemetry, error/feedback reporting and OpenTelemetry exports in Codex, Claude Code and OpenCode v2. The policy applies to generated configuration, launch environments and client probes. Older profiles keep their behavior; upgrade devn before publishing this field. Local logs and gateway usage are unaffected.
 
