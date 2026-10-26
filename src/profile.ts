@@ -8,7 +8,8 @@ export const validId = (id: unknown): id is string => typeof id === 'string' && 
 
 export function validateProfile(value: any, localId?: string): Profile {
   requireValue(object(value), 'Profile must be an object.');
-  keys(value, ['version', 'id', 'name', 'baseUrl', 'authUrl', 'auth', 'example', ...clients.map(client => client.id)], 'profile');
+  keys(value, ['version', 'telemetry', 'id', 'name', 'baseUrl', 'authUrl', 'auth', 'example', ...clients.map(client => client.id)], 'profile');
+  requireValue(value.telemetry === undefined || value.telemetry === false, 'Profile telemetry must be false when present.');
   if (value.auth !== undefined) validateBinding(value.auth);
   requireValue(value.version === 1 && (value.id === undefined || validId(value.id)), 'Profile requires version 1 and an optional safe id.');
   requireValue(value.name === undefined || (typeof value.name === 'string' && value.name.trim()), 'Profile name must be nonempty.');

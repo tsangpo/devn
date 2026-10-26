@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { codexTelemetry, codexTelemetryArgs } from './telemetry';
 import type { Profile } from '../types';
 import type { Client, PreparedArgs } from './types';
 import { validateCodex } from './codex-profile';
@@ -50,6 +51,12 @@ function checkArgs(args: string[], profile: Profile): PreparedArgs {
     if (flag === '--config' || flag === '-c' || /^-c[^-].+/.test(arg)) {
       const value = arg.startsWith('--config=') ? arg.slice(9) : (arg.startsWith('-c') && arg.length > 2 ? arg.slice(2) : args[++i]);
       const key = value?.split('=')[0].trim().replaceAll('"', '').replaceAll("'", '');
+      let configRoot = key?.split('.')[0].trim();
+      // Decode TOML quoted/escaped keys and whitespace around dotted keys.
+      try { configRoot = Object.keys(Bun.TOML.parse(`${value?.split('=')[0]}=false`))[0]; } catch {}
+      if (profile.telemetry === false && ['analytics', 'feedback', 'otel'].includes(configRoot ?? '')) {
+        throw new Error('Telemetry config overrides conflict with the project profile.');
+      }
       if (!key || /^(features(?:\.daemon_auto_start)?$|model$|model_provider$|model_providers(?:\.|$)|model_catalog_json$|models(?:\.|$)|profiles?(?:\.|$)|openai_base_url$|chatgpt_base_url$|forced_login_method$|forced_chatgpt_workspace_id$)/.test(key)) {
         throw new Error('Connection/model config overrides conflict with the project profile. Use --model for a listed model.');
       }
@@ -69,6 +76,7 @@ export const codex: Client = {
       const catalog = path.join(dir, 'models.json');
       return {
         managed: {
+          ...(profile.telemetry === false ? codexTelemetry : {}),
           ...(model ? { model } : {}), model_provider: 'bifrost',
           // Gateway model support does not imply hosted OpenAI search support.
           web_search: existing.web_search ?? 'disabled',
@@ -90,6 +98,8 @@ export const codex: Client = {
   },
   prepareLaunch({ profile, root, generated, prepared, env }) {
     const options = ['-c', 'model_provider="bifrost"',
+      // CLI precedence also beats trusted project config. User overrides are checked above.
+      ...(profile.telemetry === false ? codexTelemetryArgs : []),
       ...(profile.codex.models ? ['-c', `model_catalog_json=${JSON.stringify(path.join(root, 'codex', 'models.json'))}`] : []),
       ...(prepared.hasModel || !generated.model ? [] : ['--model', generated.model]),
       // Root option: also keeps the TUI off a shared daemon that is already running.

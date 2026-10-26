@@ -1,3 +1,4 @@
+import { claudeTelemetry } from './telemetry';
 import type { Profile } from '../types';
 import { jsonConfig, type Client, type PreparedArgs } from './types';
 import { claudeDisableableTools, validateClaude } from './claude-profile';
@@ -43,6 +44,7 @@ export const claude: Client = {
         ...(model ? { model } : {}),
         env: {
           ...profile.claude.env,
+          ...(profile.telemetry === false ? claudeTelemetry(existing.env) : {}),
           ANTHROPIC_BASE_URL: endpoint, ANTHROPIC_AUTH_TOKEN: apiKey,
           ANTHROPIC_API_KEY: '', CLAUDE_CODE_USE_BEDROCK: '0', CLAUDE_CODE_USE_VERTEX: '0', CLAUDE_CODE_USE_FOUNDRY: '0',
           ...(profile.claude.modelPicker ? {

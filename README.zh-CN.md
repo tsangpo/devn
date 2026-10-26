@@ -141,3 +141,9 @@ bun run test:binary
 ## 许可证
 
 MIT — Copyright (c) 2026 tsangpo。详见 [LICENSE](LICENSE)。
+
+### 遥测
+
+在 profile 根节点设置 `"telemetry": false`，统一关闭三个客户端的遥测、错误/反馈上报及 OpenTelemetry 导出，包括继承的 OTEL 地址、Claude 反馈调查和 Codex `/feedback`。保留本地日志与 Bifrost 用量统计。通过 devn 启动客户端及探测客户端时生效；已运行的客户端需要重启。策略生效时拒绝 Codex 命令行覆盖遥测配置。该策略针对客户端内置功能，不管理任意第三方插件。
+
+只接受省略或 `false`。省略维持旧行为；移除字段后，各客户端下次启动时移除 devn 管理的遥测设置，不恢复之前被覆盖的值。发布该字段前先升级到支持它的 devn；0.9.1 及更早版本会拒绝该字段。不会自动迁移已保存的 profile。

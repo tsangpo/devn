@@ -77,7 +77,7 @@ test('OpenCode launches with private paths, managed gateway, preserved arguments
   const f = fixture(t); f.init('a'); f.run(['profile', 'use', 'a']); mock(f);
   const prompt = 'spaces and $literal "quotes" 中文';
   const result = f.run(['opencode', 'run', '--model', 'bifrost/gpt-6.1-sol', prompt], { env: {
-    ...f.env, TEST_EXIT: '7', OPENCODE_CONFIG_CONTENT: 'secret override', OPENCODE_DB: '/external.db',
+    ...f.env, TEST_EXIT: '7', OTEL_EXPORTER_OTLP_ENDPOINT: 'http://127.0.0.1:1', OTEL_SDK_DISABLED: 'false', OPENCODE_CONFIG_CONTENT: 'secret override', OPENCODE_DB: '/external.db',
     OPENCODE_CONFIG_DIR: '/external', OPENCODE_CONFIG_PROJECT_DISABLE: '0', OPENCODE_TEST_HOME: '/external',
     OPENAI_API_KEY: 'external', ANTHROPIC_AUTH_TOKEN: 'external', OPENCODE_DISABLE_MOUSE: '1',
   } });
@@ -86,6 +86,8 @@ test('OpenCode launches with private paths, managed gateway, preserved arguments
   const capture = read(f.capture), dir = path.join(f.home, 'devn/profiles/a/opencode');
   assert.deepEqual(capture.args, ['run', '--standalone', '--model', 'bifrost/gpt-6.1-sol', prompt]);
   assert.equal(capture.cwd, f.project);
+  assert.equal(capture.env.OTEL_EXPORTER_OTLP_ENDPOINT, undefined);
+  assert.equal(capture.env.OTEL_SDK_DISABLED, 'true');
   assert.equal(capture.env.OPENCODE_CONFIG_DIR, dir);
   assert.equal(capture.env.OPENCODE_CONFIG_PROJECT_DISABLE, '1');
   for (const key of ['OPENCODE_CONFIG_CONTENT', 'OPENCODE_DB', 'OPENCODE_TEST_HOME', 'OPENAI_API_KEY', 'ANTHROPIC_AUTH_TOKEN']) assert.equal(capture.env[key], undefined);

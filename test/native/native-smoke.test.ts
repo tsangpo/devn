@@ -13,6 +13,8 @@ let home: string;
 let project: string;
 let server: ReturnType<typeof Bun.serve>;
 const requests: { url: string; authorization: string | null; body: Record<string, any> }[] = [];
+let telemetryServer: ReturnType<typeof Bun.serve>;
+let telemetryRequests = 0;
 const children = new Set<ReturnType<typeof Bun.spawn>>();
 const key = 'devn-local-smoke-test-only';
 // Bifrost /v1/models shape: provider-prefixed IDs plus optional metadata.
@@ -86,7 +88,9 @@ async function client(tool, args) {
   const start = requests.length;
   const child = Bun.spawn([process.execPath, `${repo}/bin/devn`, tool, ...args], {
     cwd: project,
-    env: { ...testPlatform.environment(), XDG_CONFIG_HOME: home, DISABLE_TELEMETRY: '1', DISABLE_ERROR_REPORTING: '1', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' },
+    env: { ...testPlatform.environment(), XDG_CONFIG_HOME: home, DISABLE_TELEMETRY: '', DISABLE_ERROR_REPORTING: '',
+      OTEL_EXPORTER_OTLP_ENDPOINT: telemetryServer.url.origin, OTEL_METRIC_EXPORT_INTERVAL: '1',
+      OTEL_BSP_SCHEDULE_DELAY: '1', CLAUDE_CODE_ENABLE_TELEMETRY: '1' },
     stdio: ['ignore', 'pipe', 'pipe'], detached: true,
   });
   children.add(child);
@@ -123,12 +127,14 @@ describe('native clients through the local Bifrost gateway', () => {
     project = `${temp}/project`;
     requests.length = 0;
     server = startGateway();
+    telemetryRequests = 0;
+    telemetryServer = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch() { telemetryRequests++; return Response.json({}); } });
     for (const directory of [repo, project, home + '/devn', repo + '/profiles']) tempFS.mkdirSync(directory, { recursive: true });
     for (const directory of ['src', 'bin']) tempFS.cpSync(tempPath.join(root, directory), tempPath.join(repo, directory), { recursive: true });
     await Bun.write(`${repo}/profiles/example.json`, Bun.file(`${root}/profiles/example.json`));
     await Bun.write(`${repo}/profiles/oauth.example.json`, Bun.file(`${root}/profiles/oauth.example.json`));
     await Bun.write(`${repo}/package.json`, Bun.file(`${root}/package.json`));
-    await Bun.write(`${repo}/profiles/smoke.json`, JSON.stringify({ version: 1, id: 'smoke', name: 'Smoke', baseUrl: `http://127.0.0.1:${server.port}`, codex: {}, claude: {} }));
+    await Bun.write(`${repo}/profiles/smoke.json`, JSON.stringify({ version: 1, telemetry: false, id: 'smoke', name: 'Smoke', baseUrl: `http://127.0.0.1:${server.port}`, codex: {}, claude: {} }));
     await Bun.write(`${home}/devn/config.toml`, Bun.TOML.stringify({ version: 3, profiles: { smoke: { url: `http://127.0.0.1:${server.port}/profile.json`, key, origins: { codex: `http://127.0.0.1:${server.port}`, claude: `http://127.0.0.1:${server.port}` } } }, projects: { [realpathSync.native(project)]: 'smoke' } }));
     const { platform } = await import('../../src/platform');
     platform.privateFile(home + '/devn/config.toml');
@@ -139,6 +145,8 @@ describe('native clients through the local Bifrost gateway', () => {
     await Promise.all([...children].map(child => child.exited));
     children.clear();
     await server?.stop(true);
+    await telemetryServer?.stop(true);
+    expect(telemetryRequests).toBe(0);
     if (temp) tempFS.rmSync(temp, { recursive: true, force: true });
   });
 

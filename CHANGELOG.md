@@ -2,6 +2,10 @@
 
 Changes are recorded here before each npm release.
 
+## Unreleased
+
+- Add optional root `telemetry: false` to disable telemetry, error/feedback reporting and OpenTelemetry exports in Codex, Claude Code and OpenCode v2. The policy applies to generated configuration, launch environments and client probes. Older profiles keep their behavior; upgrade devn before publishing this field. Local logs and gateway usage are unaffected.
+
 ## 0.9.1 — 2026-10-16
 
 - Add optional `claude.disabledTools` to remote profiles (only `WebSearch` for now). devn adds the names to `permissions.deny` in the generated Claude Code settings, keeps the user's other deny rules, and removes the names again when the profile drops them. Claude Code's WebSearch needs Anthropic's server-side search, which a gateway routing to Bedrock, OpenAI or Gemini never runs. Upgrade devn before publishing the field; older releases reject it.

@@ -9,6 +9,9 @@ import { platform } from '../../src/platform';
 // Explicit opt-in suite: installed OpenCode v2, local gateway, dummy credentials.
 test('OpenCode v2 uses the isolated catalog, bearer key, upstream model and Responses', { timeout: 120000 }, async t => {
   const f = fixture(t);
+  let telemetryRequests = 0;
+  const telemetryServer = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch() { telemetryRequests++; return Response.json({}); } });
+  t.after(() => { telemetryServer.stop(true); assert.equal(telemetryRequests, 0); });
   const requests: { url: string; key: string | null; body: any }[] = [];
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
     const url = new URL(req.url).pathname;
@@ -48,7 +51,7 @@ test('OpenCode v2 uses the isolated catalog, bearer key, upstream model and Resp
 
   async function client(args: string[]) {
     const child = f.start(['opencode', ...args], { env: {
-      ...f.env, OPENCODE_CONFIG_CONTENT: JSON.stringify(conflicting), OPENCODE_DB: '/must-not-use.db',
+      ...f.env, OTEL_EXPORTER_OTLP_ENDPOINT: telemetryServer.url.origin, OTEL_BSP_SCHEDULE_DELAY: '1', OPENCODE_CONFIG_CONTENT: JSON.stringify(conflicting), OPENCODE_DB: '/must-not-use.db',
     } });
     const timer = setTimeout(() => child.kill('SIGKILL'), 45000);
     t.after(() => child.kill('SIGKILL'));

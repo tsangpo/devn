@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { codexTelemetryArgs } from './telemetry';
 import { platform } from '../platform';
 import { privateDir } from '../files';
 import type { Environment } from '../platform/types';
@@ -10,10 +11,10 @@ export type CatalogSource = { id: string; name?: string; description?: string; c
 
 // Codex refuses catalog entries without its agent instructions and tool settings. Those
 // come from the catalog bundled with the installed binary, never from the gateway.
-export function bundledCodexCatalog(root: string, inherited: Environment): CodexModel[] {
+export function bundledCodexCatalog(root: string, inherited: Environment, telemetry?: false): CodexModel[] {
   privateDir(path.join(root, 'codex'));
   const env = codexClaudeEnvironment(root, inherited);
-  const argv = platform.resolveCommand(codexCommand, ['debug', 'models', '--bundled'], env);
+  const argv = platform.resolveCommand(codexCommand, [...(telemetry === false ? codexTelemetryArgs : []), 'debug', 'models', '--bundled'], env);
   let models: unknown;
   try {
     const result = Bun.spawnSync(argv, { env, stdin: 'ignore', stdout: 'pipe', stderr: 'ignore', timeout: 15000 });

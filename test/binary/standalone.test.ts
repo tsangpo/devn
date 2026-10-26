@@ -46,7 +46,7 @@ test('release archive runs outside the source tree with no Bun on PATH', async (
         origins: { codex: 'http://127.0.0.1:1', claude: 'http://127.0.0.1:1', opencode: 'http://127.0.0.1:1' } } },
     }));
     await Bun.write(home + '/devn/profiles/smoke/profile.json', JSON.stringify({
-      version: 1, id: 'smoke', baseUrl: 'http://127.0.0.1:1', codex: {}, claude: {}, opencode: { model: 'coding', models: { coding: {} } },
+      version: 1, telemetry: false, id: 'smoke', baseUrl: 'http://127.0.0.1:1', codex: {}, claude: {}, opencode: { model: 'coding', models: { coding: {} } },
     }));
     // The gateway is unreachable, so model discovery falls back to this cached list.
     await Bun.write(home + '/devn/profiles/smoke/models.json', JSON.stringify({ version: 1, models: [{ id: 'cached/model' }] }));
@@ -54,7 +54,8 @@ test('release archive runs outside the source tree with no Bun on PATH', async (
     expect(Bun.TOML.parse(await Bun.file(home + '/devn/config.toml').text()).projects[realpathSync.native(project)]).toBe('smoke');
     for (const tool of ['codex', 'claude']) {
       await writeStandalone(path.join(bin, tool), `
-if (process.argv.slice(2).join(' ') === 'debug models --bundled') {
+if (process.env.OTEL_SDK_DISABLED !== 'true') throw new Error('Telemetry policy missing');
+if (process.argv.slice(-3).join(' ') === 'debug models --bundled') {
   console.log(JSON.stringify({ models: [{ slug: 'gpt-test', display_name: 'GPT', description: 'Bundled', visibility: 'list', base_instructions: 'Bundled' }] }));
   process.exit(0);
 }
@@ -74,6 +75,7 @@ process.exit(7);
       expect(lines.at(-1)).toBe('prompt with spaces and $literal');
     }
     await writeStandalone(path.join(bin, 'opencode'), `
+if (process.env.OTEL_SDK_DISABLED !== 'true') throw new Error('Telemetry policy missing');
 if (process.argv[2] === '--version') { console.log('2.0.21'); process.exit(0); }
 console.log(process.env.OPENCODE_CONFIG_DIR);
 console.log(JSON.stringify(process.argv.slice(2)));
@@ -87,8 +89,12 @@ process.exit(7);
     const openCodeConfig = await Bun.file(home + '/devn/profiles/smoke/opencode/opencode.json').json();
     expect(openCodeConfig.providers.bifrost.settings.apiKey).toBe('standalone-dummy-key');
     const codex = Bun.TOML.parse(await Bun.file(home + '/devn/profiles/smoke/codex/config.toml').text()) as any;
+    expect(codex.analytics.enabled).toBe(false);
+    expect(codex.otel.exporter).toBe('none');
     expect(codex.model_providers.bifrost.experimental_bearer_token).toBe('standalone-dummy-key');
     const claude = await Bun.file(home + '/devn/profiles/smoke/claude/settings.json').json();
+    expect(claude.env.DISABLE_TELEMETRY).toBe('1');
+    expect(claude.env.CLAUDE_CODE_ENABLE_TELEMETRY).toBe('0');
     expect(claude.env.ANTHROPIC_AUTH_TOKEN).toBe('standalone-dummy-key');
   } finally {
     rmSync(temp, { recursive: true, force: true });

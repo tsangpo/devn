@@ -42,9 +42,9 @@ function fixture(t) {
   }
   for (const tool of ['codex', 'claude']) {
     testPlatform.writeExecutable(path.join(bin, tool), `const fs=require('node:fs'), path=require('node:path');
-if(process.argv.slice(2).join(' ')==='debug models --bundled'){console.log(JSON.stringify(${JSON.stringify(bundledCatalog)}));process.exit(0);}
+if(process.argv.slice(-3).join(' ')==='debug models --bundled'){console.log(JSON.stringify(${JSON.stringify(bundledCatalog)}));process.exit(0);}
 fs.writeFileSync(process.env.TEST_CAPTURE, JSON.stringify({
-  tool:${JSON.stringify(tool)}, args:process.argv.slice(2), cwd:process.cwd(),
+  env:process.env, tool:${JSON.stringify(tool)}, args:process.argv.slice(2), cwd:process.cwd(),
   codex:process.env.CODEX_HOME, claude:process.env.CLAUDE_CONFIG_DIR,
   oldOpenai:process.env.OPENAI_API_KEY, oldAnthropic:process.env.ANTHROPIC_AUTH_TOKEN,
   oldBedrock:process.env.CLAUDE_CODE_USE_BEDROCK,

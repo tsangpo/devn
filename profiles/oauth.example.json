@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "telemetry": false,
   "id": "oauth-example",
   "name": "Platform OAuth example",
   "example": true,

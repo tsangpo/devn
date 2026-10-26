@@ -5,6 +5,7 @@ import { readLimitedJson, Unavailable } from './download';
 import { validateProfile } from './profile';
 import { lockProfile } from './store';
 import type { CodexModel } from './clients/codex-profile';
+import { disableTelemetry } from './clients/telemetry';
 import { bundledCodexCatalog, codexCatalog } from './clients/codex-catalog';
 import type { OpenCodeModel } from './clients/opencode-profile';
 import type { LocalConfig, Profile, Tool } from './types';
@@ -178,8 +179,9 @@ export function withDiscoveredModels(profile: Profile, models: DiscoveredModel[]
 }
 
 // Probe the installed Codex with the same isolated environment its launch uses.
-export function codexBundledCatalog(id: string): CodexModel[] {
+export function codexBundledCatalog(id: string, telemetry?: false): CodexModel[] {
   const env = { ...process.env };
   for (const client of clients) client.clearEnvironment?.(env);
-  return bundledCodexCatalog(profileDir(id), env);
+  if (telemetry === false) disableTelemetry(env);
+  return bundledCodexCatalog(profileDir(id), env, telemetry);
 }

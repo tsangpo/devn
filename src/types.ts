@@ -9,7 +9,7 @@ export type ClientProfiles = {
   opencode?: OpenCodeProfile;
 };
 export type Profile = ClientProfiles & {
-  version: 1; id: string; name: string; baseUrl: string; authUrl?: string; auth?: OAuthBinding; example?: boolean;
+  version: 1; telemetry?: false; id: string; name: string; baseUrl: string; authUrl?: string; auth?: OAuthBinding; example?: boolean;
 };
 export type OAuthBinding = { type: 'oauth2'; issuer: string; clientId: string; resource: string };
 export type Tool = keyof ClientProfiles;

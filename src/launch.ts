@@ -2,6 +2,7 @@ import { clients, getClient } from './clients';
 import { profileDir } from './files';
 import { prepareConfig } from './store';
 import type { Profile, Tool } from './types';
+import { disableTelemetry } from './clients/telemetry';
 import { platform } from './platform';
 
 export async function launch(profile: Profile, tool: Tool, args: string[], apiKey: string): Promise<number> {
@@ -11,6 +12,7 @@ export async function launch(profile: Profile, tool: Tool, args: string[], apiKe
   const generated = await prepareConfig(profile, tool, apiKey);
   const env = { ...process.env };
   for (const entry of clients) entry.clearEnvironment?.(env);
+  if (profile.telemetry === false) disableTelemetry(env);
   const result = client.prepareLaunch({ profile, root: profileDir(profile.id), generated, prepared, env });
   if (result.kind === 'output') {
     console.log(result.text);

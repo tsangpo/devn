@@ -52,7 +52,7 @@ async function dispatch(config: LocalConfig, args: string[]): Promise<number> {
     const { profile } = await refreshProfile(entry.id);
     const key = await syncCredentials(entry.id);
     const models = await discoverModels(profile, args[0], entry, key);
-    const bundled = args[0] === 'codex' && models.length && !profile.codex.models ? codexBundledCatalog(profile.id) : undefined;
+    const bundled = args[0] === 'codex' && models.length && !profile.codex.models ? codexBundledCatalog(profile.id, profile.telemetry) : undefined;
     return launch(withDiscoveredModels(profile, models, bundled), args[0], args.slice(1), key);
   }
   if (args[0] !== 'profile') throw new Error('Unknown command. Run devn --help.');
