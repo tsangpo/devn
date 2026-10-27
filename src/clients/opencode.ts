@@ -1,18 +1,23 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { jsonConfig, type Client } from './types';
+
 import { openCodeModels, validateOpenCode } from './opencode-profile';
 import { openCodeArgs, openCodeCommand, openCodeEnvironment } from './opencode-runtime';
+import { type Client, jsonConfig } from './types';
 
 export const opencode: Client = {
-  id: 'opencode', required: false, label: 'OpenCode',
-  help: 'Refresh profile and start OpenCode v2', gatewayPath: 'openai/v1',
+  id: 'opencode',
+  required: false,
+  label: 'OpenCode',
+  help: 'Refresh profile and start OpenCode v2',
+  gatewayPath: 'openai/v1',
   helpNotes: `OpenCode uses a private server and profile-only configuration. External servers,
 directory overrides, service/pair/serve, auth/api and installation management are unsupported.
 Supported: run, mini, models, session, stats, debug, acp, mcp, plugin, reload.`,
   validateProfile(value, baseUrl) {
     validateOpenCode(value, baseUrl);
-    if (/\{(?:env|file):/.test(baseUrl)) throw new Error('OpenCode gateway URLs must not contain configuration substitutions.');
+    if (/\{(?:env|file):/.test(baseUrl))
+      throw new Error('OpenCode gateway URLs must not contain configuration substitutions.');
   },
   models(profile) {
     if (!profile.opencode) throw new Error('Add an opencode section to the remote profile first.');
@@ -20,54 +25,91 @@ Supported: run, mini, models, session, stats, debug, acp, mcp, plugin, reload.`,
     return { ids, defaultModel: ids && `bifrost/${profile.opencode.model}` };
   },
   config: {
-    ...jsonConfig, filename: 'opencode.json', replacePaths: ['providers.bifrost'],
+    ...jsonConfig,
+    filename: 'opencode.json',
+    replacePaths: ['providers.bifrost'],
     checkFiles(dir) {
       if (fs.existsSync(path.join(dir, 'opencode.jsonc'))) {
-        throw new Error('Use the profile opencode.json for local settings; opencode.jsonc would override managed configuration.');
+        throw new Error(
+          'Use the profile opencode.json for local settings; opencode.jsonc would override managed configuration.',
+        );
       }
     },
     build({ profile, endpoint, apiKey, existing, model }) {
-      if (existing.plugins !== undefined && !Array.isArray(existing.plugins)) throw new Error('Invalid OpenCode plugins.');
+      if (existing.plugins !== undefined && !Array.isArray(existing.plugins))
+        throw new Error('Invalid OpenCode plugins.');
       const policies = existing.experimental?.policies;
-      if (policies !== undefined && !Array.isArray(policies)) throw new Error('Invalid OpenCode policies.');
+      if (policies !== undefined && !Array.isArray(policies))
+        throw new Error('Invalid OpenCode policies.');
       return {
         managed: {
           ...(model ? { model } : {}),
-          providers: { bifrost: {
-            // v2.0.20 bundles this entry; openai-compatible/responses is not in its native loader.
-            name: 'Bifrost', package: '@opencode/ai/providers/openai/responses',
-            env: [], settings: { baseURL: endpoint, apiKey },
-            // Model settings replace the provider's, so models with their own settings need the key too.
-            models: profile.opencode!.models && Object.fromEntries(Object.entries(profile.opencode!.models)
-              .map(([id, m]) => [id, m.settings ? { ...m, settings: { ...m.settings, apiKey } } : m])),
-          } },
-          plugins: [...(existing.plugins || []).filter((p: unknown) => p !== '-opencode.config.compatibility'), '-opencode.config.compatibility'],
-          experimental: { policies: [
-            ...(policies || []).filter((p: any) => p?.action !== 'provider.use'),
-            { action: 'provider.use', resource: '*', effect: 'deny' },
-            { action: 'provider.use', resource: 'bifrost', effect: 'allow' },
-          ] },
+          providers: {
+            bifrost: {
+              // v2.0.20 bundles this entry; openai-compatible/responses is not in its native loader.
+              name: 'Bifrost',
+              package: '@opencode/ai/providers/openai/responses',
+              env: [],
+              settings: { baseURL: endpoint, apiKey },
+              // Model settings replace the provider's, so models with their own settings need the key too.
+              models:
+                profile.opencode!.models &&
+                Object.fromEntries(
+                  Object.entries(profile.opencode!.models).map(([id, m]) => [
+                    id,
+                    m.settings ? { ...m, settings: { ...m.settings, apiKey } } : m,
+                  ]),
+                ),
+            },
+          },
+          plugins: [
+            ...(existing.plugins || []).filter(
+              (p: unknown) => p !== '-opencode.config.compatibility',
+            ),
+            '-opencode.config.compatibility',
+          ],
+          experimental: {
+            policies: [
+              ...(policies || []).filter((p: any) => p?.action !== 'provider.use'),
+              { action: 'provider.use', resource: '*', effect: 'deny' },
+              { action: 'provider.use', resource: 'bifrost', effect: 'allow' },
+            ],
+          },
         },
         files: [
           { name: 'service.json', data: { disabled: true } },
-          { name: 'cli.json', ifMissing: true, data: { $schema: 'https://opencode.ai/v2/cli.json', theme: { name: 'system' } } },
+          {
+            name: 'cli.json',
+            ifMissing: true,
+            data: { $schema: 'https://opencode.ai/v2/cli.json', theme: { name: 'system' } },
+          },
         ],
       };
     },
     scrub(config) {
       delete config.providers?.bifrost?.settings?.apiKey;
-      for (const model of Object.values<any>(config.providers?.bifrost?.models || {})) delete model?.settings?.apiKey;
+      for (const model of Object.values<any>(config.providers?.bifrost?.models || {}))
+        delete model?.settings?.apiKey;
     },
   },
   checkArgs: openCodeArgs,
   prepareLaunch({ profile, root, prepared, env }) {
     const isolated = openCodeEnvironment(root, env);
-    if (prepared.model) isolated.OPENCODE_CONFIG_CONTENT = JSON.stringify({ model: prepared.model });
+    if (prepared.model)
+      isolated.OPENCODE_CONFIG_CONTENT = JSON.stringify({ model: prepared.model });
     const command = openCodeCommand(isolated);
     // The private server may return an empty catalog before plugins finish loading.
     // Preserve version probing even when displaying the approved manifest locally.
-    if (prepared.args[0] === 'models' && prepared.args.slice(1).every(arg => ['--standalone', '--print-logs'].includes(arg))) {
-      return { kind: 'output', text: openCodeModels(profile.opencode)!.sort((a, b) => a.localeCompare(b)).join('\n') };
+    if (
+      prepared.args[0] === 'models' &&
+      prepared.args.slice(1).every((arg) => ['--standalone', '--print-logs'].includes(arg))
+    ) {
+      return {
+        kind: 'output',
+        text: openCodeModels(profile.opencode)!
+          .sort((a, b) => a.localeCompare(b))
+          .join('\n'),
+      };
     }
     return { kind: 'process', command, args: prepared.args, env: isolated };
   },

@@ -23,12 +23,12 @@ Most image and prompt-cache problems come from that translation.
 Run a release that keeps Anthropic `image`, `tool_use`, `tool_result` and `cache_control`
 blocks on the Bedrock route. Older releases drop them silently:
 
-| Symptom | Fixed in |
-|---|---|
+| Symptom                                                                           | Fixed in             |
+| --------------------------------------------------------------------------------- | -------------------- |
 | `image`, `tool_use` and `tool_result` blocks dropped; the model cannot see images | v1.6.8 (core v1.7.6) |
-| `cache_control` lost on content blocks and tool definitions | same release line |
-| `cache_control` lost when any message's content is a plain string | core v1.10.0 |
-| `Stream idle timeout` on long tool arguments | core v1.11.2 |
+| `cache_control` lost on content blocks and tool definitions                       | same release line    |
+| `cache_control` lost when any message's content is a plain string                 | core v1.10.0         |
+| `Stream idle timeout` on long tool arguments                                      | core v1.11.2         |
 
 ### Request headers
 
@@ -94,13 +94,13 @@ tier borrows another one. With both Opus and Sonnet, `opusplan` is added first a
 default (see "Model discovery" in the README).
 Unknown fields reject the profile.
 
-| Field | Description |
-|---|---|
-| `baseUrl` | Overrides the default `<baseUrl>/anthropic`. Must be HTTPS (except loopback) with no query. |
+| Field         | Description                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| `baseUrl`     | Overrides the default `<baseUrl>/anthropic`. Must be HTTPS (except loopback) with no query.       |
 | `modelPicker` | Models shown in `/model`. `replaceBuiltInOptions` must be `true` and `options` must not be empty. |
-| `model` | Default model. Must appear in `modelPicker.options`. |
-| `slots` | Models for the `opus`, `sonnet` and `haiku` tiers. Each must reference a listed model. |
-| `env` | Claude Code gateway switches, limited to the allowlist below. |
+| `model`       | Default model. Must appear in `modelPicker.options`.                                              |
+| `slots`       | Models for the `opus`, `sonnet` and `haiku` tiers. Each must reference a listed model.            |
+| `env`         | Claude Code gateway switches, limited to the allowlist below.                                     |
 
 `model` and `slots` require `modelPicker`. `env` can be used on its own.
 
@@ -108,12 +108,12 @@ Unknown fields reject the profile.
 
 Each entry in `modelPicker.options`:
 
-| Field | Description |
-|---|---|
-| `model` | Model ID sent to the gateway. Must be unique and contain no whitespace. |
-| `label` | Display name. Required. |
-| `description` | Optional description. |
-| `behavesAs` | Optional Anthropic model ID this entry corresponds to. |
+| Field         | Description                                                             |
+| ------------- | ----------------------------------------------------------------------- |
+| `model`       | Model ID sent to the gateway. Must be unique and contain no whitespace. |
+| `label`       | Display name. Required.                                                 |
+| `description` | Optional description.                                                   |
+| `behavesAs`   | Optional Anthropic model ID this entry corresponds to.                  |
 
 Notes:
 
@@ -134,13 +134,13 @@ Notes:
 Names and values are fixed enumerations; anything else rejects the profile. A profile
 cannot set gateway URLs, credentials, custom headers or request-body overrides.
 
-| Name | Values | Use |
-|---|---|---|
-| `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` | `1` | Stop pre-release beta headers and their body fields (`defer_loading`, `context_management` and others). Removes the 400 when Bifrost does not forward the matching beta headers. |
-| `CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS` | `1` | Drop only the structured-output format field, keeping other pre-release capabilities. |
-| `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING` | `0`, `1` | Whether tool inputs stream as they are generated. Off by default behind a custom base URL. |
-| `CLAUDE_CODE_PROMPT_CACHE_TTL` | `5m`, `1h` | Prompt cache lifetime for the main conversation. |
-| `CLAUDE_CODE_GATEWAY_HINT_HEADERS` | `0`, `1` | Send `x-claude-code-*` routing hint headers to the gateway. |
+| Name                                             | Values     | Use                                                                                                                                                                              |
+| ------------------------------------------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS`         | `1`        | Stop pre-release beta headers and their body fields (`defer_loading`, `context_management` and others). Removes the 400 when Bifrost does not forward the matching beta headers. |
+| `CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS`         | `1`        | Drop only the structured-output format field, keeping other pre-release capabilities.                                                                                            |
+| `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING` | `0`, `1`   | Whether tool inputs stream as they are generated. Off by default behind a custom base URL.                                                                                       |
+| `CLAUDE_CODE_PROMPT_CACHE_TTL`                   | `5m`, `1h` | Prompt cache lifetime for the main conversation.                                                                                                                                 |
+| `CLAUDE_CODE_GATEWAY_HINT_HEADERS`               | `0`, `1`   | Send `x-claude-code-*` routing hint headers to the gateway.                                                                                                                      |
 
 Notes:
 
@@ -204,15 +204,15 @@ See [example.json](example.json) for a complete profile.
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| 400 `Extra inputs are not permitted` | Beta header filtered while its body field is forwarded | Forward the beta header in Bifrost, or set `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` |
-| Model cannot see images | Bifrost dropped `image` or `tool_result` blocks | Upgrade Bifrost |
-| High `input_tokens` every turn, no cache reads | `cache_control` dropped, or system/messages rewritten | Upgrade Bifrost; disable plugins that rewrite request bodies |
-| Request headers rejected | Allowed Headers too narrow | Set it to `*` or add the missing headers |
-| Streaming fails, non-streaming works | Missing `bedrock:InvokeModelWithResponseStream` | Add the IAM action |
-| Model not found, or provider cannot be resolved | Model ID has no deployment or is not in the key's `models` | Check the deployment mapping and allowlist |
-| `Stream idle timeout` during long tool calls | Tool arguments buffered into one burst | Upgrade Bifrost |
+| Symptom                                         | Cause                                                      | Fix                                                                                 |
+| ----------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 400 `Extra inputs are not permitted`            | Beta header filtered while its body field is forwarded     | Forward the beta header in Bifrost, or set `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` |
+| Model cannot see images                         | Bifrost dropped `image` or `tool_result` blocks            | Upgrade Bifrost                                                                     |
+| High `input_tokens` every turn, no cache reads  | `cache_control` dropped, or system/messages rewritten      | Upgrade Bifrost; disable plugins that rewrite request bodies                        |
+| Request headers rejected                        | Allowed Headers too narrow                                 | Set it to `*` or add the missing headers                                            |
+| Streaming fails, non-streaming works            | Missing `bedrock:InvokeModelWithResponseStream`            | Add the IAM action                                                                  |
+| Model not found, or provider cannot be resolved | Model ID has no deployment or is not in the key's `models` | Check the deployment mapping and allowlist                                          |
+| `Stream idle timeout` during long tool calls    | Tool arguments buffered into one burst                     | Upgrade Bifrost                                                                     |
 
 ## References
 

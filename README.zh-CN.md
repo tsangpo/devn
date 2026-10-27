@@ -106,13 +106,13 @@ key 只发送到已批准的 `baseUrl` origin，不跟随重定向。网关不�
 
 `claude.env` 可选，用于设置 Claude Code 面向网关的兼容开关。只接受下表中的名称和取值，其他内容会使 profile 校验失败。默认使用最新版 Claude Code。
 
-| 名称 | 取值 | 用途 |
-|---|---|---|
-| `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` | `1` | 上游（如 Bedrock）以 `Extra inputs are not permitted` 拒绝请求时，停止发送预发布 beta 头及配套字段（`defer_loading`、`context_management`）。同时关闭 MCP tool search。 |
-| `CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS` | `1` | 只去掉结构化输出的 format 字段。 |
-| `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING` | `0`、`1` | 经网关流式传输工具参数；自定义 base URL 下默认关闭。 |
-| `CLAUDE_CODE_PROMPT_CACHE_TTL` | `5m`、`1h` | 主对话的 prompt cache 有效期。 |
-| `CLAUDE_CODE_GATEWAY_HINT_HEADERS` | `0`、`1` | 向网关发送 `x-claude-code-*` 路由提示头。 |
+| 名称                                             | 取值       | 用途                                                                                                                                                                    |
+| ------------------------------------------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS`         | `1`        | 上游（如 Bedrock）以 `Extra inputs are not permitted` 拒绝请求时，停止发送预发布 beta 头及配套字段（`defer_loading`、`context_management`）。同时关闭 MCP tool search。 |
+| `CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS`         | `1`        | 只去掉结构化输出的 format 字段。                                                                                                                                        |
+| `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING` | `0`、`1`   | 经网关流式传输工具参数；自定义 base URL 下默认关闭。                                                                                                                    |
+| `CLAUDE_CODE_PROMPT_CACHE_TTL`                   | `5m`、`1h` | 主对话的 prompt cache 有效期。                                                                                                                                          |
+| `CLAUDE_CODE_GATEWAY_HINT_HEADERS`               | `0`、`1`   | 向网关发送 `x-claude-code-*` 路由提示头。                                                                                                                               |
 
 从 profile 中删除某个名称后，下次启动会从生成的配置中移除它。发布 `claude.env` 前请先升级 devn：旧版本会拒绝该字段。
 

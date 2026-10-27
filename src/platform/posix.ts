@@ -1,7 +1,8 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
 import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import type { ClientCommand, Platform } from './types';
 
 export function privateDir(dir: string): void {
@@ -29,21 +30,33 @@ export function atomicWrite(file: string, content: string, mode = 0o600): void {
   }
 }
 
-
-
-export async function runAttached({ name: command }: ClientCommand, args: string[], env: Record<string, string | undefined>): Promise<number> {
+export async function runAttached(
+  { name: command }: ClientCommand,
+  args: string[],
+  env: Record<string, string | undefined>,
+): Promise<number> {
   let child;
   try {
     child = Bun.spawn([command, ...args], {
-      env, stdio: ['inherit', 'inherit', 'inherit'],
+      env,
+      stdio: ['inherit', 'inherit', 'inherit'],
     });
   } catch (error: any) {
-    throw new Error(error.code === 'ENOENT' ? `${command} is not installed or not on PATH.` : `Cannot start ${command} (${error.code || 'unknown error'}).`);
+    throw new Error(
+      error.code === 'ENOENT'
+        ? `${command} is not installed or not on PATH.`
+        : `Cannot start ${command} (${error.code || 'unknown error'}).`,
+    );
   }
   let stopping = false;
   const signals = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const;
-  const handlers = signals.map(signal => {
-    const handler = () => { if (!stopping) { stopping = true; child.kill(signal); } };
+  const handlers = signals.map((signal) => {
+    const handler = () => {
+      if (!stopping) {
+        stopping = true;
+        child.kill(signal);
+      }
+    };
     process.on(signal, handler);
     return handler;
   });
@@ -56,21 +69,28 @@ export async function runAttached({ name: command }: ClientCommand, args: string
 }
 
 export const posix: Platform = {
-  hasDesktop: () => !process.env.SSH_CONNECTION && !process.env.SSH_TTY &&
+  hasDesktop: () =>
+    !process.env.SSH_CONNECTION &&
+    !process.env.SSH_TTY &&
     (os.type() === 'Darwin' || Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY)),
   async openBrowser(url) {
-    const child = Bun.spawn([os.type() === 'Darwin' ? 'open' : 'xdg-open', url], { stdio: ['ignore', 'ignore', 'ignore'] });
-    if (await child.exited !== 0) throw new Error('Cannot open browser.');
+    const child = Bun.spawn([os.type() === 'Darwin' ? 'open' : 'xdg-open', url], {
+      stdio: ['ignore', 'ignore', 'ignore'],
+    });
+    if ((await child.exited) !== 0) throw new Error('Cannot open browser.');
   },
   defaultConfigRoot: () => path.join(os.homedir(), '.config'),
-  privateDir, privateFile, atomicWrite, runAttached,
+  privateDir,
+  privateFile,
+  atomicWrite,
+  runAttached,
   resolveCommand: ({ name: command }, args, env) => {
     const entry = Bun.which(command, { PATH: env.PATH });
     if (!entry) throw new Error(`${command} is not installed or not on PATH.`);
     return [entry, ...args];
   },
-  projectPath: dir => fs.realpathSync.native(dir),
-  storedProjectPath: dir => dir,
-  profileIdentity: id => id,
+  projectPath: (dir) => fs.realpathSync.native(dir),
+  storedProjectPath: (dir) => dir,
+  profileIdentity: (id) => id,
   validProfileName: () => true,
 };

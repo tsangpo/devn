@@ -106,13 +106,13 @@ If you publish a central model list, use the native format and map its IDs to re
 
 `claude.env` optionally sets Claude Code compatibility switches for the gateway. Only these names and values are accepted; anything else rejects the profile. The latest Claude Code release is assumed.
 
-| Name | Values | Use |
-|---|---|---|
-| `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` | `1` | Stop pre-release beta headers and their body fields (`defer_loading`, `context_management`) when the upstream, such as Bedrock, rejects them with `Extra inputs are not permitted`. Also turns off MCP tool search. |
-| `CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS` | `1` | Drop only the structured-output format field. |
-| `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING` | `0`, `1` | Stream tool inputs through the gateway; off by default behind a custom base URL. |
-| `CLAUDE_CODE_PROMPT_CACHE_TTL` | `5m`, `1h` | Prompt cache lifetime for the main conversation. |
-| `CLAUDE_CODE_GATEWAY_HINT_HEADERS` | `0`, `1` | Send `x-claude-code-*` routing hints to the gateway. |
+| Name                                             | Values     | Use                                                                                                                                                                                                                 |
+| ------------------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS`         | `1`        | Stop pre-release beta headers and their body fields (`defer_loading`, `context_management`) when the upstream, such as Bedrock, rejects them with `Extra inputs are not permitted`. Also turns off MCP tool search. |
+| `CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS`         | `1`        | Drop only the structured-output format field.                                                                                                                                                                       |
+| `CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING` | `0`, `1`   | Stream tool inputs through the gateway; off by default behind a custom base URL.                                                                                                                                    |
+| `CLAUDE_CODE_PROMPT_CACHE_TTL`                   | `5m`, `1h` | Prompt cache lifetime for the main conversation.                                                                                                                                                                    |
+| `CLAUDE_CODE_GATEWAY_HINT_HEADERS`               | `0`, `1`   | Send `x-claude-code-*` routing hints to the gateway.                                                                                                                                                                |
 
 Removing a name from the profile removes it from the generated settings on the next launch. Upgrade devn before publishing `claude.env`: older releases reject the field.
 

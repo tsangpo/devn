@@ -1,5 +1,5 @@
-import type { CodexProfile } from './clients/codex-profile';
 import type { ClaudeProfile } from './clients/claude-profile';
+import type { CodexProfile } from './clients/codex-profile';
 import type { OpenCodeProfile } from './clients/opencode-profile';
 
 // The wire format remains explicit: existing v1 profiles require Codex and Claude.
@@ -9,7 +9,14 @@ export type ClientProfiles = {
   opencode?: OpenCodeProfile;
 };
 export type Profile = ClientProfiles & {
-  version: 1; telemetry?: false; id: string; name: string; baseUrl: string; authUrl?: string; auth?: OAuthBinding; example?: boolean;
+  version: 1;
+  telemetry?: false;
+  id: string;
+  name: string;
+  baseUrl: string;
+  authUrl?: string;
+  auth?: OAuthBinding;
+  example?: boolean;
 };
 export type OAuthBinding = { type: 'oauth2'; issuer: string; clientId: string; resource: string };
 export type Tool = keyof ClientProfiles;
@@ -27,4 +34,9 @@ export type LocalConfig = {
 };
 
 export type SessionRef = { id: string; auth: OAuthBinding };
-export type OAuthCredentials = { key: string; auth: OAuthBinding; sessionId: string; revision: string };
+export type OAuthCredentials = {
+  key: string;
+  auth: OAuthBinding;
+  sessionId: string;
+  revision: string;
+};

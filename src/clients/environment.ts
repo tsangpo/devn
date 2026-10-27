@@ -1,4 +1,5 @@
 import path from 'node:path';
+
 import type { Environment } from '../platform/types';
 
 // Both launchers historically expose these two private homes. Keep that contract
@@ -15,6 +16,6 @@ export function codexClaudeEnvironment(root: string, inherited: Environment): En
 export function clearEnvironment(env: Environment, names: string[], prefixes: string[] = []): void {
   for (const key of Object.keys(env)) {
     const name = key.toUpperCase();
-    if (names.includes(name) || prefixes.some(prefix => name.startsWith(prefix))) delete env[key];
+    if (names.includes(name) || prefixes.some((prefix) => name.startsWith(prefix))) delete env[key];
   }
 }

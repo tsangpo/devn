@@ -1,13 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { clients, getClient } from './clients';
+import type { ConfigData as Data } from './clients/types';
 import { atomicWrite, privateDir, privateFile, profileDir, readJson, writeJson } from './files';
 import { endpoint } from './profile';
 import type { Profile, Tool } from './types';
-import { clients, getClient } from './clients';
-import type { ConfigData as Data } from './clients/types';
 
 type KeyPath = string[];
-const isObject = (value: any): value is Data => value !== null && typeof value === 'object' && !Array.isArray(value);
+const isObject = (value: any): value is Data =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
 
 function paths(value: Data, replacePaths: string[], prefix: string[] = []): KeyPath[] {
   return Object.entries(value).flatMap(([key, item]) => {
@@ -18,7 +20,8 @@ function paths(value: Data, replacePaths: string[], prefix: string[] = []): KeyP
   });
 }
 function deleteAt(value: Data, keys: KeyPath): void {
-  if (!keys.length || keys.some(k => ['__proto__', 'constructor', 'prototype'].includes(k))) return;
+  if (!keys.length || keys.some((k) => ['__proto__', 'constructor', 'prototype'].includes(k)))
+    return;
   let cursor = value;
   for (const key of keys.slice(0, -1)) {
     if (!isObject(cursor[key])) return;
@@ -29,7 +32,8 @@ function deleteAt(value: Data, keys: KeyPath): void {
 function merge(existing: Data, managed: Data): Data {
   const result = structuredClone(existing);
   for (const [key, value] of Object.entries(managed)) {
-    if (['__proto__', 'constructor', 'prototype'].includes(key)) throw new Error('Unsafe configuration key.');
+    if (['__proto__', 'constructor', 'prototype'].includes(key))
+      throw new Error('Unsafe configuration key.');
     result[key] = isObject(value) && isObject(result[key]) ? merge(result[key], value) : value;
   }
   return result;
@@ -44,12 +48,18 @@ function readConfig(file: string, tool: Tool): Data {
     return value;
   } catch {
     // Never include parser exceptions: they can quote the embedded API key.
-    throw new Error(`Invalid ${tool} configuration at ${file}. Repair it before launching; no files were overwritten.`);
+    throw new Error(
+      `Invalid ${tool} configuration at ${file}. Repair it before launching; no files were overwritten.`,
+    );
   }
 }
 
 // Caller holds the profile lock and has rechecked the approved binding and key.
-export async function generateConfig(profile: Profile, tool: Tool, apiKey: string): Promise<{ file: string; model?: string }> {
+export async function generateConfig(
+  profile: Profile,
+  tool: Tool,
+  apiKey: string,
+): Promise<{ file: string; model?: string }> {
   const root = profileDir(profile.id);
   privateDir(root);
   const client = getClient(tool);
@@ -60,13 +70,21 @@ export async function generateConfig(profile: Profile, tool: Tool, apiKey: strin
   const file = path.join(dir, client.config.filename);
   const existing = readConfig(file, tool);
   const { ids, defaultModel } = client.models(profile);
-  const model = ids
-    ? (ids.includes(existing.model) ? existing.model : defaultModel)
-    : undefined;
-  const { managed, files = [] } = client.config.build({ profile, dir, endpoint: endpoint(profile, tool), apiKey, existing, model });
+  const model = ids ? (ids.includes(existing.model) ? existing.model : defaultModel) : undefined;
+  const { managed, files = [] } = client.config.build({
+    profile,
+    dir,
+    endpoint: endpoint(profile, tool),
+    apiKey,
+    existing,
+    model,
+  });
   const manifest = path.join(dir, '.devn-managed.json');
   const prior = fs.existsSync(manifest) ? readJson(manifest) : { paths: [] };
-  if (!Array.isArray(prior.paths) || !prior.paths.every((p: any) => Array.isArray(p) && p.every((k: any) => typeof k === 'string'))) {
+  if (
+    !Array.isArray(prior.paths) ||
+    !prior.paths.every((p: any) => Array.isArray(p) && p.every((k: any) => typeof k === 'string'))
+  ) {
     throw new Error(`Invalid ownership metadata at ${manifest}.`);
   }
   const ownedPaths = paths(managed, client.config.replacePaths);
@@ -76,8 +94,11 @@ export async function generateConfig(profile: Profile, tool: Tool, apiKey: strin
   }
   const output = merge(existing, managed);
   let serialized: string;
-  try { serialized = client.config.serialize(output) + '\n'; }
-  catch { throw new Error(`Cannot serialize ${tool} configuration; no configuration was written.`); }
+  try {
+    serialized = client.config.serialize(output) + '\n';
+  } catch {
+    throw new Error(`Cannot serialize ${tool} configuration; no configuration was written.`);
+  }
   for (const extra of files) {
     const target = path.join(dir, extra.name);
     if (!extra.ifMissing || !fs.existsSync(target)) writeJson(target, extra.data);
@@ -93,7 +114,7 @@ export async function scrubCredentials(id: string, invalidate = false): Promise<
   for (const client of clients) {
     const tool = client.id;
     const file = path.join(profileDir(id), tool, client.config.filename);
-    if (!await Bun.file(file).exists()) continue;
+    if (!(await Bun.file(file).exists())) continue;
     privateFile(file);
     try {
       const text = await Bun.file(file).text();
@@ -102,7 +123,10 @@ export async function scrubCredentials(id: string, invalidate = false): Promise<
       client.config.scrub(config);
       updates.push({ file, content: client.config.serialize(config) });
     } catch {
-      if (!invalidate) throw new Error(`Cannot safely remove credentials from ${tool} configuration. Repair it or use --purge.`);
+      if (!invalidate)
+        throw new Error(
+          `Cannot safely remove credentials from ${tool} configuration. Repair it or use --purge.`,
+        );
       // An invalidated or replaced credential must not survive in a malformed generated config.
       // Histories remain separate; do not create a backup containing the secret.
       fs.rmSync(file);

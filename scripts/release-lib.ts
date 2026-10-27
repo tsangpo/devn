@@ -2,11 +2,14 @@ import { version } from '../package.json';
 
 export { version };
 export const repository = 'tsangpo/devn';
-import { targets, platforms as allPlatforms, type Platform } from './platform';
+import { type Platform, platforms as allPlatforms, targets } from './platform';
 // Windows remains supported through Bun/npm, but standalone binary releases are macOS/Linux only.
-export const platforms = allPlatforms.filter(platform => platform !== 'windows-x64') as Platform[];
+export const platforms = allPlatforms.filter(
+  (platform) => platform !== 'windows-x64',
+) as Platform[];
 export type { Platform } from './platform';
-export const archiveName = (platform: Platform) => 'devn-v' + version + '-' + platform + targets[platform].extension;
+export const archiveName = (platform: Platform) =>
+  'devn-v' + version + '-' + platform + targets[platform].extension;
 export const assetNames = () => ['devn.tgz', ...platforms.map(archiveName)];
 
 export function releaseTag(tag = process.env.RELEASE_TAG): string {
@@ -31,13 +34,16 @@ export function shouldPromoteRelease(latest: string, next = 'v' + version): bool
   return true;
 }
 
-export async function digest(file: string, algorithm: 'sha256' | 'sha512' = 'sha256'): Promise<string> {
+export async function digest(
+  file: string,
+  algorithm: 'sha256' | 'sha512' = 'sha256',
+): Promise<string> {
   return new Bun.CryptoHasher(algorithm).update(await Bun.file(file).arrayBuffer()).digest('hex');
 }
 
 export async function verifyArchive(file: string): Promise<string> {
   const expected = (await Bun.file(file + '.sha256').text()).trim();
-  if (!/^[a-f0-9]{64}$/.test(expected) || expected !== await digest(file)) {
+  if (!/^[a-f0-9]{64}$/.test(expected) || expected !== (await digest(file))) {
     throw new Error('Release archive checksum mismatch: ' + file);
   }
   return expected;
@@ -63,18 +69,36 @@ export function formula(hashes: Record<string, string>): string {
       const name = archiveName((os + '-' + arch) as Platform);
       const hash = hashes[name];
       if (!/^[a-f0-9]{64}$/.test(hash || '')) throw new Error('Missing checksum for ' + name);
-      lines.push('    on_' + (arch === 'arm64' ? 'arm' : 'intel') + ' do',
-        '      url "https://github.com/' + repository + '/releases/download/v' + version + '/' + name + '"',
-        '      sha256 "' + hash + '"', '    end');
+      lines.push(
+        '    on_' + (arch === 'arm64' ? 'arm' : 'intel') + ' do',
+        '      url "https://github.com/' +
+          repository +
+          '/releases/download/v' +
+          version +
+          '/' +
+          name +
+          '"',
+        '      sha256 "' + hash + '"',
+        '    end',
+      );
     }
     lines.push('  end');
   }
-  lines.push('', '  def install', '    bin.install "devn"', '  end', '', '  test do',
+  lines.push(
+    '',
+    '  def install',
+    '    bin.install "devn"',
+    '  end',
+    '',
+    '  test do',
     '    assert_equal version.to_s, shell_output("#{bin}/devn --version").strip',
     '    assert_match "devn profile add", shell_output("#{bin}/devn --help")',
     '    ENV["XDG_CONFIG_HOME"] = (testpath/"config").to_s',
     '    assert_match "No profiles registered", shell_output("#{bin}/devn profile list")',
-    '  end', 'end', '');
+    '  end',
+    'end',
+    '',
+  );
   return lines.join('\n');
 }
 

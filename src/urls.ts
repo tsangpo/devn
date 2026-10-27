@@ -4,12 +4,22 @@ export function secureURL(value: unknown): URL {
   try {
     if (typeof value !== 'string') throw new Error();
     url = new URL(value);
-  } catch { throw new Error('Expected an absolute HTTPS URL.'); }
-  const loopback = url.hostname === 'localhost' || url.hostname === '[::1]' ||
+  } catch {
+    throw new Error('Expected an absolute HTTPS URL.');
+  }
+  const loopback =
+    url.hostname === 'localhost' ||
+    url.hostname === '[::1]' ||
     /^127(?:\.\d{1,3}){3}$/.test(url.hostname);
-  if (url.username || url.password || url.hash ||
-      !(url.protocol === 'https:' || (url.protocol === 'http:' && loopback))) {
-    throw new Error('URLs require HTTPS (HTTP is allowed only for loopback), without credentials or fragments.');
+  if (
+    url.username ||
+    url.password ||
+    url.hash ||
+    !(url.protocol === 'https:' || (url.protocol === 'http:' && loopback))
+  ) {
+    throw new Error(
+      'URLs require HTTPS (HTTP is allowed only for loopback), without credentials or fragments.',
+    );
   }
   return url;
 }

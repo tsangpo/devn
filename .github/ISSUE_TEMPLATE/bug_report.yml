@@ -3,7 +3,7 @@ description: Report a reproducible CLI problem using dummy data.
 body:
   - type: markdown
     attributes:
-      value: "For security vulnerabilities use the private reporting channel in SECURITY.md. Never attach real keys, config.toml, prompts, or customer data."
+      value: 'For security vulnerabilities use the private reporting channel in SECURITY.md. Never attach real keys, config.toml, prompts, or customer data.'
   - type: input
     id: version
     attributes:

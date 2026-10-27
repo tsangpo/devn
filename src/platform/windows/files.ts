@@ -1,6 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+
 import { powershell } from './system';
 
 // Construct a new protected DACL: neither inherited nor unrelated explicit grants survive.
@@ -41,8 +42,11 @@ function rejectLinks(file: string): void {
   let current = path.resolve(file);
   while (true) {
     try {
-      if (fs.lstatSync(current).isSymbolicLink()) throw new Error('Refusing symlink or junction in private configuration path.');
-    } catch (error: any) { if (error.code !== 'ENOENT') throw error; }
+      if (fs.lstatSync(current).isSymbolicLink())
+        throw new Error('Refusing symlink or junction in private configuration path.');
+    } catch (error: any) {
+      if (error.code !== 'ENOENT') throw error;
+    }
     const parent = path.dirname(current);
     if (parent === current) break;
     current = parent;
@@ -62,8 +66,10 @@ export function privateFile(file: string): void {
 
 export function replaceFile(temp: string, target: string): void {
   for (let attempt = 0; ; attempt++) {
-    try { fs.renameSync(temp, target); return; }
-    catch (error: any) {
+    try {
+      fs.renameSync(temp, target);
+      return;
+    } catch (error: any) {
       if (attempt >= 5 || !['EPERM', 'EBUSY', 'EACCES'].includes(error.code)) throw error;
       Bun.sleepSync(50);
     }
@@ -80,5 +86,7 @@ export function atomicWrite(file: string, content: string): void {
     privateFile(temp);
     fs.writeFileSync(temp, content);
     replaceFile(temp, file);
-  } finally { fs.rmSync(temp, { force: true }); }
+  } finally {
+    fs.rmSync(temp, { force: true });
+  }
 }

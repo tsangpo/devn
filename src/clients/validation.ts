@@ -12,5 +12,8 @@ export function url(value: unknown): void {
   requireValue(!parsed.search, 'baseUrl must not contain a query.');
 }
 export function keys(value: Record<string, any>, allowed: string[], label: string): void {
-  requireValue(Object.keys(value).every(key => allowed.includes(key)), `Unknown field in ${label}.`);
+  requireValue(
+    Object.keys(value).every((key) => allowed.includes(key)),
+    `Unknown field in ${label}.`,
+  );
 }

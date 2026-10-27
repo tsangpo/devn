@@ -1,43 +1,57 @@
-import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+import { describe, test } from 'node:test';
+
+import { claudeCommand } from '../../src/clients/claude';
+import { codexCommand } from '../../src/clients/codex';
 import { acquireLock } from '../../src/files';
-import { fixture } from '../helpers';
-import { testPlatform, prependPath } from '../platform';
 import { windows } from '../../src/platform/windows';
+import { replaceFile } from '../../src/platform/windows/files';
 import { resolveCommand } from '../../src/platform/windows/process';
 import { powershell, powershellCommand } from '../../src/platform/windows/system';
-import { replaceFile } from '../../src/platform/windows/files';
+import { fixture } from '../helpers';
+import { prependPath, testPlatform } from '../platform';
 import { acl } from './fixtures';
-import { codexCommand } from '../../src/clients/codex';
-import { claudeCommand } from '../../src/clients/claude';
 
 describe('Windows runtime', { skip: testPlatform.posix }, () => {
-  test('configuration precedence, private ACLs, and failed protection do not leak writes', async t => {
+  test('configuration precedence, private ACLs, and failed protection do not leak writes', async (t) => {
     const f = fixture(t);
     const script = path.join(f.dir, 'probe.ts');
-    await Bun.write(script, `import {configHome} from ${JSON.stringify(path.join(f.repo, 'src/files.ts'))}; console.log(configHome());`);
+    await Bun.write(
+      script,
+      `import {configHome} from ${JSON.stringify(path.join(f.repo, 'src/files.ts'))}; console.log(configHome());`,
+    );
     const env = { ...f.env, XDG_CONFIG_HOME: '', LOCALAPPDATA: f.home };
-    const result = Bun.spawnSync([process.execPath, script], { env, stdout: 'pipe', stderr: 'pipe' });
+    const result = Bun.spawnSync([process.execPath, script], {
+      env,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
     assert.equal(result.exitCode, 0, result.stderr.toString());
     assert.equal(result.stdout.toString().trim(), path.join(f.home, 'devn'));
     env.XDG_CONFIG_HOME = path.join(f.dir, 'override');
     const override = Bun.spawnSync([process.execPath, script], { env, stdout: 'pipe' });
     assert.equal(override.stdout.toString().trim(), path.join(env.XDG_CONFIG_HOME, 'devn'));
     const file = path.join(f.dir, 'private', 'key.txt');
-    try { windows.atomicWrite(file, 'dummy-key'); }
-    catch (error: any) { throw new Error(String(error.cause || error.message)); }
+    try {
+      windows.atomicWrite(file, 'dummy-key');
+    } catch (error: any) {
+      throw new Error(String(error.cause || error.message));
+    }
     testPlatform.assertPrivate(file, 0o600);
     testPlatform.assertPrivate(path.dirname(file), 0o700);
-    powershell(`
+    powershell(
+      `
 $p = [Console]::In.ReadToEnd() | ConvertFrom-Json
 $a = Get-Acl -LiteralPath $p.path
 $a.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
   [Security.Principal.SecurityIdentifier]::new('S-1-1-0'), 'Read', 'Allow'))
 (Get-Item -LiteralPath $p.path -Force).SetAccessControl($a)
-`, { path: file });
+`,
+      { path: file },
+    );
     assert.ok(acl(file).sids.includes('S-1-1-0'));
     windows.privateFile(file);
     testPlatform.assertPrivate(file, 0o600);
@@ -46,17 +60,21 @@ $a.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
       process.env.SystemRoot = path.join(f.dir, 'missing-system');
       assert.throws(() => windows.atomicWrite(file, 'replacement-secret'));
       assert.equal(fs.readFileSync(file, 'utf8'), 'dummy-key');
-    } finally { process.env.SystemRoot = oldRoot; }
+    } finally {
+      process.env.SystemRoot = oldRoot;
+    }
     assert.deepEqual(fs.readdirSync(path.dirname(file)), ['key.txt']);
     const link = path.join(f.dir, 'junction');
     fs.symlinkSync(path.dirname(file), link, 'junction');
     assert.throws(() => windows.atomicWrite(path.join(link, 'key.txt'), 'bad'), /junction/);
   });
 
-  test('repeated private writes do not require SeSecurityPrivilege', async t => {
+  test('repeated private writes do not require SeSecurityPrivilege', async (t) => {
     const f = fixture(t);
     const probe = path.join(f.dir, 'unprivileged.ts');
-    await Bun.write(probe, `
+    await Bun.write(
+      probe,
+      `
 import { windows } from ${JSON.stringify(path.join(f.repo, 'src/platform/windows/index.ts'))};
 import { acl } from ${JSON.stringify(path.join(import.meta.dir, 'fixtures.ts'))};
 import assert from 'node:assert/strict';
@@ -73,28 +91,54 @@ try {
     }
   }
 } catch (error) { throw new Error(String(error.cause || error)); }
-`);
-    const child = Bun.spawn([powershellCommand('')[0], '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-      '-File', path.join(import.meta.dir, 'without-security-privilege.ps1')], {
-      stdin: Buffer.from(JSON.stringify({ bun: process.execPath, probe })), stdout: 'pipe', stderr: 'pipe',
-    });
-    const [code, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+`,
+    );
+    const child = Bun.spawn(
+      [
+        powershellCommand('')[0],
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        path.join(import.meta.dir, 'without-security-privilege.ps1'),
+      ],
+      {
+        stdin: Buffer.from(JSON.stringify({ bun: process.execPath, probe })),
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    );
+    const [code, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
     assert.equal(code, 0, stdout + stderr);
   });
 
-  test('rename retries transient sharing violations and preserves old data on exhaustion', async t => {
+  test('rename retries transient sharing violations and preserves old data on exhaustion', async (t) => {
     const f = fixture(t);
     const target = path.join(f.dir, 'target.txt');
     const temp = path.join(f.dir, 'replacement.tmp');
     for (const holdMs of [100, 2000]) {
-      fs.writeFileSync(target, 'original'); fs.writeFileSync(temp, 'replacement');
-      const ready = path.join(f.dir, 'ready'); fs.rmSync(ready, { force: true });
-      const child = Bun.spawn(powershellCommand(`
+      fs.writeFileSync(target, 'original');
+      fs.writeFileSync(temp, 'replacement');
+      const ready = path.join(f.dir, 'ready');
+      fs.rmSync(ready, { force: true });
+      const child = Bun.spawn(
+        powershellCommand(`
 $p = [Console]::In.ReadToEnd() | ConvertFrom-Json
 $f = [IO.File]::Open($p.path, 'Open', 'Read', 'Read')
 try { [IO.File]::WriteAllText($p.ready, 'ready'); Start-Sleep -Milliseconds $p.hold }
 finally { $f.Dispose() }
-`), { stdin: Buffer.from(JSON.stringify({ path: target, ready, hold: holdMs })), stdout: 'pipe', stderr: 'pipe' });
+`),
+        {
+          stdin: Buffer.from(JSON.stringify({ path: target, ready, hold: holdMs })),
+          stdout: 'pipe',
+          stderr: 'pipe',
+        },
+      );
       try {
         const deadline = Date.now() + 10000;
         while (!fs.existsSync(ready) && Date.now() < deadline) await Bun.sleep(10);
@@ -107,37 +151,60 @@ finally { $f.Dispose() }
           assert.equal(fs.readFileSync(target, 'utf8'), 'original');
           assert.equal(fs.readFileSync(temp, 'utf8'), 'replacement');
         }
-      } finally { await child.exited; }
+      } finally {
+        await child.exited;
+      }
     }
   });
 
-  test('live locks serialize writers and dead-owner locks can be recovered', async t => {
+  test('live locks serialize writers and dead-owner locks can be recovered', async (t) => {
     const f = fixture(t);
     const dir = path.join(f.dir, 'locks', 'profile.lock');
     const release = await acquireLock(dir);
     let entered = false;
-    const next = acquireLock(dir).then(unlock => { entered = true; return unlock; });
+    const next = acquireLock(dir).then((unlock) => {
+      entered = true;
+      return unlock;
+    });
     await Bun.sleep(100);
     assert.equal(entered, false);
     release();
     (await next)();
     fs.mkdirSync(dir);
-    fs.writeFileSync(path.join(dir, 'owner.json'), JSON.stringify({ pid: 2147483647, host: os.hostname(), token: 'dead-owner' }));
+    fs.writeFileSync(
+      path.join(dir, 'owner.json'),
+      JSON.stringify({ pid: 2147483647, host: os.hostname(), token: 'dead-owner' }),
+    );
     const recovered = await acquireLock(dir, 5000);
     recovered();
     assert.equal(fs.existsSync(dir), false);
   });
 
-  test('official npm JS and EXE entries preserve arguments without executing wrappers', async t => {
+  test('official npm JS and EXE entries preserve arguments without executing wrappers', async (t) => {
     const f = fixture(t);
-    const args = ['', '中文 空格', 'line1\nline2', '"quoted"', 'C:\\path with spaces\\', '%PATH% ! ^ & | < >', '{"model":"x"}'];
+    const args = [
+      '',
+      '中文 空格',
+      'line1\nline2',
+      '"quoted"',
+      'C:\\path with spaces\\',
+      '%PATH% ! ^ & | < >',
+      '{"model":"x"}',
+    ];
     for (const layout of ['global', 'local']) {
       const root = path.join(f.dir, layout, 'node_modules');
       const bin = layout === 'global' ? path.dirname(root) : path.join(root, '.bin');
       fs.mkdirSync(bin, { recursive: true });
-      const pkg = path.join(root, '@openai', 'codex'); fs.mkdirSync(pkg, { recursive: true });
-      await Bun.write(path.join(pkg, 'package.json'), JSON.stringify({ name: '@openai/codex', bin: { codex: 'cli.mjs' } }));
-      await Bun.write(path.join(pkg, 'cli.mjs'), 'console.log(JSON.stringify(process.argv.slice(2)))');
+      const pkg = path.join(root, '@openai', 'codex');
+      fs.mkdirSync(pkg, { recursive: true });
+      await Bun.write(
+        path.join(pkg, 'package.json'),
+        JSON.stringify({ name: '@openai/codex', bin: { codex: 'cli.mjs' } }),
+      );
+      await Bun.write(
+        path.join(pkg, 'cli.mjs'),
+        'console.log(JSON.stringify(process.argv.slice(2)))',
+      );
       await Bun.write(path.join(bin, 'codex.cmd'), '@echo WRAPPER_MUST_NOT_RUN\r\nexit /b 99');
       const env = prependPath(bin);
       const argv = resolveCommand(codexCommand, args, env);
@@ -146,15 +213,25 @@ finally { $f.Dispose() }
       assert.deepEqual(JSON.parse(result.stdout.toString()), args);
       const onlyBin = { ...env, PATH: bin };
       assert.throws(() => resolveCommand(codexCommand, args, onlyBin), /Node.js/);
-      await Bun.write(path.join(pkg, 'package.json'), JSON.stringify({ name: 'unrelated', bin: { codex: 'cli.mjs' } }));
+      await Bun.write(
+        path.join(pkg, 'package.json'),
+        JSON.stringify({ name: 'unrelated', bin: { codex: 'cli.mjs' } }),
+      );
       assert.throws(() => resolveCommand(codexCommand, args, env), /official npm/);
       const outside = path.join(root, 'outside.mjs');
       await Bun.write(outside, 'throw new Error("OUTSIDE_MUST_NOT_RUN")');
-      await Bun.write(path.join(pkg, 'package.json'), JSON.stringify({ name: '@openai/codex', bin: { codex: '../../outside.mjs' } }));
+      await Bun.write(
+        path.join(pkg, 'package.json'),
+        JSON.stringify({ name: '@openai/codex', bin: { codex: '../../outside.mjs' } }),
+      );
       assert.throws(() => resolveCommand(codexCommand, args, env), /official npm/);
     }
-    const bin = path.join(f.dir, 'native'); fs.mkdirSync(bin);
-    testPlatform.writeExecutable(path.join(bin, 'claude'), 'console.log(JSON.stringify(process.argv.slice(2))); process.exit(7)');
+    const bin = path.join(f.dir, 'native');
+    fs.mkdirSync(bin);
+    testPlatform.writeExecutable(
+      path.join(bin, 'claude'),
+      'console.log(JSON.stringify(process.argv.slice(2))); process.exit(7)',
+    );
     const env = { ...f.env, PATH: bin };
     const result = Bun.spawnSync(resolveCommand(claudeCommand, args, env), { env, stdout: 'pipe' });
     assert.equal(result.exitCode, 7);
@@ -163,35 +240,63 @@ finally { $f.Dispose() }
     await Bun.write(path.join(bin, 'codex.cmd'), '@echo unsupported');
     assert.throws(() => resolveCommand(codexCommand, [], env), /official npm/);
     // The same npm layout can point at a native binary instead of JavaScript.
-    const pkg = path.join(bin, 'node_modules', '@anthropic-ai', 'claude-code'); fs.mkdirSync(pkg, { recursive: true });
+    const pkg = path.join(bin, 'node_modules', '@anthropic-ai', 'claude-code');
+    fs.mkdirSync(pkg, { recursive: true });
     fs.renameSync(path.join(bin, 'claude.exe'), path.join(pkg, 'cli.exe'));
     await Bun.write(path.join(bin, 'claude.cmd'), '@echo WRAPPER_MUST_NOT_RUN');
-    await Bun.write(path.join(pkg, 'package.json'), JSON.stringify({ name: '@anthropic-ai/claude-code', bin: { claude: 'cli.exe' } }));
+    await Bun.write(
+      path.join(pkg, 'package.json'),
+      JSON.stringify({ name: '@anthropic-ai/claude-code', bin: { claude: 'cli.exe' } }),
+    );
     assert.equal(Bun.spawnSync(resolveCommand(claudeCommand, args, env), { env }).exitCode, 7);
-    const openCode = path.join(bin, 'node_modules', '@opencode', 'cli'); fs.mkdirSync(openCode, { recursive: true });
+    const openCode = path.join(bin, 'node_modules', '@opencode', 'cli');
+    fs.mkdirSync(openCode, { recursive: true });
     fs.copyFileSync(path.join(pkg, 'cli.exe'), path.join(openCode, 'opencode.exe'));
-    await Bun.write(path.join(openCode, 'package.json'), JSON.stringify({ name: '@opencode/cli', bin: { opencode: 'opencode.exe', opencode2: 'opencode.exe' } }));
+    await Bun.write(
+      path.join(openCode, 'package.json'),
+      JSON.stringify({
+        name: '@opencode/cli',
+        bin: { opencode: 'opencode.exe', opencode2: 'opencode.exe' },
+      }),
+    );
     for (const command of ['opencode', 'opencode2']) {
       await Bun.write(path.join(bin, command + '.cmd'), '@echo WRAPPER_MUST_NOT_RUN');
-      const launched = Bun.spawnSync(resolveCommand({ name: command, npmPackage: '@opencode/cli' }, args, env), { env, stdout: 'pipe' });
+      const launched = Bun.spawnSync(
+        resolveCommand({ name: command, npmPackage: '@opencode/cli' }, args, env),
+        { env, stdout: 'pipe' },
+      );
       assert.equal(launched.exitCode, 7);
       assert.deepEqual(JSON.parse(launched.stdout.toString()), args);
     }
-    await Bun.write(path.join(openCode, 'package.json'), JSON.stringify({ name: 'unrelated', bin: { opencode: 'opencode.exe' } }));
-    assert.throws(() => resolveCommand({ name: 'opencode', npmPackage: '@opencode/cli' }, args, env), /official npm/);
+    await Bun.write(
+      path.join(openCode, 'package.json'),
+      JSON.stringify({ name: 'unrelated', bin: { opencode: 'opencode.exe' } }),
+    );
+    assert.throws(
+      () => resolveCommand({ name: 'opencode', npmPackage: '@opencode/cli' }, args, env),
+      /official npm/,
+    );
     // The resolver accepts client-owned metadata without another name switch.
     const custom = path.join(bin, 'node_modules', '@devn-test', 'agent');
     fs.mkdirSync(custom, { recursive: true });
     fs.copyFileSync(path.join(pkg, 'cli.exe'), path.join(custom, 'agent.exe'));
-    await Bun.write(path.join(custom, 'package.json'), JSON.stringify({ name: '@devn-test/agent', bin: { agent: 'agent.exe' } }));
+    await Bun.write(
+      path.join(custom, 'package.json'),
+      JSON.stringify({ name: '@devn-test/agent', bin: { agent: 'agent.exe' } }),
+    );
     await Bun.write(path.join(bin, 'agent.cmd'), '@echo WRAPPER_MUST_NOT_RUN');
-    const customRun = Bun.spawnSync(resolveCommand({ name: 'agent', npmPackage: '@devn-test/agent' }, args, env), { env, stdout: 'pipe' });
+    const customRun = Bun.spawnSync(
+      resolveCommand({ name: 'agent', npmPackage: '@devn-test/agent' }, args, env),
+      { env, stdout: 'pipe' },
+    );
     assert.equal(customRun.exitCode, 7);
     assert.deepEqual(JSON.parse(customRun.stdout.toString()), args);
   });
 
-  test('real paths preserve bindings across case and junction aliases and reject name collisions', t => {
-    const f = fixture(t); f.init('a'); f.init('b');
+  test('real paths preserve bindings across case and junction aliases and reject name collisions', (t) => {
+    const f = fixture(t);
+    f.init('a');
+    f.init('b');
     assert.equal(f.run(['profile', 'use', 'a']).status, 0);
     const alternate = f.project.toUpperCase();
     assert.equal(windows.projectPath(alternate), windows.projectPath(f.project));
@@ -202,12 +307,16 @@ finally { $f.Dispose() }
     config.projects = { [f.project]: 'a', [alternate]: 'b' };
     fs.writeFileSync(file, Bun.TOML.stringify(config));
     assert.match(f.run(['profile', 'list']).stderr, /Conflicting project bindings/);
-    config.projects = {}; config.profiles.A = config.profiles.a;
+    config.projects = {};
+    config.profiles.A = config.profiles.a;
     fs.writeFileSync(file, Bun.TOML.stringify(config));
     assert.match(f.run(['profile', 'list']).stderr, /same directory/);
-    for (const name of ['CON', 'nul', 'COM1', 'lpt9']) assert.equal(windows.validProfileName(name), false);
+    for (const name of ['CON', 'nul', 'COM1', 'lpt9'])
+      assert.equal(windows.validProfileName(name), false);
     const unc = '\\\\server\\share\\中文\\project';
-    assert.deepEqual(Bun.TOML.parse(Bun.TOML.stringify({ projects: { [unc]: 'a' } })).projects, { [unc]: 'a' });
+    assert.deepEqual(Bun.TOML.parse(Bun.TOML.stringify({ projects: { [unc]: 'a' } })).projects, {
+      [unc]: 'a',
+    });
     assert.equal(path.win32.dirname('\\\\server\\share\\'), '\\\\server\\share\\');
   });
 });

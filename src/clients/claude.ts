@@ -1,17 +1,23 @@
-import { claudeTelemetry } from './telemetry';
 import type { Profile } from '../types';
-import { jsonConfig, type Client, type PreparedArgs } from './types';
 import { claudeDisableableTools, validateClaude } from './claude-profile';
 import { clearEnvironment, codexClaudeEnvironment } from './environment';
+import { claudeTelemetry } from './telemetry';
+import { type Client, jsonConfig, type PreparedArgs } from './types';
 
 export const claudeCommand = { name: 'claude', npmPackage: '@anthropic-ai/claude-code' };
-const models = (profile: Profile) => ({ ids: profile.claude.modelPicker?.options.map(m => m.model), defaultModel: profile.claude.model });
+const models = (profile: Profile) => ({
+  ids: profile.claude.modelPicker?.options.map((m) => m.model),
+  defaultModel: profile.claude.model,
+});
 
 // devn owns only the disableable tool names in permissions.deny: the user's other rules
 // are kept, and a tool the profile stops disabling is removed.
 function deny(existing: any, disabled: string[] = []) {
   const current = Array.isArray(existing?.permissions?.deny) ? existing.permissions.deny : [];
-  const rules = [...current.filter((rule: unknown) => !claudeDisableableTools.includes(rule as string)), ...disabled];
+  const rules = [
+    ...current.filter((rule: unknown) => !claudeDisableableTools.includes(rule as string)),
+    ...disabled,
+  ];
   return rules.length ? { permissions: { deny: rules } } : {};
 }
 
@@ -23,39 +29,59 @@ function checkArgs(args: string[], profile: Profile): PreparedArgs {
     if (arg === '--') break;
     const flag = arg.split('=')[0];
     if (['--settings', '--setting-sources', '--bare'].includes(flag)) {
-      throw new Error(`${flag} conflicts with the project profile. Use devn profile use to change profiles.`);
+      throw new Error(
+        `${flag} conflicts with the project profile. Use devn profile use to change profiles.`,
+      );
     }
     if (flag === '--model') {
       const value = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
-      if (!value || (ids && !allowed.has(value))) throw new Error(`Model must be one of the claude models in profile ${profile.id}.`);
+      if (!value || (ids && !allowed.has(value)))
+        throw new Error(`Model must be one of the claude models in profile ${profile.id}.`);
     }
   }
   return { args };
 }
 
 export const claude: Client = {
-  id: 'claude', required: true, label: 'Claude',
-  help: 'Refresh profile, update config, and start Claude Code', gatewayPath: 'anthropic',
-  validateProfile: validateClaude, models, checkArgs,
+  id: 'claude',
+  required: true,
+  label: 'Claude',
+  help: 'Refresh profile, update config, and start Claude Code',
+  gatewayPath: 'anthropic',
+  validateProfile: validateClaude,
+  models,
+  checkArgs,
   config: {
-    ...jsonConfig, filename: 'settings.json', replacePaths: ['modelPicker'],
+    ...jsonConfig,
+    filename: 'settings.json',
+    replacePaths: ['modelPicker'],
     build({ profile, endpoint, apiKey, model, existing }) {
-      return { managed: {
-        ...(model ? { model } : {}),
-        env: {
-          ...profile.claude.env,
-          ...(profile.telemetry === false ? claudeTelemetry(existing.env) : {}),
-          ANTHROPIC_BASE_URL: endpoint, ANTHROPIC_AUTH_TOKEN: apiKey,
-          ANTHROPIC_API_KEY: '', CLAUDE_CODE_USE_BEDROCK: '0', CLAUDE_CODE_USE_VERTEX: '0', CLAUDE_CODE_USE_FOUNDRY: '0',
-          ...(profile.claude.modelPicker ? {
-            ANTHROPIC_DEFAULT_SONNET_MODEL: profile.claude.slots?.sonnet || profile.claude.model,
-            ANTHROPIC_DEFAULT_OPUS_MODEL: profile.claude.slots?.opus || profile.claude.model,
-            ANTHROPIC_DEFAULT_HAIKU_MODEL: profile.claude.slots?.haiku || profile.claude.model,
-          } : {}),
+      return {
+        managed: {
+          ...(model ? { model } : {}),
+          env: {
+            ...profile.claude.env,
+            ...(profile.telemetry === false ? claudeTelemetry(existing.env) : {}),
+            ANTHROPIC_BASE_URL: endpoint,
+            ANTHROPIC_AUTH_TOKEN: apiKey,
+            ANTHROPIC_API_KEY: '',
+            CLAUDE_CODE_USE_BEDROCK: '0',
+            CLAUDE_CODE_USE_VERTEX: '0',
+            CLAUDE_CODE_USE_FOUNDRY: '0',
+            ...(profile.claude.modelPicker
+              ? {
+                  ANTHROPIC_DEFAULT_SONNET_MODEL:
+                    profile.claude.slots?.sonnet || profile.claude.model,
+                  ANTHROPIC_DEFAULT_OPUS_MODEL: profile.claude.slots?.opus || profile.claude.model,
+                  ANTHROPIC_DEFAULT_HAIKU_MODEL:
+                    profile.claude.slots?.haiku || profile.claude.model,
+                }
+              : {}),
+          },
+          ...(profile.claude.modelPicker ? { modelPicker: profile.claude.modelPicker } : {}),
+          ...deny(existing, profile.claude.disabledTools),
         },
-        ...(profile.claude.modelPicker ? { modelPicker: profile.claude.modelPicker } : {}),
-        ...deny(existing, profile.claude.disabledTools),
-      } };
+      };
     },
     scrub(config) {
       delete config.env?.ANTHROPIC_AUTH_TOKEN;
@@ -63,9 +89,18 @@ export const claude: Client = {
     },
   },
   clearEnvironment(env) {
-    clearEnvironment(env, ['CLAUDE_CONFIG_DIR', 'CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY'], ['ANTHROPIC_', 'CLAUDE_CODE_USE_']);
+    clearEnvironment(
+      env,
+      ['CLAUDE_CONFIG_DIR', 'CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY'],
+      ['ANTHROPIC_', 'CLAUDE_CODE_USE_'],
+    );
   },
   prepareLaunch({ root, generated, prepared, env }) {
-    return { kind: 'process', command: claudeCommand, args: ['--settings', generated.file, ...prepared.args], env: codexClaudeEnvironment(root, env) };
+    return {
+      kind: 'process',
+      command: claudeCommand,
+      args: ['--settings', generated.file, ...prepared.args],
+      env: codexClaudeEnvironment(root, env),
+    };
   },
 };

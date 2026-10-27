@@ -132,37 +132,37 @@
         "modelID": "bedrock/global.anthropic.claude-opus-5-5",
         "name": "Claude Opus 5.5",
         "limit": { "context": 1000000, "input": 1000000, "output": 128000 },
-        "cost": { "input": 4, "output": 20, "cache": {"read": 0.2, "write": 5} }
+        "cost": { "input": 4, "output": 20, "cache": { "read": 0.2, "write": 5 } }
       },
       "claude-sonnet-5-5": {
         "modelID": "bedrock/global.anthropic.claude-sonnet-5-5",
         "name": "Claude Sonnet 5.5",
         "limit": { "context": 1000000, "input": 1000000, "output": 128000 },
-        "cost": { "input": 2, "output": 10, "cache": {"read": 0.2, "write": 2.5} }
+        "cost": { "input": 2, "output": 10, "cache": { "read": 0.2, "write": 2.5 } }
       },
       "gpt-6-astra": {
         "modelID": "bedrock/global.openai.gpt-6-astra",
         "name": "GPT 6 Astra",
         "limit": { "context": 1050000, "input": 1050000, "output": 128000 },
-        "cost": { "input": 10, "output": 50, "cache": {"read": 1, "write": 12.5} }
+        "cost": { "input": 10, "output": 50, "cache": { "read": 1, "write": 12.5 } }
       },
       "gpt-6-luna": {
         "modelID": "bedrock/global.openai.gpt-6-luna",
         "name": "GPT 6 Luna",
         "limit": { "context": 1050000, "input": 1050000, "output": 128000 },
-        "cost": { "input": 0.1, "output": 0.5, "cache": {"read": 0.01, "write": 0.125} }
+        "cost": { "input": 0.1, "output": 0.5, "cache": { "read": 0.01, "write": 0.125 } }
       },
       "gpt-6.1-sol": {
         "modelID": "bedrock/global.openai.gpt-6.1-sol",
         "name": "GPT 6.1 Sol",
         "limit": { "context": 1050000, "input": 1050000, "output": 128000 },
-        "cost": { "input": 2, "output": 10, "cache": {"read": 0.1, "write": 2.5} }
+        "cost": { "input": 2, "output": 10, "cache": { "read": 0.1, "write": 2.5 } }
       },
       "gemini-3.8-flash": {
         "modelID": "gemini/gemini-3.8-flash",
         "name": "Gemini 3.8 Flash",
         "limit": { "context": 1114112, "input": 1048576, "output": 65536 },
-        "cost": { "input": 0.75, "output": 3.75, "cache": {"read": 0.075} }
+        "cost": { "input": 0.75, "output": 3.75, "cache": { "read": 0.075 } }
       }
     }
   }

@@ -1,10 +1,15 @@
-import type { Profile, Tool } from '../types';
 import type { ClientCommand, Environment } from '../platform/types';
+import type { Profile, Tool } from '../types';
 
 // Native config contains personal settings unknown to devn. Remote sections have
 // separate, explicit types and validators; never copy arbitrary remote fields here.
 export type ConfigData = Record<string, any>;
-export type PreparedArgs = { args: string[]; hasModel?: boolean; model?: string; interactive?: boolean };
+export type PreparedArgs = {
+  args: string[];
+  hasModel?: boolean;
+  model?: string;
+  interactive?: boolean;
+};
 export type ConfigFile = { name: string; data: ConfigData; ifMissing?: boolean };
 export type LaunchResult =
   | { kind: 'process'; command: ClientCommand; args: string[]; env: Environment }
@@ -25,8 +30,16 @@ export interface Client {
     serialize(data: ConfigData): string;
     replacePaths: string[];
     checkFiles?(dir: string): void;
-    build(context: { profile: Profile; dir: string; endpoint: string; apiKey: string; existing: ConfigData; model?: string }): {
-      managed: ConfigData; files?: ConfigFile[];
+    build(context: {
+      profile: Profile;
+      dir: string;
+      endpoint: string;
+      apiKey: string;
+      existing: ConfigData;
+      model?: string;
+    }): {
+      managed: ConfigData;
+      files?: ConfigFile[];
     };
     scrub(data: ConfigData): void;
   };
@@ -34,8 +47,11 @@ export interface Client {
   clearEnvironment?(env: Environment): void;
   checkArgs(args: string[], profile: Profile): PreparedArgs;
   prepareLaunch(context: {
-    profile: Profile; root: string; generated: { file: string; model?: string };
-    prepared: PreparedArgs; env: Environment;
+    profile: Profile;
+    root: string;
+    generated: { file: string; model?: string };
+    prepared: PreparedArgs;
+    env: Environment;
   }): LaunchResult;
 }
 

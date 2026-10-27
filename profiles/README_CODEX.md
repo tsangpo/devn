@@ -31,13 +31,13 @@ client-side `web` namespace tool that Bedrock rejects with a namespace collision
 
 Run v2.2.0 or later. That release contains the fixes Codex on Bedrock depends on:
 
-| Behavior | Why it matters |
-|---|---|
-| Bedrock runtime models that serve the Responses API are routed to it instead of Converse | Codex requests reach Bedrock in their native format |
-| Codex's `functions` tool namespace is unwrapped to top-level tools | Codex 0.147 and later wraps its tools in a namespace Bedrock rejects |
-| Namespace tools named `web`, `image_gen`, `browser` or `python` are dropped on Bedrock paths | These names are reserved on Bedrock and otherwise cause a 400 |
-| Images inside tool results are hoisted on the Converse path | OpenAI models on Converse reject images nested in a tool result |
-| Mid-conversation system messages are inlined instead of hoisted | Hoisting changed the prompt prefix and broke cache reuse |
+| Behavior                                                                                     | Why it matters                                                       |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Bedrock runtime models that serve the Responses API are routed to it instead of Converse     | Codex requests reach Bedrock in their native format                  |
+| Codex's `functions` tool namespace is unwrapped to top-level tools                           | Codex 0.147 and later wraps its tools in a namespace Bedrock rejects |
+| Namespace tools named `web`, `image_gen`, `browser` or `python` are dropped on Bedrock paths | These names are reserved on Bedrock and otherwise cause a 400        |
+| Images inside tool results are hoisted on the Converse path                                  | OpenAI models on Converse reject images nested in a tool result      |
+| Mid-conversation system messages are inlined instead of hoisted                              | Hoisting changed the prompt prefix and broke cache reuse             |
 
 ### Route to the OpenAI-compatible endpoint
 
@@ -135,11 +135,11 @@ installed Codex's bundled catalog (see "Model discovery" in the README). An ID e
 slug inherits that entry. Other models get Codex's instructions without reasoning levels, so publish
 an explicit `models` list when they need reasoning settings. Unknown fields reject the profile.
 
-| Field | Description |
-|---|---|
+| Field     | Description                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------- |
 | `baseUrl` | Overrides the default `<baseUrl>/openai/v1`. Must be HTTPS (except loopback) with no query. |
-| `models` | Codex-native model catalog entries. Must not be empty when present. |
-| `model` | Default model. Must be the `slug` of a listed entry. Requires `models`. |
+| `models`  | Codex-native model catalog entries. Must not be empty when present.                         |
+| `model`   | Default model. Must be the `slug` of a listed entry. Requires `models`.                     |
 
 When `models` is present, devn writes it to `models.json` in the profile's Codex directory
 and points `model_catalog_json` at it. `--model` then accepts only listed slugs.
@@ -148,14 +148,14 @@ and points `model_catalog_json` at it. `--model` then accepts only listed slugs.
 
 devn checks these fields and passes every other field to Codex unchanged:
 
-| Field | Rule |
-|---|---|
-| `slug` | Required. Unique, with no whitespace. This is the model ID sent to the gateway. |
-| `display_name` | Required. |
-| `description` | Required. |
-| `context_window` | Optional. A positive integer when present. |
+| Field                        | Rule                                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------- |
+| `slug`                       | Required. Unique, with no whitespace. This is the model ID sent to the gateway. |
+| `display_name`               | Required.                                                                       |
+| `description`                | Required.                                                                       |
+| `context_window`             | Optional. A positive integer when present.                                      |
 | `supported_reasoning_levels` | Optional list of `{ "effort", "description" }`. An empty list counts as absent. |
-| `default_reasoning_level` | Optional. Must be one of the listed efforts. |
+| `default_reasoning_level`    | Optional. Must be one of the listed efforts.                                    |
 
 Notes:
 
@@ -240,17 +240,17 @@ repeat the checks after upgrading either one.
 
 ## Troubleshooting
 
-| Symptom | Cause | Fix |
-|---|---|---|
-| 400 naming a namespace collision (`functions`, `web`) | Bifrost forwards Codex namespace tools Bedrock reserves | Upgrade Bifrost to v2.2.0 or later |
-| 400 on an application inference profile | Not supported for Responses on `bedrock-runtime` | Use a `us.` or `global.` system profile |
-| Model not found, or provider cannot be resolved | Slug has no match in the key's `models` | Check the `bedrock/` prefix and the key allowlist |
-| Fallback-metadata warning, early compaction | Model missing from the catalog, or entry incomplete | Publish a complete entry in `codex.models` |
-| Model cannot see images from tools | Request went through Converse without hoisting | Upgrade Bifrost, or route through `use_openai_endpoints` |
-| Request rejected as too large | Base64 images exceed the body limit | Raise `client.max_request_body_size_mb` |
-| No cached tokens after the first turn | Prompt prefix changes between turns | Keep slug, route and instructions stable; upgrade Bifrost |
-| Web search fails | No server-side tools on `bedrock-runtime` | Leave `web_search` disabled |
-| Streaming fails, non-streaming works | Missing `bedrock:InvokeModelWithResponseStream` | Add the IAM action |
+| Symptom                                               | Cause                                                   | Fix                                                       |
+| ----------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------- |
+| 400 naming a namespace collision (`functions`, `web`) | Bifrost forwards Codex namespace tools Bedrock reserves | Upgrade Bifrost to v2.2.0 or later                        |
+| 400 on an application inference profile               | Not supported for Responses on `bedrock-runtime`        | Use a `us.` or `global.` system profile                   |
+| Model not found, or provider cannot be resolved       | Slug has no match in the key's `models`                 | Check the `bedrock/` prefix and the key allowlist         |
+| Fallback-metadata warning, early compaction           | Model missing from the catalog, or entry incomplete     | Publish a complete entry in `codex.models`                |
+| Model cannot see images from tools                    | Request went through Converse without hoisting          | Upgrade Bifrost, or route through `use_openai_endpoints`  |
+| Request rejected as too large                         | Base64 images exceed the body limit                     | Raise `client.max_request_body_size_mb`                   |
+| No cached tokens after the first turn                 | Prompt prefix changes between turns                     | Keep slug, route and instructions stable; upgrade Bifrost |
+| Web search fails                                      | No server-side tools on `bedrock-runtime`               | Leave `web_search` disabled                               |
+| Streaming fails, non-streaming works                  | Missing `bedrock:InvokeModelWithResponseStream`         | Add the IAM action                                        |
 
 ## References
 

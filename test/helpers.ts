@@ -1,8 +1,9 @@
-import { testPlatform, prependPath } from './platform';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync, spawn } from 'node:child_process';
+
+import { prependPath, testPlatform } from './platform';
 const root = path.resolve(__dirname, '..');
 
 function fixture(t) {
@@ -13,7 +14,8 @@ function fixture(t) {
   const project = path.join(dir, 'project with spaces');
   const bin = path.join(dir, 'bin');
   for (const folder of [repo, home, project, bin]) fs.mkdirSync(folder, { recursive: true });
-  for (const folder of ['src', 'bin']) fs.cpSync(path.join(root, folder), path.join(repo, folder), { recursive: true });
+  for (const folder of ['src', 'bin'])
+    fs.cpSync(path.join(root, folder), path.join(repo, folder), { recursive: true });
   fs.cpSync(path.join(root, 'package.json'), path.join(repo, 'package.json'));
   fs.cpSync(path.join(root, 'profiles'), path.join(repo, 'profiles'), { recursive: true });
   const original = JSON.parse(fs.readFileSync(path.join(root, 'profiles/example.json')));
@@ -24,10 +26,16 @@ function fixture(t) {
     if (profile.opencode) delete profile.opencode.baseUrl;
     const codex = profile.codex.models[0];
     codex.slug = profile.codex.model = `${id}/codex-one`;
-    profile.codex.models = [codex, { ...structuredClone(codex), slug: `${id}/codex-two`, display_name: 'Second model' }];
+    profile.codex.models = [
+      codex,
+      { ...structuredClone(codex), slug: `${id}/codex-two`, display_name: 'Second model' },
+    ];
     const claude = profile.claude.modelPicker.options[0];
     claude.model = profile.claude.model = `${id}/claude-one`;
-    profile.claude.modelPicker.options = [claude, { ...structuredClone(claude), model: `${id}/claude-two`, label: 'Second model' }];
+    profile.claude.modelPicker.options = [
+      claude,
+      { ...structuredClone(claude), model: `${id}/claude-two`, label: 'Second model' },
+    ];
     delete profile.claude.slots;
     write(path.join(home, 'devn/profiles', id, 'profile.json'), profile);
     return profile;
@@ -38,10 +46,17 @@ function fixture(t) {
   const env = { ...prependPath(bin), XDG_CONFIG_HOME: home, TEST_CAPTURE: capture };
   // Spawn actual standalone CLIs, not nested node:test/npm lifecycle workers.
   for (const name of Object.keys(env)) {
-    if (name.startsWith('npm_') || name.startsWith('NODE_TEST_') || name.startsWith('NODE_CHANNEL_')) delete env[name];
+    if (
+      name.startsWith('npm_') ||
+      name.startsWith('NODE_TEST_') ||
+      name.startsWith('NODE_CHANNEL_')
+    )
+      delete env[name];
   }
   for (const tool of ['codex', 'claude']) {
-    testPlatform.writeExecutable(path.join(bin, tool), `const fs=require('node:fs'), path=require('node:path');
+    testPlatform.writeExecutable(
+      path.join(bin, tool),
+      `const fs=require('node:fs'), path=require('node:path');
 if(process.argv.slice(-3).join(' ')==='debug models --bundled'){console.log(JSON.stringify(${JSON.stringify(bundledCatalog)}));process.exit(0);}
 fs.writeFileSync(process.env.TEST_CAPTURE, JSON.stringify({
   env:process.env, tool:${JSON.stringify(tool)}, args:process.argv.slice(2), cwd:process.cwd(),
@@ -52,26 +67,43 @@ fs.writeFileSync(process.env.TEST_CAPTURE, JSON.stringify({
 }));
 if(process.env.TEST_WAIT){process.on('SIGINT',()=>process.exit(130));console.log('READY');setInterval(()=>{},1000);}
 else {console.log('TOOL OUTPUT');process.exit(Number(process.env.TEST_EXIT||0));}
-`);
+`,
+    );
   }
   function init(id, key = `secret-${id}`) {
     const file = path.join(home, 'devn/config.toml');
-    const config = fs.existsSync(file) ? Bun.TOML.parse(fs.readFileSync(file, 'utf8')) : { version: 3, profiles: {} };
+    const config = fs.existsSync(file)
+      ? Bun.TOML.parse(fs.readFileSync(file, 'utf8'))
+      : { version: 3, profiles: {} };
     const profile = read(path.join(home, 'devn/profiles', id, 'profile.json'));
-    config.profiles[id] = { url: 'http://127.0.0.1:1/profile.json', key, origins: {
-      codex: new URL(profile.codex.baseUrl || profile.baseUrl).origin,
-      claude: new URL(profile.claude.baseUrl || profile.baseUrl).origin,
-      ...(profile.opencode ? { opencode: new URL(profile.opencode.baseUrl || profile.baseUrl).origin } : {}),
-    } };
+    config.profiles[id] = {
+      url: 'http://127.0.0.1:1/profile.json',
+      key,
+      origins: {
+        codex: new URL(profile.codex.baseUrl || profile.baseUrl).origin,
+        claude: new URL(profile.claude.baseUrl || profile.baseUrl).origin,
+        ...(profile.opencode
+          ? { opencode: new URL(profile.opencode.baseUrl || profile.baseUrl).origin }
+          : {}),
+      },
+    };
     fs.writeFileSync(file, Bun.TOML.stringify(config), { mode: 0o600 });
   }
   function run(args, options = {}) {
     return spawnSync(process.execPath, [path.join(repo, 'bin/devn'), ...args], {
-      cwd: project, env, encoding: 'utf8', timeout: testPlatform.timeout, ...options,
+      cwd: project,
+      env,
+      encoding: 'utf8',
+      timeout: testPlatform.timeout,
+      ...options,
     });
   }
   function start(args, options = {}) {
-    return spawn(process.execPath, [path.join(repo, 'bin/devn'), ...args], { cwd: project, env, ...options });
+    return spawn(process.execPath, [path.join(repo, 'bin/devn'), ...args], {
+      cwd: project,
+      env,
+      ...options,
+    });
   }
   return { dir, repo, home, project, bin, capture, env, a, b, init, run, start, addProfile };
 }
@@ -79,23 +111,42 @@ function write(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(value, null, 2));
 }
-const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
+const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 
 // Minimal stand-in for `codex debug models --bundled`.
-const bundledCatalog = { models: [
-  { slug: 'gpt-test', display_name: 'GPT test', description: 'Bundled', visibility: 'list', priority: 1,
-    base_instructions: 'Bundled instructions', default_reasoning_level: 'medium',
-    supported_reasoning_levels: [{ effort: 'medium', description: 'Balanced' }], service_tiers: [{ id: 'priority' }],
-    context_window: 272000, shell_type: 'unified_exec' },
-  { slug: 'gpt-hidden', display_name: 'Hidden', description: 'Hidden', visibility: 'hide', priority: 0, base_instructions: 'x' },
-] };
+const bundledCatalog = {
+  models: [
+    {
+      slug: 'gpt-test',
+      display_name: 'GPT test',
+      description: 'Bundled',
+      visibility: 'list',
+      priority: 1,
+      base_instructions: 'Bundled instructions',
+      default_reasoning_level: 'medium',
+      supported_reasoning_levels: [{ effort: 'medium', description: 'Balanced' }],
+      service_tiers: [{ id: 'priority' }],
+      context_window: 272000,
+      shell_type: 'unified_exec',
+    },
+    {
+      slug: 'gpt-hidden',
+      display_name: 'Hidden',
+      description: 'Hidden',
+      visibility: 'hide',
+      priority: 0,
+      base_instructions: 'x',
+    },
+  ],
+};
 
 // A Bifrost stand-in in its own process, so synchronous CLI runs cannot block it.
 // Tests edit state.json ({ status, data }) between runs; requests.jsonl records each call.
 function gateway(t, data) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'devn-gateway-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const state = path.join(dir, 'state.json'), log = path.join(dir, 'requests.jsonl');
+  const state = path.join(dir, 'state.json'),
+    log = path.join(dir, 'requests.jsonl');
   write(state, { status: 200, data });
   const script = `const fs=require('node:fs');
 const server=Bun.serve({hostname:'127.0.0.1',port:0,fetch(req){
@@ -108,15 +159,26 @@ const server=Bun.serve({hostname:'127.0.0.1',port:0,fetch(req){
 console.log(server.url.origin);`;
   const child = spawn(process.execPath, ['-e', script], { stdio: ['ignore', 'pipe', 'inherit'] });
   t.after(() => child.kill('SIGKILL'));
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     let out = '';
-    child.stdout.on('data', chunk => {
+    child.stdout.on('data', (chunk) => {
       out += chunk;
-      if (out.includes('\n')) resolve({
-        url: out.trim(),
-        set(value) { write(state, { status: 200, data, ...value }); },
-        requests: () => fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : [],
-      });
+      if (out.includes('\n'))
+        resolve({
+          url: out.trim(),
+          set(value) {
+            write(state, { status: 200, data, ...value });
+          },
+          requests: () =>
+            fs.existsSync(log)
+              ? fs
+                  .readFileSync(log, 'utf8')
+                  .trim()
+                  .split('\n')
+                  .filter(Boolean)
+                  .map((line) => JSON.parse(line))
+              : [],
+        });
     });
   });
 }

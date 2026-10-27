@@ -1,11 +1,24 @@
+import { expect, test } from 'bun:test';
 import * as tempFS from 'node:fs';
 import * as tempOS from 'node:os';
 import * as tempPath from 'node:path';
-import { testPlatform, prependPath } from './platform';
+
 import { $ } from 'bun';
-import { expect, test } from 'bun:test';
-import { archiveName, assertNoDowngrade, assetNames, checkedAssets, digest, formula, platforms, releaseTag, shouldPromoteRelease, version } from '../scripts/release-lib';
+
 import { renderInstaller } from '../scripts/build-installer';
+import {
+  archiveName,
+  assertNoDowngrade,
+  assetNames,
+  checkedAssets,
+  digest,
+  formula,
+  platforms,
+  releaseTag,
+  shouldPromoteRelease,
+  version,
+} from '../scripts/release-lib';
+import { prependPath, testPlatform } from './platform';
 
 test('installer generation pins the release archive and rejects invalid checksums', async () => {
   const hash = 'a'.repeat(64);
@@ -25,9 +38,15 @@ test('installer build verifies its input and writes a reproducible checksummed a
     await Bun.write(archive, 'fixture archive');
     const hash = await digest(archive);
     await Bun.write(archive + '.sha256', hash + '\n');
-    const build = () => Bun.spawnSync([process.execPath, tempPath.resolve(import.meta.dir, '../scripts/build-installer.ts')], {
-      cwd: temp, stdout: 'pipe', stderr: 'pipe',
-    });
+    const build = () =>
+      Bun.spawnSync(
+        [process.execPath, tempPath.resolve(import.meta.dir, '../scripts/build-installer.ts')],
+        {
+          cwd: temp,
+          stdout: 'pipe',
+          stderr: 'pipe',
+        },
+      );
     const result = build();
     expect(result.exitCode, result.stderr.toString()).toBe(0);
     const output = tempPath.join(temp, 'release/install.ps1');
@@ -39,7 +58,9 @@ test('installer build verifies its input and writes a reproducible checksummed a
     await Bun.write(archive, 'tampered archive');
     expect(build().exitCode).not.toBe(0);
     expect(await Bun.file(output).text()).toBe(original);
-  } finally { tempFS.rmSync(temp, { recursive: true, force: true }); }
+  } finally {
+    tempFS.rmSync(temp, { recursive: true, force: true });
+  }
 });
 
 test('release tags must match the stable package version', () => {
@@ -58,7 +79,9 @@ test('Latest promotion compares stable versions numerically and preserves newer 
 });
 
 test('release preparation rejects missing and tampered artifacts', async () => {
-  const temp = tempFS.realpathSync.native(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
+  const temp = tempFS.realpathSync.native(
+    tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')),
+  );
   try {
     await expect(checkedAssets(temp)).rejects.toThrow();
     for (const name of assetNames()) {
@@ -70,7 +93,9 @@ test('release preparation rejects missing and tampered artifacts', async () => {
     const output = formula(hashes);
     expect(output).toContain('bin.install "devn"');
     expect(output).not.toContain('depends_on "bun"');
-    for (const platform of platforms.filter(p => p.startsWith('darwin-') || p.startsWith('linux-'))) {
+    for (const platform of platforms.filter(
+      (p) => p.startsWith('darwin-') || p.startsWith('linux-'),
+    )) {
       const name = archiveName(platform);
       expect(output).toContain('/releases/download/v' + version + '/' + name);
       expect(output).toContain('sha256 "' + hashes[name] + '"');
@@ -91,17 +116,26 @@ test('tap updates compare numeric versions and refuse downgrade or unknown forma
   expect(() => assertNoDowngrade('unrecognized')).toThrow();
 });
 
-test('GitHub staging finds draft releases and resumes without replacing assets', async () => {
-  const temp = tempFS.realpathSync.native(tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')));
-  const root = Bun.fileURLToPath(new URL('../', import.meta.url));
-  try {
-    await $`mkdir -p ${temp + '/release'} ${temp + '/bin'} ${temp + '/remote'}`.quiet();
-    for (const name of assetNames()) {
-      await Bun.write(temp + '/release/' + name, 'dummy ' + name);
-      await Bun.write(temp + '/release/' + name + '.sha256', await digest(temp + '/release/' + name));
-    }
-    await Bun.write(temp + '/release/SHA256SUMS', 'test manifest');
-    testPlatform.writeExecutable(temp + '/bin/gh', `import { readdirSync, copyFileSync, appendFileSync } from 'node:fs';
+test(
+  'GitHub staging finds draft releases and resumes without replacing assets',
+  async () => {
+    const temp = tempFS.realpathSync.native(
+      tempFS.mkdtempSync(tempPath.join(tempOS.tmpdir(), 'devn-test-')),
+    );
+    const root = Bun.fileURLToPath(new URL('../', import.meta.url));
+    try {
+      await $`mkdir -p ${temp + '/release'} ${temp + '/bin'} ${temp + '/remote'}`.quiet();
+      for (const name of assetNames()) {
+        await Bun.write(temp + '/release/' + name, 'dummy ' + name);
+        await Bun.write(
+          temp + '/release/' + name + '.sha256',
+          await digest(temp + '/release/' + name),
+        );
+      }
+      await Bun.write(temp + '/release/SHA256SUMS', 'test manifest');
+      testPlatform.writeExecutable(
+        temp + '/bin/gh',
+        `import { readdirSync, copyFileSync, appendFileSync } from 'node:fs';
 const args = process.argv.slice(2);
 const remote = process.env.MOCK_REMOTE;
 const value = flag => args[args.indexOf(flag) + 1];
@@ -119,33 +153,60 @@ else if (args[1] === 'upload') copyFileSync(args[3], remote + '/' + args[3].spli
 else if (args[1] === 'download') copyFileSync(remote + '/' + value('--pattern'), value('--dir') + '/' + value('--pattern'));
 else if (args[1] === 'edit') appendFileSync(process.env.MOCK_EDITS, JSON.stringify(args) + '\\n');
 else process.exit(99);
-`);
-    const env = { ...prependPath(temp + '/bin'), RELEASE_TAG: 'v' + version, MOCK_REMOTE: temp + '/remote', MOCK_EDITS: temp + '/edits' };
-    const run = async (mode: string, extra: Record<string, string> = {}) => {
-      const child = Bun.spawn([process.execPath, root + '/scripts/publish-github.ts', mode], {
-        cwd: temp, env: { ...env, ...extra }, stdout: 'pipe', stderr: 'pipe',
-      });
-      const timer = setTimeout(() => child.kill('SIGKILL'), 5000);
-      try {
-        const [code, , stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
-        if (code !== 0) throw new Error(stderr || 'Publishing test process failed.');
-      } finally { clearTimeout(timer); }
-    };
-    await run('stage');
-    await run('stage');
-    await run('publish');
-    await run('publish', { MOCK_PUBLISHED: '1' });
-    await run('publish', { MOCK_LATEST_ERROR: 'HTTP 404' });
-    await run('publish', { MOCK_LATEST: 'v999.0.0' });
-    await run('publish', { MOCK_PUBLISHED: '1', MOCK_LATEST: 'v999.0.0' });
-    await expect(run('publish', { MOCK_LATEST_ERROR: 'HTTP 403' })).rejects.toThrow('Cannot inspect latest');
-    const edits = (await Bun.file(temp + '/edits').text()).trim().split('\n').map(line => JSON.parse(line));
-    expect(edits.map(args => args.at(-1))).toEqual(['--latest=true', '--latest=true', '--latest=true', '--latest=false']);
-    expect(await Bun.file(temp + '/remote/devn.tgz').text()).toBe('dummy devn.tgz');
-    await Bun.write(temp + '/remote/devn.tgz', 'different existing asset');
-    await expect(run('stage')).rejects.toThrow();
-    expect(await Bun.file(temp + '/remote/devn.tgz').text()).toBe('different existing asset');
-  } finally {
-    tempFS.rmSync(temp, { recursive: true, force: true });
-  }
-}, testPlatform.timeout);
+`,
+      );
+      const env = {
+        ...prependPath(temp + '/bin'),
+        RELEASE_TAG: 'v' + version,
+        MOCK_REMOTE: temp + '/remote',
+        MOCK_EDITS: temp + '/edits',
+      };
+      const run = async (mode: string, extra: Record<string, string> = {}) => {
+        const child = Bun.spawn([process.execPath, root + '/scripts/publish-github.ts', mode], {
+          cwd: temp,
+          env: { ...env, ...extra },
+          stdout: 'pipe',
+          stderr: 'pipe',
+        });
+        const timer = setTimeout(() => child.kill('SIGKILL'), 5000);
+        try {
+          const [code, , stderr] = await Promise.all([
+            child.exited,
+            new Response(child.stdout).text(),
+            new Response(child.stderr).text(),
+          ]);
+          if (code !== 0) throw new Error(stderr || 'Publishing test process failed.');
+        } finally {
+          clearTimeout(timer);
+        }
+      };
+      await run('stage');
+      await run('stage');
+      await run('publish');
+      await run('publish', { MOCK_PUBLISHED: '1' });
+      await run('publish', { MOCK_LATEST_ERROR: 'HTTP 404' });
+      await run('publish', { MOCK_LATEST: 'v999.0.0' });
+      await run('publish', { MOCK_PUBLISHED: '1', MOCK_LATEST: 'v999.0.0' });
+      await expect(run('publish', { MOCK_LATEST_ERROR: 'HTTP 403' })).rejects.toThrow(
+        'Cannot inspect latest',
+      );
+      const edits = (await Bun.file(temp + '/edits').text())
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      expect(edits.map((args) => args.at(-1))).toEqual([
+        '--latest=true',
+        '--latest=true',
+        '--latest=true',
+        '--latest=false',
+      ]);
+      expect(await Bun.file(temp + '/remote/devn.tgz').text()).toBe('dummy devn.tgz');
+      await Bun.write(temp + '/remote/devn.tgz', 'different existing asset');
+      await expect(run('stage')).rejects.toThrow();
+      expect(await Bun.file(temp + '/remote/devn.tgz').text()).toBe('different existing asset');
+    } finally {
+      tempFS.rmSync(temp, { recursive: true, force: true });
+    }
+  },
+  testPlatform.timeout,
+);

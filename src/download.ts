@@ -18,8 +18,11 @@ export async function readLimitedJson(response: Response, label: string): Promis
   try {
     while (true) {
       let part: ReadableStreamReadResult<Uint8Array>;
-      try { part = await reader.read(); }
-      catch { throw new Unavailable(`${label} download failed or timed out.`); }
+      try {
+        part = await reader.read();
+      } catch {
+        throw new Unavailable(`${label} download failed or timed out.`);
+      }
       if (part.done) break;
       length += part.value.byteLength;
       if (length > MAX_PROFILE_BYTES) throw new Error(`${label} exceeds the 1 MiB download limit.`);
@@ -29,8 +32,11 @@ export async function readLimitedJson(response: Response, label: string): Promis
     await reader.cancel().catch(() => {});
     reader.releaseLock();
   }
-  try { return JSON.parse(await new Blob(chunks).text()); }
-  catch { throw new Error(`${label} server returned invalid JSON.`); }
+  try {
+    return JSON.parse(await new Blob(chunks).text());
+  } catch {
+    throw new Error(`${label} server returned invalid JSON.`);
+  }
 }
 
 export async function downloadProfile(source: string, id: string): Promise<Profile> {
@@ -39,28 +45,43 @@ export async function downloadProfile(source: string, id: string): Promise<Profi
   let response: Response | undefined;
   for (let redirects = 0; redirects <= 5; redirects++) {
     try {
-      response = await fetch(url, { signal, redirect: 'manual', headers: { Accept: 'application/json' } });
-    } catch { throw new Unavailable('Profile server is unavailable or timed out.'); }
+      response = await fetch(url, {
+        signal,
+        redirect: 'manual',
+        headers: { Accept: 'application/json' },
+      });
+    } catch {
+      throw new Unavailable('Profile server is unavailable or timed out.');
+    }
     if (![301, 302, 303, 307, 308].includes(response.status)) break;
     const location = response.headers.get('location');
     await response.body?.cancel();
     if (!location || redirects === 5) throw new Error('Invalid or excessive profile redirects.');
     let next: URL;
-    try { next = secureURL(new URL(location, url).href); }
-    catch { throw new Error('Profile redirect points to an unsafe URL.'); }
-    if (url.protocol === 'https:' && next.protocol !== 'https:') throw new Error('HTTPS profile redirects cannot downgrade to HTTP.');
+    try {
+      next = secureURL(new URL(location, url).href);
+    } catch {
+      throw new Error('Profile redirect points to an unsafe URL.');
+    }
+    if (url.protocol === 'https:' && next.protocol !== 'https:')
+      throw new Error('HTTPS profile redirects cannot downgrade to HTTP.');
     url = next;
   }
   if (!response) throw new Unavailable('Profile server is unavailable.');
   if (!response.ok) {
     await response.body?.cancel();
-    if (response.status >= 500) throw new Unavailable(`Profile server returned HTTP ${response.status}.`);
+    if (response.status >= 500)
+      throw new Unavailable(`Profile server returned HTTP ${response.status}.`);
     throw new Error(`Profile server returned HTTP ${response.status}; launch cancelled.`);
   }
   const value = await readLimitedJson(response, 'Profile');
   let profile: Profile;
-  try { profile = validateProfile(value, id); }
-  catch { throw new Error('Profile server returned an invalid profile definition.'); }
-  if (profile.example) throw new Error('The example profile cannot connect. Publish a real profile first.');
+  try {
+    profile = validateProfile(value, id);
+  } catch {
+    throw new Error('Profile server returned an invalid profile definition.');
+  }
+  if (profile.example)
+    throw new Error('The example profile cannot connect. Publish a real profile first.');
   return profile;
 }
